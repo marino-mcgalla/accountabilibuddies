@@ -1,9 +1,9 @@
 import 'package:firebase_auth/firebase_auth.dart' hide EmailAuthProvider;
 import 'package:firebase_ui_auth/firebase_ui_auth.dart';
 import 'package:flutter/material.dart';
-
-import '../home/home_screen.dart';
-import '../../services/auth_service.dart';
+import 'package:go_router/go_router.dart';
+import '../../widgets/app_scaffold.dart';
+import '../../screens/home/home_screen.dart';
 
 class AuthGate extends StatelessWidget {
   const AuthGate({super.key});
@@ -11,7 +11,7 @@ class AuthGate extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return StreamBuilder<User?>(
-      stream: AuthService().authStateChanges,
+      stream: FirebaseAuth.instance.authStateChanges(),
       builder: (context, snapshot) {
         if (!snapshot.hasData) {
           return Scaffold(
@@ -22,7 +22,9 @@ class AuthGate extends StatelessWidget {
             ),
           );
         }
-        return const HomeScreen();
+
+        // ✅ Wrap HomeScreen inside AppScaffold to fix the missing navigation drawer
+        return const AppScaffold(child: HomeScreen());
       },
     );
   }

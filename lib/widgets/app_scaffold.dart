@@ -1,10 +1,18 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 class AppScaffold extends StatelessWidget {
   final Widget child;
 
   const AppScaffold({super.key, required this.child});
+
+  Future<void> _signOut(BuildContext context) async {
+    await FirebaseAuth.instance.signOut(); // ✅ Actually logs out the user
+    if (context.mounted) {
+      context.go('/'); // ✅ Redirects to AuthGate
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -52,7 +60,7 @@ class AppScaffold extends StatelessWidget {
             ListTile(
               leading: const Icon(Icons.logout),
               title: const Text('Sign Out'),
-              onTap: () => context.go('/sign-in'),
+              onTap: () => _signOut(context), // ✅ Calls Firebase sign-out first
             ),
           ],
         ),

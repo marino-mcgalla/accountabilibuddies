@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'home_screen.dart';
+import 'user_info_screen.dart';
+import 'party_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -91,6 +94,27 @@ class _HomeScreenState extends State<HomeScreen> {
               title: const Text('My Goals'),
               onTap: () => _onItemTapped(1),
             ),
+            ListTile(
+              leading: const Icon(Icons.group),
+              title: const Text('Party'),
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => const PartyScreen()),
+                );
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.person),
+              title: const Text('User Info'),
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                      builder: (context) => const UserInfoScreen()),
+                );
+              },
+            ),
             const Divider(), // Add a divider for better separation
             ListTile(
               leading: const Icon(Icons.logout),
@@ -115,7 +139,6 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget _getSelectedContent() {
     switch (_selectedIndex) {
       case 0:
-        //probably move this code to a separate file, right?
         return Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: <Widget>[
@@ -129,7 +152,6 @@ class _HomeScreenState extends State<HomeScreen> {
           ],
         );
       case 1:
-        //same here, these are the page widgets
         return Text(
           'Pretend all your goals are here',
           style: Theme.of(context).textTheme.headlineMedium,

@@ -1,7 +1,7 @@
-import 'package:auth_test/auth_gate.dart';
-import 'package:auth_test/firebase_options.dart';
-import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'firebase_options.dart';
+import 'routing/app_router.dart'; // Import new router
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -16,13 +16,14 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
+    return MaterialApp.router(
+      // Use router-based navigation
       title: 'Flutter Demo',
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.green),
         useMaterial3: true,
       ),
-      home: const AuthGate(), // Ensure AuthGate navigates to HomeScreen
+      routerConfig: appRouter, // Use the new app router
     );
   }
 }

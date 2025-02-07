@@ -1,4 +1,6 @@
+import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:firebase_ui_auth/firebase_ui_auth.dart';
 import '../screens/auth/auth_gate.dart';
 import '../screens/home/home_screen.dart';
 import '../screens/party/party_screen.dart';
@@ -7,11 +9,22 @@ import '../screens/goals/my_goals_screen.dart';
 import '../widgets/app_scaffold.dart';
 
 final GoRouter appRouter = GoRouter(
-  initialLocation: '/home',
+  initialLocation: '/', // ✅ Start at AuthGate instead of /home
   routes: [
     GoRoute(
       path: '/',
-      builder: (context, state) => const AuthGate(),
+      builder: (context, state) =>
+          const AuthGate(), // ✅ Ensure AuthGate loads first
+    ),
+    GoRoute(
+      path: '/sign-in',
+      builder: (context, state) => Scaffold(
+        body: SignInScreen(
+          providers: [
+            EmailAuthProvider(),
+          ],
+        ),
+      ),
     ),
     GoRoute(
       path: '/home',

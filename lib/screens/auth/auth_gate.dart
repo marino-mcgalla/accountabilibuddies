@@ -4,27 +4,31 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../../widgets/app_scaffold.dart';
 import '../../screens/home/home_screen.dart';
+import '../../services/auth_service.dart'; // Import AuthService
 
 class AuthGate extends StatelessWidget {
   const AuthGate({super.key});
 
   @override
   Widget build(BuildContext context) {
+    final authService = AuthService(); // Create an instance of AuthService
+
     return StreamBuilder<User?>(
       stream: FirebaseAuth.instance.authStateChanges(),
       builder: (context, snapshot) {
-        if (!snapshot.hasData) {
-          return Scaffold(
-            body: SignInScreen(
-              providers: [
-                EmailAuthProvider(),
-              ],
-            ),
-          );
+        if (snapshot.hasData) {
+          // Create Firestore user if new
+          authService.createUserInFirestore(snapshot.data!);
+          return const AppScaffold(child: HomeScreen());
         }
 
-        // ✅ Wrap HomeScreen inside AppScaffold to fix the missing navigation drawer
-        return const AppScaffold(child: HomeScreen());
+        return Scaffold(
+          body: SignInScreen(
+            providers: [
+              EmailAuthProvider(),
+            ],
+          ),
+        );
       },
     );
   }

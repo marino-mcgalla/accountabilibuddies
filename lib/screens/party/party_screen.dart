@@ -10,132 +10,130 @@ class PartyScreen extends StatefulWidget {
 }
 
 class _PartyScreenState extends State<PartyScreen> {
-  final TextEditingController _inviteController = TextEditingController();
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
-  List<String> _members = ["User1", "User2", "User3"]; // Temporary mock data
+  final TextEditingController _partyNameController = TextEditingController();
+
+  String? _partyId;
+  String? _partyName;
+  List<String> _members = [];
+  bool _isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _checkUserPartyStatus();
+  }
+
+  Future<void> _checkUserPartyStatus() async {
+    String currentUserId = _auth.currentUser?.uid ?? "";
+    DocumentSnapshot userDoc =
+        await _firestore.collection('users').doc(currentUserId).get();
+
+    if (userDoc.exists &&
+        userDoc.data() != null &&
+        (userDoc.data() as Map<String, dynamic>).containsKey('partyId')) {
+      String partyId = (userDoc.data() as Map<String, dynamic>)['partyId'];
+      DocumentSnapshot partyDoc =
+          await _firestore.collection('parties').doc(partyId).get();
+
+      if (partyDoc.exists) {
+        setState(() {
+          _partyId = partyId;
+          _partyName = partyDoc['partyName'];
+          _members = List<String>.from(partyDoc['members']);
+          _isLoading = false;
+        });
+      } else {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    } else {
+      setState(() {
+        _isLoading = false;
+      });
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
-    String currentUserId = _auth.currentUser?.uid ?? "";
+    if (_isLoading) {
+      return Scaffold(
+        appBar: AppBar(title: const Text("Party")),
+        body: const Center(child: CircularProgressIndicator()),
+      );
+    }
 
     return Scaffold(
       appBar: AppBar(title: const Text("Party")),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text("Party Members",
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-            const SizedBox(height: 8),
-            ..._members.map((member) => ListTile(
-                  leading: const Icon(Icons.person),
-                  title: Text(member),
-                )),
-            const Divider(),
-            const Text("Invite a User",
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-            const SizedBox(height: 8),
-            Row(
-              children: [
-                Expanded(
-                  child: TextField(
-                    controller: _inviteController,
-                    decoration: const InputDecoration(
-                      labelText: "Enter username or email",
-                      border: OutlineInputBorder(),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                ElevatedButton(
-                  onPressed: _sendInvite,
-                  child: const Text("Invite"),
-                ),
-              ],
-            ),
-            const Divider(),
-            const Text("Pending Outgoing Invites",
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-            const SizedBox(height: 8),
-            StreamBuilder<QuerySnapshot>(
-              stream: _firestore
-                  .collection('invites')
-                  .where('senderId', isEqualTo: currentUserId)
-                  .where('status', isEqualTo: 'pending')
-                  .snapshots(),
-              builder: (context, snapshot) {
-                if (!snapshot.hasData) {
-                  return const Center(child: CircularProgressIndicator());
-                }
-
-                var sentInvites = snapshot.data!.docs;
-
-                if (sentInvites.isEmpty) {
-                  return const Text("No pending outgoing invites.");
-                }
-
-                return Column(
-                  children: sentInvites.map((doc) {
-                    var invite = doc.data() as Map<String, dynamic>;
-                    return ListTile(
-                      leading: const Icon(Icons.send),
-                      title: Text("Sent to ${invite['receiverId']}"),
-                      trailing: ElevatedButton(
-                        onPressed: () => _cancelInvite(doc.id),
-                        child: const Text("Cancel"),
-                      ),
-                    );
-                  }).toList(),
-                );
-              },
-            ),
-            const Divider(),
-            const Text("Pending Incoming Invites",
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-            const SizedBox(height: 8),
-            StreamBuilder<QuerySnapshot>(
-              stream: _firestore
-                  .collection('invites')
-                  .where('receiverId', isEqualTo: currentUserId)
-                  .where('status', isEqualTo: 'pending')
-                  .snapshots(),
-              builder: (context, snapshot) {
-                if (!snapshot.hasData) {
-                  return const Center(child: CircularProgressIndicator());
-                }
-
-                var receivedInvites = snapshot.data!.docs;
-                if (receivedInvites.isEmpty) {
-                  return const Text("No pending incoming invites.");
-                }
-
-                return Column(
-                  children: receivedInvites.map((doc) {
-                    var invite = doc.data() as Map<String, dynamic>;
-                    return ListTile(
-                      leading: const Icon(Icons.hourglass_empty),
-                      title: Text("Invite from ${invite['senderId']}"),
-                      trailing: ElevatedButton(
-                        onPressed: () =>
-                            _acceptInvite(doc.id, invite['partyId']),
-                        child: const Text("Accept"),
-                      ),
-                    );
-                  }).toList(),
-                );
-              },
-            ),
-          ],
-        ),
+        child: _partyId == null
+            ? _buildCreatePartyScreen()
+            : _buildPartyInfoScreen(),
       ),
     );
   }
 
-  Future<String> _createParty() async {
+  Widget _buildCreatePartyScreen() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        TextField(
+          controller: _partyNameController,
+          decoration: const InputDecoration(
+            labelText: "Party Name",
+            border: OutlineInputBorder(),
+          ),
+        ),
+        const SizedBox(height: 20),
+        ElevatedButton(
+          onPressed: _createParty,
+          child: const Text("Create Party"),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildPartyInfoScreen() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text("Party ID: $_partyId"),
+        Text("Party Name: $_partyName"),
+        const SizedBox(height: 20),
+        const Text("Party Members",
+            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+        const SizedBox(height: 8),
+        ..._members.map((member) => ListTile(
+              leading: const Icon(Icons.person),
+              title: Text(member),
+            )),
+        const SizedBox(height: 20),
+        ElevatedButton(
+          onPressed: _leaveParty,
+          child: const Text("Leave Party"),
+        ),
+        ElevatedButton(
+          onPressed: _closeParty,
+          child: const Text("Close Party"),
+        ),
+      ],
+    );
+  }
+
+  Future<void> _createParty() async {
     String currentUserId = _auth.currentUser?.uid ?? "";
+    String partyName = _partyNameController.text.trim();
+
+    if (partyName.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Please enter a party name")),
+      );
+      return;
+    }
 
     DocumentReference partyRef = await _firestore.collection('parties').add({
       'createdBy': currentUserId,
@@ -145,66 +143,60 @@ class _PartyScreenState extends State<PartyScreen> {
 
     String partyId = partyRef.id;
 
+    await partyRef.update({'partyName': partyName});
+
+    setState(() {
+      _partyId = partyId;
+      _partyName = partyName;
+      _members = [currentUserId];
+    });
+
     await _firestore.collection('users').doc(currentUserId).update({
       'partyId': partyId,
     });
 
-    return partyId;
+    _partyNameController.clear();
   }
 
-  void _sendInvite() async {
-    String inviteeEmail = _inviteController.text.trim();
-    if (inviteeEmail.isEmpty) return;
-
-    var usersQuery = await _firestore
-        .collection('users')
-        .where('email', isEqualTo: inviteeEmail)
-        .get();
-
-    if (usersQuery.docs.isEmpty) {
-      ScaffoldMessenger.of(context)
-          .showSnackBar(const SnackBar(content: Text("User not found")));
-      return;
-    }
-
-    String receiverId = usersQuery.docs.first.id;
-    String senderId = _auth.currentUser?.uid ?? "";
-    String partyId = "somePartyId";
-
-    await _firestore.collection('invites').add({
-      'senderId': senderId,
-      'receiverId': receiverId,
-      'partyId': partyId,
-      'status': 'pending',
-      'timestamp': FieldValue.serverTimestamp(),
-    });
-
-    _inviteController.clear();
-  }
-
-  void _acceptInvite(String inviteId, String partyId) async {
+  Future<void> _leaveParty() async {
     String currentUserId = _auth.currentUser?.uid ?? "";
 
-    DocumentReference partyRef = _firestore.collection('parties').doc(partyId);
+    if (_members.length == 1) {
+      // If the current user is the only member, close the party
+      await _closeParty();
+    } else {
+      // Otherwise, just leave the party
+      await _firestore.collection('users').doc(currentUserId).update({
+        'partyId': FieldValue.delete(),
+      });
 
-    var partyDoc = await partyRef.get();
-    if (!partyDoc.exists) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Party not found. It may have been deleted.")),
-      );
-      return;
+      await _firestore.collection('parties').doc(_partyId).update({
+        'members': FieldValue.arrayRemove([currentUserId]),
+      });
+
+      setState(() {
+        _partyId = null;
+        _partyName = null;
+        _members = [];
+      });
     }
-
-    await partyRef.update({
-      'members': FieldValue.arrayUnion([currentUserId])
-    });
-
-    await _firestore.collection('invites').doc(inviteId).delete();
-    setState(() {});
   }
 
-  void _cancelInvite(String inviteId) async {
-    await _firestore.collection('invites').doc(inviteId).delete();
-    setState(() {});
+  Future<void> _closeParty() async {
+    if (_partyId != null) {
+      await _firestore.collection('parties').doc(_partyId).delete();
+
+      for (String memberId in _members) {
+        await _firestore.collection('users').doc(memberId).update({
+          'partyId': FieldValue.delete(),
+        });
+      }
+
+      setState(() {
+        _partyId = null;
+        _partyName = null;
+        _members = [];
+      });
+    }
   }
 }

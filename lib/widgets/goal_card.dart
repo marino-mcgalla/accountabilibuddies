@@ -11,6 +11,7 @@ class GoalCard extends StatelessWidget {
   final String goalCriteria;
   final List<dynamic> weekStatus;
   final Function(BuildContext, String, String, String) toggleStatus;
+  final VoidCallback? onDelete; // Optional callback for delete action
 
   const GoalCard({
     required this.goalId,
@@ -19,6 +20,7 @@ class GoalCard extends StatelessWidget {
     required this.goalCriteria,
     required this.weekStatus,
     required this.toggleStatus,
+    this.onDelete, // Optional delete action
     Key? key,
   }) : super(key: key);
 
@@ -44,6 +46,37 @@ class GoalCard extends StatelessWidget {
     }
   }
 
+  Future<void> _deleteGoal(BuildContext context) async {
+    // Show confirmation dialog for deletion
+    bool? confirmed = await showDialog<bool>(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text("Are you sure?"),
+          content: const Text("This action will permanently delete the goal."),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: const Text("Cancel"),
+            ),
+            ElevatedButton(
+              onPressed: () => Navigator.of(context).pop(true),
+              child: const Text("Delete"),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (confirmed == true) {
+      // Proceed with goal deletion
+      await FirebaseFirestore.instance.collection('goals').doc(goalId).delete();
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Goal deleted")),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Card(
@@ -66,9 +99,19 @@ class GoalCard extends StatelessWidget {
                 weekStatus: weekStatus,
                 toggleStatus: toggleStatus),
             const SizedBox(height: 20),
-            ElevatedButton(
-              onPressed: () => _submitProof(context),
-              child: const Text("Submit Proof"),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                ElevatedButton(
+                  onPressed: () => _submitProof(context),
+                  child: const Text("Submit Proof"),
+                ),
+                if (onDelete != null)
+                  IconButton(
+                    icon: const Icon(Icons.delete, color: Colors.red),
+                    onPressed: () => _deleteGoal(context),
+                  ),
+              ],
             ),
           ],
         ),

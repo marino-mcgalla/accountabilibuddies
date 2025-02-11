@@ -30,6 +30,37 @@ class MyGoalsScreen extends StatelessWidget {
     }
   }
 
+  Future<void> _deleteGoal(BuildContext context, String goalId) async {
+    // Show confirmation dialog before deleting
+    bool shouldDelete = await showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text("Are you sure?"),
+          content: const Text("Do you really want to delete this goal?"),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text("No"),
+            ),
+            ElevatedButton(
+              onPressed: () => Navigator.pop(context, true),
+              child: const Text("Yes"),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (shouldDelete) {
+      // Delete goal and related data from Firestore
+      await FirebaseFirestore.instance.collection('goals').doc(goalId).delete();
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Goal deleted')),
+      );
+    }
+  }
+
   void _addNewGoal(BuildContext context) {
     TextEditingController nameController = TextEditingController();
     TextEditingController frequencyController = TextEditingController();
@@ -147,6 +178,8 @@ class MyGoalsScreen extends StatelessWidget {
                 goalCriteria: goalCriteria,
                 weekStatus: weekStatus,
                 toggleStatus: _toggleStatus,
+                onDelete: () =>
+                    _deleteGoal(context, goalId), // Add delete functionality
               );
             },
           );

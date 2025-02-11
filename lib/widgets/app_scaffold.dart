@@ -56,6 +56,11 @@ class AppScaffold extends StatelessWidget {
               title: const Text('User Info'),
               onTap: () => context.go('/user-info'),
             ),
+            ListTile(
+              leading: const Icon(Icons.warning),
+              title: const Text('Sandbox'), // Add Sandbox entry
+              onTap: () => context.go('/sandbox'),
+            ),
             const Divider(),
             ListTile(
               leading: const Icon(Icons.logout),

@@ -1,0 +1,58 @@
+Metadata-Version: 2.1
+Name: flutter
+Version: 0.1
+Summary: Convert unstructured data into type-safe dataclasses.
+Home-page: https://github.com/i80and/flutter
+License: UNKNOWN
+Author: Andrew Aldridge
+Author-email: i80and@foxquill.com
+Requires-Python: >=3.6
+Description-Content-Type: text/x-rst
+Classifier: Development Status :: 4 - Beta
+Classifier: Intended Audience :: Developers
+Classifier: License :: OSI Approved :: ISC License (ISCL)
+Classifier: Programming Language :: Python :: 3 :: Only
+Classifier: Programming Language :: Python :: 3
+Classifier: Programming Language :: Python
+Classifier: Topic :: Software Development :: Libraries :: Python Modules
+Classifier: Topic :: Software Development :: Object Brokering
+Requires-Dist: dataclasses~=0.6; python_version < '3.7'
+Requires-Dist: typing_extensions
+Requires-Dist: pytest; extra == "test"
+Requires-Dist: pytest-cov; extra == "test"
+Provides-Extra: test
+
+flutter.py
+==========
+
+Example
+-------
+
+.. code-block:: python
+
+   from dataclasses import dataclass, field
+   from flutter import checked, check_type
+   from typing import List
+
+
+   @checked
+   @dataclass
+   class Node:
+       line: int
+
+
+   @checked
+   @dataclass
+   class Parent(Node):
+       children: List[Node] = field(default_factory=list)
+
+
+   assert check_type(Parent, {
+       'line': 0,
+       'children': [{'line': 1}]
+   }) == Parent(line=0, children=[Node(1)])
+
+   assert check_type(Parent, {
+       'line': 10
+   }) == Parent(line=10, children=[])
+

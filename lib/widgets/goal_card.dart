@@ -100,12 +100,8 @@ class GoalCard extends StatelessWidget {
                 toggleStatus: toggleStatus),
             const SizedBox(height: 20),
             Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              mainAxisAlignment: MainAxisAlignment.end,
               children: [
-                ElevatedButton(
-                  onPressed: () => _submitProof(context),
-                  child: const Text("Submit Proof"),
-                ),
                 if (onDelete != null)
                   IconButton(
                     icon: const Icon(Icons.delete, color: Colors.red),

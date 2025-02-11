@@ -7,123 +7,76 @@ import '../../widgets/goal_card.dart';
 class MyGoalsScreen extends StatelessWidget {
   const MyGoalsScreen({super.key});
 
-  Future<void> _addGoal(
-      BuildContext context,
-      TextEditingController goalNameController,
-      TextEditingController goalFrequencyController,
-      TextEditingController goalCriteriaController) async {
+  Future<void> _toggleStatus(BuildContext context, String docId, String date,
+      String currentStatus) async {
     String currentUserId = FirebaseAuth.instance.currentUser?.uid ?? "";
-    String goalName = goalNameController.text.trim();
-    int goalFrequency = int.parse(goalFrequencyController.text.trim());
-    String goalCriteria = goalCriteriaController.text.trim();
 
-    if (goalName.isEmpty || goalFrequency <= 0) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Please enter valid goal details")),
-      );
-      return;
+    DocumentReference docRef =
+        FirebaseFirestore.instance.collection('goals').doc(docId);
+    DocumentSnapshot docSnapshot = await docRef.get();
+    if (docSnapshot.exists) {
+      List<dynamic> weekStatus = docSnapshot['weekStatus'] ?? [];
+      int index = weekStatus.indexWhere((day) => day['date'] == date);
+      if (index != -1) {
+        String newStatus = currentStatus == 'skipped' ? 'blank' : 'skipped';
+        weekStatus[index]['status'] = newStatus;
+        weekStatus[index]['updatedBy'] = currentUserId;
+        weekStatus[index]['updatedAt'] = Timestamp.now();
+        await docRef.update({'weekStatus': weekStatus});
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Status updated to $newStatus')),
+        );
+      }
     }
-
-    DateTime now = DateTime.now();
-    DateTime monday = now.subtract(Duration(days: now.weekday - 1));
-    List<Map<String, dynamic>> weekStatus = List.generate(7, (index) {
-      DateTime date = monday.add(Duration(days: index));
-      return {
-        'date': DateFormat('yyyy-MM-dd').format(date),
-        'status': 'blank',
-      };
-    });
-
-    await FirebaseFirestore.instance.collection('goals').add({
-      'goalName': goalName,
-      'goalFrequency': goalFrequency,
-      'goalCriteria': goalCriteria,
-      'ownerId': currentUserId,
-      'createdAt': FieldValue.serverTimestamp(),
-      'weekStatus': weekStatus,
-    });
-
-    goalNameController.clear();
-    goalFrequencyController.clear();
-    goalCriteriaController.clear();
   }
 
   @override
   Widget build(BuildContext context) {
-    final TextEditingController goalNameController = TextEditingController();
-    final TextEditingController goalFrequencyController =
-        TextEditingController();
-    final TextEditingController goalCriteriaController =
-        TextEditingController();
+    User? user = FirebaseAuth.instance.currentUser;
+
+    if (user == null) {
+      return const Center(child: Text('User not logged in'));
+    }
 
     return Scaffold(
       appBar: AppBar(title: const Text("My Goals")),
-      body: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            TextField(
-              controller: goalNameController,
-              decoration: const InputDecoration(
-                labelText: "Goal Name",
-                border: OutlineInputBorder(),
-              ),
-            ),
-            const SizedBox(height: 10),
-            TextField(
-              controller: goalFrequencyController,
-              decoration: const InputDecoration(
-                labelText: "Goal Frequency",
-                border: OutlineInputBorder(),
-              ),
-              keyboardType: TextInputType.number,
-            ),
-            const SizedBox(height: 10),
-            TextField(
-              controller: goalCriteriaController,
-              decoration: const InputDecoration(
-                labelText: "Goal Criteria/Details",
-                border: OutlineInputBorder(),
-              ),
-            ),
-            const SizedBox(height: 20),
-            ElevatedButton(
-              onPressed: () => _addGoal(context, goalNameController,
-                  goalFrequencyController, goalCriteriaController),
-              child: const Text("Add Goal"),
-            ),
-            const SizedBox(height: 20),
-            Expanded(
-              child: StreamBuilder<QuerySnapshot>(
-                stream: FirebaseFirestore.instance
-                    .collection('goals')
-                    .where('ownerId',
-                        isEqualTo: FirebaseAuth.instance.currentUser?.uid)
-                    .snapshots(),
-                builder: (context, snapshot) {
-                  if (snapshot.connectionState == ConnectionState.waiting) {
-                    return const Center(child: CircularProgressIndicator());
-                  }
-                  if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-                    return const Center(child: Text("No goals found"));
-                  }
-                  return ListView(
-                    children: snapshot.data!.docs.map((doc) {
-                      var goal = doc.data() as Map<String, dynamic>;
-                      return GoalCard(
-                        goalId: doc.id,
-                        goalName: goal['goalName'],
-                        goalFrequency: goal['goalFrequency'],
-                        goalCriteria: goal['goalCriteria'],
-                      );
-                    }).toList(),
-                  );
-                },
-              ),
-            ),
-          ],
-        ),
+      body: StreamBuilder<QuerySnapshot>(
+        stream: FirebaseFirestore.instance
+            .collection('goals')
+            .where('ownerId', isEqualTo: user.uid)
+            .snapshots(),
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Center(child: CircularProgressIndicator());
+          }
+          if (!snapshot.hasData ||
+              snapshot.data == null ||
+              snapshot.data!.docs.isEmpty) {
+            return const Center(child: Text('No goals found'));
+          }
+          var goals = snapshot.data!.docs;
+
+          return ListView.builder(
+            itemCount: goals.length,
+            itemBuilder: (context, index) {
+              var goalData = goals[index].data() as Map<String, dynamic>;
+              String goalId = goals[index].id;
+              String goalName = goalData['goalName'];
+              int goalFrequency = goalData['goalFrequency'];
+              String goalCriteria = goalData['goalCriteria'];
+              List<dynamic> weekStatus = goalData['weekStatus'] ?? [];
+
+              return GoalCard(
+                goalId: goalId,
+                goalName: goalName,
+                goalFrequency: goalFrequency,
+                goalCriteria: goalCriteria,
+                weekStatus: weekStatus,
+                toggleStatus: _toggleStatus,
+              );
+            },
+          );
+        },
       ),
     );
   }

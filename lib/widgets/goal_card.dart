@@ -9,12 +9,16 @@ class GoalCard extends StatelessWidget {
   final String goalName;
   final int goalFrequency;
   final String goalCriteria;
+  final List<dynamic> weekStatus;
+  final Function(BuildContext, String, String, String) toggleStatus;
 
   const GoalCard({
     required this.goalId,
     required this.goalName,
     required this.goalFrequency,
     required this.goalCriteria,
+    required this.weekStatus,
+    required this.toggleStatus,
     Key? key,
   }) : super(key: key);
 
@@ -42,54 +46,33 @@ class GoalCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return StreamBuilder<DocumentSnapshot>(
-      stream: FirebaseFirestore.instance
-          .collection('goals')
-          .doc(goalId)
-          .snapshots(),
-      builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(child: CircularProgressIndicator());
-        }
-        if (!snapshot.hasData ||
-            snapshot.data == null ||
-            !snapshot.data!.exists) {
-          return const Center(child: Text("Goal not found"));
-        }
-        var goal = snapshot.data!.data() as Map<String, dynamic>;
-        List<dynamic> weekStatus = goal['weekStatus'];
-        String today = DateFormat('yyyy-MM-dd').format(DateTime.now());
-        int index = weekStatus.indexWhere((day) => day['date'] == today);
-        bool isProofSubmittedToday =
-            index != -1 && weekStatus[index]['status'] == 'pending';
-
-        return Card(
-          margin: const EdgeInsets.symmetric(vertical: 10),
-          child: Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(goalName,
-                    style: const TextStyle(
-                        fontSize: 18, fontWeight: FontWeight.bold)),
-                const SizedBox(height: 10),
-                Text("Frequency: $goalFrequency times per week"),
-                const SizedBox(height: 10),
-                Text("Criteria: $goalCriteria"),
-                const SizedBox(height: 20),
-                WeekViewGrid(goalId: goalId),
-                const SizedBox(height: 20),
-                if (!isProofSubmittedToday)
-                  ElevatedButton(
-                    onPressed: () => _submitProof(context),
-                    child: const Text("Submit Proof"),
-                  ),
-              ],
+    return Card(
+      margin: const EdgeInsets.symmetric(vertical: 10),
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(goalName,
+                style:
+                    const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+            const SizedBox(height: 10),
+            Text("Frequency: $goalFrequency times per week"),
+            const SizedBox(height: 10),
+            Text("Criteria: $goalCriteria"),
+            const SizedBox(height: 20),
+            WeekViewGrid(
+                goalId: goalId,
+                weekStatus: weekStatus,
+                toggleStatus: toggleStatus),
+            const SizedBox(height: 20),
+            ElevatedButton(
+              onPressed: () => _submitProof(context),
+              child: const Text("Submit Proof"),
             ),
-          ),
-        );
-      },
+          ],
+        ),
+      ),
     );
   }
 }

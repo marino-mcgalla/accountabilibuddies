@@ -4,28 +4,35 @@ import 'package:intl/intl.dart';
 
 class WeekViewGrid extends StatelessWidget {
   final String goalId;
+  final List<dynamic> weekStatus;
+  final Function(BuildContext, String, String, String) toggleStatus;
 
-  const WeekViewGrid({required this.goalId, Key? key}) : super(key: key);
+  const WeekViewGrid(
+      {required this.goalId,
+      required this.weekStatus,
+      required this.toggleStatus,
+      Key? key})
+      : super(key: key);
 
   @override
   Widget build(BuildContext context) {
-    DateTime now = DateTime.now();
-    DateTime monday = now.subtract(Duration(days: now.weekday - 1));
-    List<String> weekDates = List.generate(7, (index) {
-      DateTime date = monday.add(Duration(days: index));
-      return DateFormat('yyyy-MM-dd').format(date);
-    });
-
     return GridView.builder(
       shrinkWrap: true,
       gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
         crossAxisCount: 7,
         childAspectRatio: 1,
       ),
-      itemCount: 7,
+      itemCount: weekStatus.length,
       itemBuilder: (context, index) {
-        String date = weekDates[index];
-        return DayCheckbox(goalId: goalId, date: date);
+        var dayStatus = weekStatus[index];
+        String date = dayStatus['date'];
+        String status = dayStatus['status'];
+
+        return DayCheckbox(
+            goalId: goalId,
+            date: date,
+            status: status,
+            toggleStatus: toggleStatus);
       },
     );
   }

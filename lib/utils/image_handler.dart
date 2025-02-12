@@ -23,7 +23,7 @@ class ImageHandler {
     if (result != null) {
       return io.File(result.path);
     } else {
-      throw Exception('Image compression failed');
+      throw Exception('Image compression faileddoesthiswork');
     }
   }
 

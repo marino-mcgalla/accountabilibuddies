@@ -30,6 +30,111 @@ class MyGoalsScreen extends StatelessWidget {
     }
   }
 
+  Future<void> _deleteGoal(BuildContext context, String goalId) async {
+    // Show confirmation dialog before deleting
+    bool shouldDelete = await showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text("Are you sure?"),
+          content: const Text("Do you really want to delete this goal?"),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text("No"),
+            ),
+            ElevatedButton(
+              onPressed: () => Navigator.pop(context, true),
+              child: const Text("Yes"),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (shouldDelete) {
+      // Delete goal and related data from Firestore
+      await FirebaseFirestore.instance.collection('goals').doc(goalId).delete();
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Goal deleted')),
+      );
+    }
+  }
+
+  void _addNewGoal(BuildContext context) {
+    TextEditingController nameController = TextEditingController();
+    TextEditingController frequencyController = TextEditingController();
+    TextEditingController criteriaController = TextEditingController();
+
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text("New Goal"),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: nameController,
+                decoration: const InputDecoration(labelText: "Goal Name"),
+              ),
+              TextField(
+                controller: frequencyController,
+                decoration:
+                    const InputDecoration(labelText: "Frequency (per week)"),
+                keyboardType: TextInputType.number,
+              ),
+              TextField(
+                controller: criteriaController,
+                decoration: const InputDecoration(labelText: "Goal Criteria"),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text("Cancel"),
+            ),
+            ElevatedButton(
+              onPressed: () async {
+                String currentUserId =
+                    FirebaseAuth.instance.currentUser?.uid ?? "";
+                if (nameController.text.isNotEmpty &&
+                    frequencyController.text.isNotEmpty) {
+                  // Initialize weekStatus with default blank statuses for the current week
+                  List<Map<String, dynamic>> initialWeekStatus =
+                      List.generate(7, (index) {
+                    DateTime date = DateTime.now()
+                        .subtract(Duration(days: DateTime.now().weekday - 1))
+                        .add(Duration(days: index));
+                    return {
+                      'date': DateFormat('yyyy-MM-dd').format(date),
+                      'status': 'blank',
+                      'updatedBy': currentUserId,
+                      'updatedAt': Timestamp.now(),
+                    };
+                  });
+
+                  await FirebaseFirestore.instance.collection('goals').add({
+                    'ownerId': currentUserId,
+                    'goalName': nameController.text,
+                    'goalFrequency':
+                        int.tryParse(frequencyController.text) ?? 1,
+                    'goalCriteria': criteriaController.text,
+                    'weekStatus': initialWeekStatus,
+                  });
+
+                  Navigator.pop(context);
+                }
+              },
+              child: const Text("Add Goal"),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     User? user = FirebaseAuth.instance.currentUser;
@@ -73,10 +178,16 @@ class MyGoalsScreen extends StatelessWidget {
                 goalCriteria: goalCriteria,
                 weekStatus: weekStatus,
                 toggleStatus: _toggleStatus,
+                onDelete: () =>
+                    _deleteGoal(context, goalId), // Add delete functionality
               );
             },
           );
         },
+      ),
+      floatingActionButton: FloatingActionButton(
+        onPressed: () => _addNewGoal(context),
+        child: const Icon(Icons.add),
       ),
     );
   }

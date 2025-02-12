@@ -32,6 +32,7 @@ dependencies:
   flutter_image_compress: ^2.4.0
   flutter:
     sdk: flutter
+  image: ^4.5.2
   firebase_auth: ^5.3.2
   firebase_core: ^3.7.0
   firebase_storage: ^12.4.1

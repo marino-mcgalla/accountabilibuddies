@@ -45,7 +45,7 @@ class _DayCheckboxState extends State<DayCheckbox> {
     final result = await FlutterImageCompress.compressAndGetFile(
       file.absolute.path,
       targetPath,
-      quality: 10,
+      quality: 70,
     );
     return result as File? ?? file;
   }

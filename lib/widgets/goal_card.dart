@@ -24,28 +24,6 @@ class GoalCard extends StatelessWidget {
     Key? key,
   }) : super(key: key);
 
-  Future<void> _submitProof(BuildContext context) async {
-    String currentUserId = FirebaseAuth.instance.currentUser?.uid ?? "";
-    String today = DateFormat('yyyy-MM-dd').format(DateTime.now());
-
-    DocumentReference goalRef =
-        FirebaseFirestore.instance.collection('goals').doc(goalId);
-    DocumentSnapshot goalDoc = await goalRef.get();
-    if (goalDoc.exists) {
-      List<dynamic> weekStatus = goalDoc['weekStatus'];
-      int index = weekStatus.indexWhere((day) => day['date'] == today);
-      if (index != -1) {
-        weekStatus[index]['status'] = 'pending';
-        weekStatus[index]['updatedBy'] = currentUserId;
-        weekStatus[index]['updatedAt'] = Timestamp.now();
-        await goalRef.update({'weekStatus': weekStatus});
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("Proof submitted for today")),
-        );
-      }
-    }
-  }
-
   Future<void> _deleteGoal(BuildContext context) async {
     // Show confirmation dialog for deletion
     bool? confirmed = await showDialog<bool>(

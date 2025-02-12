@@ -16,6 +16,17 @@ class WeekViewGrid extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Day abbreviations (Mon, Tue, Wed, etc.)
+    final List<String> dayAbbreviations = [
+      'Mon',
+      'Tue',
+      'Wed',
+      'Thu',
+      'Fri',
+      'Sat',
+      'Sun'
+    ];
+
     return GridView.builder(
       shrinkWrap: true,
       gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
@@ -28,11 +39,30 @@ class WeekViewGrid extends StatelessWidget {
         String date = dayStatus['date'];
         String status = dayStatus['status'];
 
-        return DayCheckbox(
-            goalId: goalId,
-            date: date,
-            status: status,
-            toggleStatus: toggleStatus);
+        // Get the day of the week (Mon, Tue, etc.)
+        int dayIndex = DateTime.parse(date).weekday - 1;
+        String dayAbbreviation = dayAbbreviations[dayIndex];
+
+        return Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Text(
+              dayAbbreviation, // Show the day abbreviation
+              style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+            ),
+            // Increase the size of the circle here
+            SizedBox(
+              width: 75, // Adjust circle size
+              height: 75, // Adjust circle size
+              child: DayCheckbox(
+                goalId: goalId,
+                date: date,
+                status: status,
+                toggleStatus: toggleStatus,
+              ),
+            ),
+          ],
+        );
       },
     );
   }

@@ -1,14 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:firebase_storage/firebase_storage.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:intl/intl.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'dart:io' as io;
-import 'package:path_provider/path_provider.dart';
-import 'package:flutter_image_compress/flutter_image_compress.dart';
-import 'dart:io';
+import '../utils/image_handler.dart';
 
 class DayCheckbox extends StatefulWidget {
   final String goalId;
@@ -31,64 +28,31 @@ class DayCheckbox extends StatefulWidget {
 class _DayCheckboxState extends State<DayCheckbox> {
   Color buttonColor = Colors.white;
   bool isProofUploaded = false;
-  final ImagePicker _picker = ImagePicker();
+  final ImageHandler _imageHandler = ImageHandler();
 
   bool isFutureDay(String dayDate) {
     String today = DateFormat('yyyy-MM-dd').format(DateTime.now());
     return DateTime.parse(dayDate).isAfter(DateTime.now());
   }
 
-  Future<File> _compressImage(File file) async {
-    final dir = await getTemporaryDirectory();
-    final targetPath =
-        "${dir.absolute.path}/temp_${DateTime.now().millisecondsSinceEpoch}.jpg";
-    final result = await FlutterImageCompress.compressAndGetFile(
-      file.absolute.path,
-      targetPath,
-      quality: 70,
-    );
-    return result as File? ?? file;
-  }
-
   Future<void> _uploadImageAndSubmitProof(BuildContext context) async {
-    final pickedFile = await _picker.pickImage(source: ImageSource.gallery);
-
-    if (pickedFile != null) {
-      try {
-        FirebaseStorage storage = FirebaseStorage.instance;
-        Reference ref =
-            storage.ref().child('uploads/${DateTime.now().toIso8601String()}');
-
-        UploadTask uploadTask;
-        String downloadUrl = "";
-
-        if (kIsWeb) {
-          final bytes = await pickedFile.readAsBytes();
-          uploadTask =
-              ref.putData(bytes, SettableMetadata(contentType: 'image/jpeg'));
-        } else {
-          final file = io.File(pickedFile.path);
-          final compressedFile = await _compressImage(file);
-          uploadTask = ref.putFile(compressedFile);
-        }
-
-        await uploadTask;
-        downloadUrl = await ref.getDownloadURL();
-
+    await _imageHandler.uploadImageAndSubmitProof(
+      (downloadUrl) async {
         await _submitProof(context, downloadUrl);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Upload successful')),
-        );
-      } catch (e) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Upload failed: $e')),
-        );
-      }
-    } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('No image selected')),
-      );
-    }
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Upload successful')),
+          );
+        }
+      },
+      (errorMessage) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(errorMessage)),
+          );
+        }
+      },
+    );
   }
 
   Future<void> _submitProof(BuildContext context, String proofUrl) async {
@@ -106,12 +70,14 @@ class _DayCheckboxState extends State<DayCheckbox> {
         weekStatus[index]['updatedAt'] = Timestamp.now();
         weekStatus[index]['proofUrl'] = proofUrl;
         await goalRef.update({'weekStatus': weekStatus});
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("Proof submitted for today")),
-        );
-        setState(() {
-          buttonColor = Colors.yellow;
-        });
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text("Proof submitted for today")),
+          );
+          setState(() {
+            buttonColor = Colors.yellow;
+          });
+        }
       }
     }
   }

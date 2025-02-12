@@ -23,7 +23,7 @@ class ImageHandler {
     if (result != null) {
       return io.File(result.path);
     } else {
-      throw Exception('Image compression faileddoesthiswork');
+      throw Exception('Image compression failed');
     }
   }
 
@@ -38,12 +38,13 @@ class ImageHandler {
     return file.lengthSync();
   }
 
-  Future<void> uploadImageAndSubmitProof(
-      BuildContext context, Function(BuildContext, String) submitProof) async {
+  Future<void> uploadImageAndSubmitProof(Function(String) onUploadSuccess,
+      Function(String) onUploadFailure) async {
     final pickedFile = await _picker.pickImage(source: ImageSource.gallery);
 
     if (pickedFile != null) {
       try {
+        String downloadUrl;
         if (kIsWeb) {
           final bytes = await pickedFile.readAsBytes();
           final originalSize = bytes.lengthInBytes;
@@ -56,13 +57,8 @@ class ImageHandler {
           print('Compressed Size: $compressedSize bytes');
 
           // Use FirebaseStorageUtil to upload the file
-          String downloadUrl = await _storageUtil.uploadBytes(compressedBytes);
-
-          await submitProof(context, downloadUrl);
-          print('Upload successful');
-        }
-        // mobile
-        else {
+          downloadUrl = await _storageUtil.uploadBytes(compressedBytes);
+        } else {
           final file = io.File(pickedFile.path);
           final originalSize = await getFileSize(file);
           final compressedFile = await compressImage(file);
@@ -73,15 +69,16 @@ class ImageHandler {
           print('Compressed Size: $compressedSize bytes');
 
           // Use FirebaseStorageUtil to upload the file
-          String downloadUrl = await _storageUtil.uploadFile(compressedFile);
-
-          await submitProof(context, downloadUrl);
-          print('Upload successful');
+          downloadUrl = await _storageUtil.uploadFile(compressedFile);
         }
+        onUploadSuccess(downloadUrl);
+        print('Upload successful');
       } catch (e) {
+        onUploadFailure('Operation failed: $e');
         print('Operation failed: $e');
       }
     } else {
+      onUploadFailure('No image selected');
       print('No image selected');
     }
   }

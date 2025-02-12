@@ -11,17 +11,18 @@ class _SandboxScreenState extends State<SandboxScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: Text('Sandbox Screen'),
-      ),
-      body: Center(
-        child: ElevatedButton(
-          onPressed: () => _imageHandler.uploadImageAndSubmitProof(
-              context, (context, url) {}),
-          child: Text('Upload Photo'),
-        ),
-      ),
-    );
+    return Text("");
   }
+  // return Scaffold(
+  //   appBar: AppBar(
+  //     title: Text('Sandbox Screen'),
+  //   ),
+  //   body: Center(
+  //     // child: ElevatedButton(
+  //       // onPressed: () => _imageHandler.uploadImageAndSubmitProof(
+  //           // context, (context, url) {}),
+  //       // child: Text('Upload Photo'),
+  //     ),
+  //   ),
+  // );
 }

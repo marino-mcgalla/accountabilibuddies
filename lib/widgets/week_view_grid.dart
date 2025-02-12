@@ -7,12 +7,12 @@ class WeekViewGrid extends StatelessWidget {
   final List<dynamic> weekStatus;
   final Function(BuildContext, String, String, String) toggleStatus;
 
-  const WeekViewGrid(
-      {required this.goalId,
-      required this.weekStatus,
-      required this.toggleStatus,
-      Key? key})
-      : super(key: key);
+  const WeekViewGrid({
+    required this.goalId,
+    required this.weekStatus,
+    required this.toggleStatus,
+    Key? key,
+  }) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
@@ -29,6 +29,7 @@ class WeekViewGrid extends StatelessWidget {
 
     return GridView.builder(
       shrinkWrap: true,
+      physics: NeverScrollableScrollPhysics(),
       gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
         crossAxisCount: 7,
         childAspectRatio: 1,
@@ -50,15 +51,16 @@ class WeekViewGrid extends StatelessWidget {
               dayAbbreviation, // Show the day abbreviation
               style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
             ),
-            // Increase the size of the circle here
-            SizedBox(
-              width: 75, // Adjust circle size
-              height: 75, // Adjust circle size
-              child: DayCheckbox(
-                goalId: goalId,
-                date: date,
-                status: status,
-                toggleStatus: toggleStatus,
+            // Adjust the size of the circle here
+            Flexible(
+              child: AspectRatio(
+                aspectRatio: 1,
+                child: DayCheckbox(
+                  goalId: goalId,
+                  date: date,
+                  status: status,
+                  toggleStatus: toggleStatus,
+                ),
               ),
             ),
           ],

@@ -162,11 +162,17 @@ class _DayCheckboxState extends State<DayCheckbox> {
         style: ElevatedButton.styleFrom(
           backgroundColor: buttonColor,
           shape: CircleBorder(),
-          padding: EdgeInsets.all(20),
+          padding: EdgeInsets.all(
+              10), // Adjust padding to ensure icon stays centered
+          minimumSize: Size(
+              40, 40), // Set minimum size to ensure button is not too small
         ),
-        child: iconData != null
-            ? Icon(iconData, color: Colors.black)
-            : const SizedBox.shrink(),
+        child: Center(
+          child: iconData != null
+              ? Icon(iconData,
+                  color: Colors.black, size: 20) // Adjust icon size if needed
+              : const SizedBox.shrink(),
+        ),
       ),
     );
   }

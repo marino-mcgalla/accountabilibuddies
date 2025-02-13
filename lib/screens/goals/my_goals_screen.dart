@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:intl/intl.dart';
+import 'package:permission_handler/permission_handler.dart';
 import '../../widgets/goal_card.dart';
 
 class MyGoalsScreen extends StatelessWidget {
@@ -56,12 +57,23 @@ class MyGoalsScreen extends StatelessWidget {
       // Delete goal and related data from Firestore
       await FirebaseFirestore.instance.collection('goals').doc(goalId).delete();
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Goal deleted')),
+        const SnackBar(
+          content: Text('Goal deleted'),
+        ),
       );
     }
   }
 
-  void _addNewGoal(BuildContext context) {
+  Future<void> _requestPermission() async {
+    var status = await Permission.photos.status;
+    if (!status.isGranted) {
+      await Permission.photos.request();
+    }
+  }
+
+  void _addNewGoal(BuildContext context) async {
+    await _requestPermission(); // Request permission before accessing photos
+
     TextEditingController nameController = TextEditingController();
     TextEditingController frequencyController = TextEditingController();
     TextEditingController criteriaController = TextEditingController();

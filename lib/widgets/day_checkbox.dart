@@ -5,7 +5,10 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:intl/intl.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'dart:io' as io;
+import 'dart:io' show Platform;
 import '../utils/image_handler.dart';
+import 'package:permission_handler/permission_handler.dart';
+import 'package:device_info_plus/device_info_plus.dart';
 
 class DayCheckbox extends StatefulWidget {
   final String goalId;
@@ -82,6 +85,45 @@ class _DayCheckboxState extends State<DayCheckbox> {
     }
   }
 
+  Future<bool> _requestPermissions() async {
+    if (kIsWeb) {
+      return true;
+    }
+
+    if (Platform.isAndroid || Platform.isIOS) {
+      PermissionStatus cameraStatus = await Permission.camera.status;
+      PermissionStatus photosStatus;
+
+      if (Platform.isAndroid) {
+        final androidInfo = await DeviceInfoPlugin().androidInfo;
+        if (androidInfo.version.sdkInt <= 32) {
+          photosStatus = await Permission.storage.status;
+          if (!photosStatus.isGranted) {
+            photosStatus = await Permission.storage.request();
+          }
+        } else {
+          photosStatus = await Permission.photos.status;
+          if (!photosStatus.isGranted) {
+            photosStatus = await Permission.photos.request();
+          }
+        }
+      } else {
+        photosStatus = await Permission.photos.status;
+        if (!photosStatus.isGranted) {
+          photosStatus = await Permission.photos.request();
+        }
+      }
+
+      if (!cameraStatus.isGranted) {
+        cameraStatus = await Permission.camera.request();
+      }
+
+      return cameraStatus.isGranted && photosStatus.isGranted;
+    }
+
+    return false;
+  }
+
   @override
   Widget build(BuildContext context) {
     String today = DateFormat('yyyy-MM-dd').format(DateTime.now());
@@ -118,32 +160,40 @@ class _DayCheckboxState extends State<DayCheckbox> {
       if (!isFutureDay(widget.date)) {
         if (DateTime.parse(widget.date).isBefore(DateTime.now()) ||
             widget.date == today) {
-          bool? uploadProof = await showDialog(
-            context: context,
-            builder: (BuildContext context) {
-              return AlertDialog(
-                title: const Text("Upload Proof"),
-                content:
-                    const Text("Do you want to upload proof for this day?"),
-                actions: [
-                  TextButton(
-                    onPressed: () => Navigator.pop(context, false),
-                    child: const Text("Cancel"),
-                  ),
-                  ElevatedButton(
-                    onPressed: () {
-                      Navigator.pop(context, true);
-                      _uploadImageAndSubmitProof(context);
-                    },
-                    child: const Text("Upload Proof"),
-                  ),
-                ],
-              );
-            },
-          );
+          // Request permissions
+          if (await _requestPermissions()) {
+            bool? uploadProof = await showDialog(
+              context: context,
+              builder: (BuildContext context) {
+                return AlertDialog(
+                  title: const Text("Upload Proof"),
+                  content:
+                      const Text("Do you want to upload proof for this day?"),
+                  actions: [
+                    TextButton(
+                      onPressed: () => Navigator.pop(context, false),
+                      child: const Text("Cancel"),
+                    ),
+                    ElevatedButton(
+                      onPressed: () {
+                        Navigator.pop(context, true);
+                        _uploadImageAndSubmitProof(context);
+                      },
+                      child: const Text("Upload Proof"),
+                    ),
+                  ],
+                );
+              },
+            );
 
-          if (uploadProof == true) {
-            // Additional logic after proof submission if needed.
+            if (uploadProof == true) {
+              // Additional logic after proof submission if needed.
+            }
+          } else {
+            // Handle permission denied scenario
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text('Photo permissions denied')),
+            );
           }
         }
       } else {

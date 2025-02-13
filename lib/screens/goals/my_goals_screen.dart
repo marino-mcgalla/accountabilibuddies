@@ -64,16 +64,7 @@ class MyGoalsScreen extends StatelessWidget {
     }
   }
 
-  Future<void> _requestPermission() async {
-    var status = await Permission.photos.status;
-    if (!status.isGranted) {
-      await Permission.photos.request();
-    }
-  }
-
   void _addNewGoal(BuildContext context) async {
-    await _requestPermission(); // Request permission before accessing photos
-
     TextEditingController nameController = TextEditingController();
     TextEditingController frequencyController = TextEditingController();
     TextEditingController criteriaController = TextEditingController();

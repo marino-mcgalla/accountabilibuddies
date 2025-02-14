@@ -41,7 +41,7 @@ final GoRouter appRouter = GoRouter(
     ),
     GoRoute(
       path: '/goals',
-      builder: (context, state) => const AppScaffold(child: MyGoalsScreen()),
+      builder: (context, state) => AppScaffold(child: MyGoalsScreen()),
     ),
     // GoRoute(
     //   path: '/sandbox',

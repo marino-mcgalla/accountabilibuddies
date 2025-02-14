@@ -4,9 +4,12 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:intl/intl.dart';
 import 'package:permission_handler/permission_handler.dart';
 import '../../widgets/goal_card.dart';
+import '../../services/goals_service.dart';
 
 class MyGoalsScreen extends StatelessWidget {
-  const MyGoalsScreen({super.key});
+  MyGoalsScreen({super.key});
+
+  final GoalsService _goalsService = GoalsService();
 
   Future<void> _toggleStatus(BuildContext context, String docId, String date,
       String currentStatus) async {
@@ -31,40 +34,7 @@ class MyGoalsScreen extends StatelessWidget {
     }
   }
 
-  Future<void> _deleteGoal(BuildContext context, String goalId) async {
-    // Show confirmation dialog before deleting
-    bool shouldDelete = await showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          title: const Text("Are you sure?"),
-          content: const Text("Do you really want to delete this goal?"),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context, false),
-              child: const Text("No"),
-            ),
-            ElevatedButton(
-              onPressed: () => Navigator.pop(context, true),
-              child: const Text("Yes"),
-            ),
-          ],
-        );
-      },
-    );
-
-    if (shouldDelete) {
-      // Delete goal and related data from Firestore
-      await FirebaseFirestore.instance.collection('goals').doc(goalId).delete();
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Goal deleted'),
-        ),
-      );
-    }
-  }
-
-  void _addNewGoal(BuildContext context) async {
+  void _showAddGoalDialog(BuildContext context) {
     TextEditingController nameController = TextEditingController();
     TextEditingController frequencyController = TextEditingController();
     TextEditingController criteriaController = TextEditingController();
@@ -100,33 +70,13 @@ class MyGoalsScreen extends StatelessWidget {
             ),
             ElevatedButton(
               onPressed: () async {
-                String currentUserId =
-                    FirebaseAuth.instance.currentUser?.uid ?? "";
                 if (nameController.text.isNotEmpty &&
                     frequencyController.text.isNotEmpty) {
-                  // Initialize weekStatus with default blank statuses for the current week
-                  List<Map<String, dynamic>> initialWeekStatus =
-                      List.generate(7, (index) {
-                    DateTime date = DateTime.now()
-                        .subtract(Duration(days: DateTime.now().weekday - 1))
-                        .add(Duration(days: index));
-                    return {
-                      'date': DateFormat('yyyy-MM-dd').format(date),
-                      'status': 'blank',
-                      'updatedBy': currentUserId,
-                      'updatedAt': Timestamp.now(),
-                    };
-                  });
-
-                  await FirebaseFirestore.instance.collection('goals').add({
-                    'ownerId': currentUserId,
-                    'goalName': nameController.text,
-                    'goalFrequency':
-                        int.tryParse(frequencyController.text) ?? 1,
-                    'goalCriteria': criteriaController.text,
-                    'weekStatus': initialWeekStatus,
-                  });
-
+                  await _goalsService.createGoal(
+                    nameController.text,
+                    int.tryParse(frequencyController.text) ?? 1,
+                    criteriaController.text,
+                  );
                   Navigator.pop(context);
                 }
               },
@@ -181,15 +131,14 @@ class MyGoalsScreen extends StatelessWidget {
                 goalCriteria: goalCriteria,
                 weekStatus: weekStatus,
                 toggleStatus: _toggleStatus,
-                onDelete: () =>
-                    _deleteGoal(context, goalId), // Add delete functionality
+                onDelete: () => _goalsService.deleteGoal(context, goalId),
               );
             },
           );
         },
       ),
       floatingActionButton: FloatingActionButton(
-        onPressed: () => _addNewGoal(context),
+        onPressed: () => _showAddGoalDialog(context),
         child: const Icon(Icons.add),
       ),
     );

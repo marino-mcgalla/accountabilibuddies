@@ -38,48 +38,44 @@ class ImageHandler {
     return file.lengthSync();
   }
 
-  Future<void> uploadImageAndSubmitProof(Function(String) onUploadSuccess,
-      Function(String) onUploadFailure) async {
-    final pickedFile = await _picker.pickImage(source: ImageSource.gallery);
+  Future<void> submit({
+    required XFile file,
+    required Function(String) onUploadSuccess,
+    required Function(String) onUploadFailure,
+  }) async {
+    try {
+      String downloadUrl;
+      if (kIsWeb) {
+        final bytes = await file.readAsBytes();
+        final originalSize = bytes.lengthInBytes;
 
-    if (pickedFile != null) {
-      try {
-        String downloadUrl;
-        if (kIsWeb) {
-          final bytes = await pickedFile.readAsBytes();
-          final originalSize = bytes.lengthInBytes;
+        final compressedBytes = await compressImageWeb(bytes);
+        final compressedSize = compressedBytes.length;
 
-          final compressedBytes = await compressImageWeb(bytes);
-          final compressedSize = compressedBytes.length;
+        // Log to the console
+        print('Original Size: $originalSize bytes');
+        print('Compressed Size: $compressedSize bytes');
 
-          // Log to the console
-          print('Original Size: $originalSize bytes');
-          print('Compressed Size: $compressedSize bytes');
+        // Use FirebaseStorageUtil to upload the file
+        downloadUrl = await _storageUtil.uploadBytes(compressedBytes);
+      } else {
+        final ioFile = io.File(file.path);
+        final originalSize = await getFileSize(ioFile);
+        final compressedFile = await compressImage(ioFile);
+        final compressedSize = await getFileSize(compressedFile);
 
-          // Use FirebaseStorageUtil to upload the file
-          downloadUrl = await _storageUtil.uploadBytes(compressedBytes);
-        } else {
-          final file = io.File(pickedFile.path);
-          final originalSize = await getFileSize(file);
-          final compressedFile = await compressImage(file);
-          final compressedSize = await getFileSize(compressedFile);
+        // Log to the console
+        print('Original Size: $originalSize bytes');
+        print('Compressed Size: $compressedSize bytes');
 
-          // Log to the console
-          print('Original Size: $originalSize bytes');
-          print('Compressed Size: $compressedSize bytes');
-
-          // Use FirebaseStorageUtil to upload the file
-          downloadUrl = await _storageUtil.uploadFile(compressedFile);
-        }
-        onUploadSuccess(downloadUrl);
-        print('Upload successful');
-      } catch (e) {
-        onUploadFailure('Operation failed: $e');
-        print('Operation failed: $e');
+        // Use FirebaseStorageUtil to upload the file
+        downloadUrl = await _storageUtil.uploadFile(compressedFile);
       }
-    } else {
-      onUploadFailure('No image selected');
-      print('No image selected');
+      onUploadSuccess(downloadUrl);
+      print('Upload successful');
+    } catch (e) {
+      onUploadFailure('Operation failed: $e');
+      print('Operation failed: $e');
     }
   }
 }

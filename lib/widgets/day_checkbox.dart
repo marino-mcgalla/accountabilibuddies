@@ -1,14 +1,14 @@
+// day_checkbox.dart
 import 'package:flutter/material.dart';
-import 'package:image_picker/image_picker.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:intl/intl.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
-import 'dart:io' as io;
+import 'package:image_picker/image_picker.dart';
 import 'dart:io' show Platform;
-import '../utils/image_handler.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:device_info_plus/device_info_plus.dart';
+import '../utils/image_picker_util.dart';
+import '../utils/confirmation_dialog_util.dart';
+import '../utils/submit_image_util.dart';
 
 class DayCheckbox extends StatefulWidget {
   final String goalId;
@@ -30,65 +30,13 @@ class DayCheckbox extends StatefulWidget {
 
 class _DayCheckboxState extends State<DayCheckbox> {
   Color buttonColor = Colors.white;
-  bool isProofUploaded = false;
-  final ImageHandler _imageHandler = ImageHandler();
 
   bool isFutureDay(String dayDate) {
-    String today = DateFormat('yyyy-MM-dd').format(DateTime.now());
     return DateTime.parse(dayDate).isAfter(DateTime.now());
   }
 
-  Future<void> _uploadImageAndSubmitProof(BuildContext context) async {
-    await _imageHandler.uploadImageAndSubmitProof(
-      (downloadUrl) async {
-        await _submitProof(context, downloadUrl);
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Upload successful')),
-          );
-        }
-      },
-      (errorMessage) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(errorMessage)),
-          );
-        }
-      },
-    );
-  }
-
-  Future<void> _submitProof(BuildContext context, String proofUrl) async {
-    String currentUserId = FirebaseAuth.instance.currentUser?.uid ?? "";
-
-    DocumentReference goalRef =
-        FirebaseFirestore.instance.collection('goals').doc(widget.goalId);
-    DocumentSnapshot goalDoc = await goalRef.get();
-    if (goalDoc.exists) {
-      List<dynamic> weekStatus = goalDoc['weekStatus'];
-      int index = weekStatus.indexWhere((day) => day['date'] == widget.date);
-      if (index != -1) {
-        weekStatus[index]['status'] = 'pending';
-        weekStatus[index]['updatedBy'] = currentUserId;
-        weekStatus[index]['updatedAt'] = Timestamp.now();
-        weekStatus[index]['proofUrl'] = proofUrl;
-        await goalRef.update({'weekStatus': weekStatus});
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text("Proof submitted for today")),
-          );
-          setState(() {
-            buttonColor = Colors.yellow;
-          });
-        }
-      }
-    }
-  }
-
   Future<bool> _requestPermissions() async {
-    if (kIsWeb) {
-      return true;
-    }
+    if (kIsWeb) return true;
 
     if (Platform.isAndroid || Platform.isIOS) {
       PermissionStatus cameraStatus = await Permission.camera.status;
@@ -117,11 +65,34 @@ class _DayCheckboxState extends State<DayCheckbox> {
       if (!cameraStatus.isGranted) {
         cameraStatus = await Permission.camera.request();
       }
-
       return cameraStatus.isGranted && photosStatus.isGranted;
     }
-
     return false;
+  }
+
+  Future<void> _handleUploadProof(BuildContext context) async {
+    XFile? image;
+    bool confirmed = false;
+
+    while (!confirmed) {
+      // STEP 1: Pick image
+      image = await pickImageFromGallery();
+      if (image == null) return; // User canceled picking
+
+      // STEP 2: Confirm image
+      String? action = await showImageConfirmationDialog(context, image);
+      if (action == 'cancel') return; // User did not confirm the image
+      if (action == 'confirm') confirmed = true;
+      if (action == 'change') continue; // User wants to change the photo
+    }
+
+    // STEP 3: Submit (upload) image
+    await submitImage(
+      context: context,
+      goalId: widget.goalId,
+      date: widget.date,
+      image: image!,
+    );
   }
 
   @override
@@ -156,14 +127,14 @@ class _DayCheckboxState extends State<DayCheckbox> {
       }
     }
 
-    void _onDayPressed() async {
+    void _onDayPressed(BuildContext newContext) async {
       if (!isFutureDay(widget.date)) {
         if (DateTime.parse(widget.date).isBefore(DateTime.now()) ||
             widget.date == today) {
-          // Request permissions
           if (await _requestPermissions()) {
-            bool? uploadProof = await showDialog(
-              context: context,
+            // Ask the user if they want to upload proof.
+            bool? uploadProof = await showDialog<bool>(
+              context: newContext,
               builder: (BuildContext context) {
                 return AlertDialog(
                   title: const Text("Upload Proof"),
@@ -175,10 +146,7 @@ class _DayCheckboxState extends State<DayCheckbox> {
                       child: const Text("Cancel"),
                     ),
                     ElevatedButton(
-                      onPressed: () {
-                        Navigator.pop(context, true);
-                        _uploadImageAndSubmitProof(context);
-                      },
+                      onPressed: () => Navigator.pop(context, true),
                       child: const Text("Upload Proof"),
                     ),
                   ],
@@ -187,12 +155,11 @@ class _DayCheckboxState extends State<DayCheckbox> {
             );
 
             if (uploadProof == true) {
-              // Additional logic after proof submission if needed.
+              await _handleUploadProof(newContext);
             }
           } else {
-            // Handle permission denied scenario
             ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text('Photo permissions denied')),
+              const SnackBar(content: Text('Photo permissions denied')),
             );
           }
         }
@@ -207,22 +174,23 @@ class _DayCheckboxState extends State<DayCheckbox> {
             ? Border.all(color: Colors.blue, width: 2)
             : null,
       ),
-      child: ElevatedButton(
-        onPressed: _onDayPressed,
-        style: ElevatedButton.styleFrom(
-          backgroundColor: buttonColor,
-          shape: CircleBorder(),
-          padding:
-              EdgeInsets.all(5), // Adjust padding to ensure icon stays centered
-          minimumSize: Size(
-              40, 40), // Set minimum size to ensure button is not too small
-        ),
-        child: Center(
-          child: iconData != null
-              ? Icon(iconData,
-                  color: Colors.black, size: 20) // Adjust icon size if needed
-              : const SizedBox.shrink(),
-        ),
+      child: Builder(
+        builder: (BuildContext newContext) {
+          return ElevatedButton(
+            onPressed: () => _onDayPressed(newContext),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: buttonColor,
+              shape: const CircleBorder(),
+              padding: const EdgeInsets.all(5),
+              minimumSize: const Size(40, 40),
+            ),
+            child: Center(
+              child: iconData != null
+                  ? Icon(iconData, color: Colors.black, size: 20)
+                  : const SizedBox.shrink(),
+            ),
+          );
+        },
       ),
     );
   }

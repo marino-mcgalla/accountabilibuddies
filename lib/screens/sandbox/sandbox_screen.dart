@@ -19,7 +19,7 @@ class _SandboxScreenState extends State<SandboxScreen> {
   //   ),
   //   body: Center(
   //     // child: ElevatedButton(
-  //       // onPressed: () => _imageHandler.uploadImageAndSubmitProof(
+  //       // onPressed: () => _imageHandler.submit(
   //           // context, (context, url) {}),
   //       // child: Text('Upload Photo'),
   //     ),

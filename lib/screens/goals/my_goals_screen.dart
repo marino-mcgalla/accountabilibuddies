@@ -1,37 +1,39 @@
 import 'package:flutter/material.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:intl/intl.dart';
-import 'package:permission_handler/permission_handler.dart';
 import '../../widgets/goal_card.dart';
 import '../../services/goals_service.dart';
+import '../../models/goal_model.dart';
 
-class MyGoalsScreen extends StatelessWidget {
+class MyGoalsScreen extends StatefulWidget {
   MyGoalsScreen({super.key});
 
+  @override
+  _MyGoalsScreenState createState() => _MyGoalsScreenState();
+}
+
+class _MyGoalsScreenState extends State<MyGoalsScreen> {
   final GoalsService _goalsService = GoalsService();
+  List<Goal> _goals = [];
+  bool _isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadGoals();
+  }
+
+  Future<void> _loadGoals() async {
+    List<Goal> goals = await _goalsService.getGoals();
+    setState(() {
+      _goals = goals;
+      _isLoading = false;
+    });
+  }
 
   Future<void> _toggleStatus(BuildContext context, String docId, String date,
       String currentStatus) async {
-    String currentUserId = FirebaseAuth.instance.currentUser?.uid ?? "";
-
-    DocumentReference docRef =
-        FirebaseFirestore.instance.collection('goals').doc(docId);
-    DocumentSnapshot docSnapshot = await docRef.get();
-    if (docSnapshot.exists) {
-      List<dynamic> weekStatus = docSnapshot['weekStatus'] ?? [];
-      int index = weekStatus.indexWhere((day) => day['date'] == date);
-      if (index != -1) {
-        String newStatus = currentStatus == 'skipped' ? 'blank' : 'skipped';
-        weekStatus[index]['status'] = newStatus;
-        weekStatus[index]['updatedBy'] = currentUserId;
-        weekStatus[index]['updatedAt'] = Timestamp.now();
-        await docRef.update({'weekStatus': weekStatus});
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Status updated to $newStatus')),
-        );
-      }
-    }
+    await _goalsService.toggleStatus(docId, date, currentStatus);
+    _loadGoals(); // Refresh the goals after toggling status
   }
 
   void _showAddGoalDialog(BuildContext context) {
@@ -72,15 +74,81 @@ class MyGoalsScreen extends StatelessWidget {
               onPressed: () async {
                 if (nameController.text.isNotEmpty &&
                     frequencyController.text.isNotEmpty) {
-                  await _goalsService.createGoal(
-                    nameController.text,
-                    int.tryParse(frequencyController.text) ?? 1,
-                    criteriaController.text,
+                  final goal = Goal(
+                    id: '', // Firebase will generate the ID
+                    name: nameController.text,
+                    frequency: int.tryParse(frequencyController.text) ?? 1,
+                    criteria: criteriaController.text,
+                    weekStatus: [],
                   );
+                  await _goalsService.createGoal(
+                      goal.name, goal.frequency, goal.criteria);
                   Navigator.pop(context);
+                  _loadGoals(); // Refresh the goals after adding a new goal
                 }
               },
               child: const Text("Add Goal"),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  void _showEditGoalDialog(BuildContext context, Goal goal) {
+    TextEditingController nameController =
+        TextEditingController(text: goal.name);
+    TextEditingController frequencyController =
+        TextEditingController(text: goal.frequency.toString());
+    TextEditingController criteriaController =
+        TextEditingController(text: goal.criteria);
+
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text("Edit Goal"),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: nameController,
+                decoration: const InputDecoration(labelText: "Goal Name"),
+              ),
+              TextField(
+                controller: frequencyController,
+                decoration:
+                    const InputDecoration(labelText: "Frequency (per week)"),
+                keyboardType: TextInputType.number,
+              ),
+              TextField(
+                controller: criteriaController,
+                decoration: const InputDecoration(labelText: "Goal Criteria"),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text("Cancel"),
+            ),
+            ElevatedButton(
+              onPressed: () async {
+                if (nameController.text.isNotEmpty &&
+                    frequencyController.text.isNotEmpty) {
+                  final updatedGoal = Goal(
+                    id: goal.id,
+                    name: nameController.text,
+                    frequency: int.tryParse(frequencyController.text) ?? 1,
+                    criteria: criteriaController.text,
+                    weekStatus: goal.weekStatus,
+                  );
+                  await _goalsService.editGoal(updatedGoal);
+                  Navigator.pop(context);
+                  _loadGoals(); // Refresh the goals after editing a goal
+                }
+              },
+              child: const Text("Save Changes"),
             ),
           ],
         );
@@ -98,45 +166,28 @@ class MyGoalsScreen extends StatelessWidget {
 
     return Scaffold(
       appBar: AppBar(title: const Text("My Goals")),
-      body: StreamBuilder<QuerySnapshot>(
-        stream: FirebaseFirestore.instance
-            .collection('goals')
-            .where('ownerId', isEqualTo: user.uid)
-            .snapshots(),
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
-          }
-          if (!snapshot.hasData ||
-              snapshot.data == null ||
-              snapshot.data!.docs.isEmpty) {
-            return const Center(child: Text('No goals found'));
-          }
-          var goals = snapshot.data!.docs;
-
-          return ListView.builder(
-            itemCount: goals.length,
-            itemBuilder: (context, index) {
-              var goalData = goals[index].data() as Map<String, dynamic>;
-              String goalId = goals[index].id;
-              String goalName = goalData['goalName'];
-              int goalFrequency = goalData['goalFrequency'];
-              String goalCriteria = goalData['goalCriteria'];
-              List<dynamic> weekStatus = goalData['weekStatus'] ?? [];
-
-              return GoalCard(
-                goalId: goalId,
-                goalName: goalName,
-                goalFrequency: goalFrequency,
-                goalCriteria: goalCriteria,
-                weekStatus: weekStatus,
-                toggleStatus: _toggleStatus,
-                onDelete: () => _goalsService.deleteGoal(context, goalId),
-              );
-            },
-          );
-        },
-      ),
+      body: _isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : ListView.builder(
+              itemCount: _goals.length,
+              itemBuilder: (context, index) {
+                final goal = _goals[index];
+                return GoalCard(
+                  goalId: goal.id,
+                  goalName: goal.name,
+                  goalFrequency: goal.frequency,
+                  goalCriteria: goal.criteria,
+                  weekStatus: goal.weekStatus,
+                  toggleStatus: (context, docId, date, currentStatus) =>
+                      _toggleStatus(context, docId, date, currentStatus),
+                  onDelete: () async {
+                    await _goalsService.deleteGoal(goal.id);
+                    _loadGoals(); // Refresh the goals after deleting a goal
+                  },
+                  onEdit: () => _showEditGoalDialog(context, goal),
+                );
+              },
+            ),
       floatingActionButton: FloatingActionButton(
         onPressed: () => _showAddGoalDialog(context),
         child: const Icon(Icons.add),

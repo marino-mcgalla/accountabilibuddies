@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'day_checkbox.dart';
-import 'package:intl/intl.dart';
 
 class WeekViewGrid extends StatelessWidget {
   final String goalId;

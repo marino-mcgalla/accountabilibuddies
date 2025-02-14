@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'week_view_grid.dart';
 
 class GoalCard extends StatelessWidget {
@@ -10,6 +9,7 @@ class GoalCard extends StatelessWidget {
   final List<dynamic> weekStatus;
   final Function(BuildContext, String, String, String) toggleStatus;
   final VoidCallback? onDelete; // Optional callback for delete action
+  final VoidCallback? onEdit; // Optional callback for edit action
 
   const GoalCard({
     required this.goalId,
@@ -19,6 +19,7 @@ class GoalCard extends StatelessWidget {
     required this.weekStatus,
     required this.toggleStatus,
     this.onDelete, // Optional delete action
+    this.onEdit, // Optional edit action
     Key? key,
   }) : super(key: key);
 
@@ -48,6 +49,11 @@ class GoalCard extends StatelessWidget {
             Row(
               mainAxisAlignment: MainAxisAlignment.end,
               children: [
+                if (onEdit != null)
+                  IconButton(
+                    icon: const Icon(Icons.edit, color: Colors.blue),
+                    onPressed: onEdit,
+                  ),
                 if (onDelete != null)
                   IconButton(
                     icon: const Icon(Icons.delete, color: Colors.red),

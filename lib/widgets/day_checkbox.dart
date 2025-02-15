@@ -35,6 +35,7 @@ class _DayCheckboxState extends State<DayCheckbox> {
     return DateTime.parse(dayDate).isAfter(DateTime.now());
   }
 
+  //TODO: didn't we make a util for this?
   Future<bool> _requestPermissions() async {
     if (kIsWeb) return true;
 
@@ -100,31 +101,33 @@ class _DayCheckboxState extends State<DayCheckbox> {
     String today = DateFormat('yyyy-MM-dd').format(DateTime.now());
     IconData? iconData;
 
-    if (isFutureDay(widget.date)) {
-      buttonColor = Colors.white;
-      iconData = null;
-    } else {
-      switch (widget.status) {
-        case 'skipped':
-          buttonColor = Colors.grey;
-          iconData = Icons.block;
-          break;
-        case 'pending':
-          buttonColor = Colors.yellow;
-          iconData = Icons.warning;
-          break;
-        case 'approved':
-          buttonColor = Colors.green;
-          iconData = Icons.check;
-          break;
-        case 'denied':
-          buttonColor = Colors.red;
-          iconData = Icons.close;
-          break;
-        default:
-          buttonColor = Colors.white;
-          iconData = Icons.add;
-      }
+    //WIP: toggling statuses
+    // if (isFutureDay(widget.date)) {
+    //   print(widget.date + ':' + widget.status);
+    //   buttonColor = Colors.white;
+    //   iconData = null;
+    // } else {
+    switch (widget.status) {
+      case 'skipped':
+        buttonColor = Colors.grey;
+        iconData = Icons.block;
+        break;
+      case 'pending':
+        buttonColor = Colors.yellow;
+        iconData = Icons.warning;
+        break;
+      case 'approved':
+        buttonColor = Colors.green;
+        iconData = Icons.check;
+        break;
+      case 'denied':
+        buttonColor = Colors.red;
+        iconData = Icons.close;
+        break;
+      default:
+        buttonColor = Colors.white;
+        iconData = Icons.add;
+      // }
     }
 
     void _onDayPressed(BuildContext newContext) async {
@@ -164,7 +167,7 @@ class _DayCheckboxState extends State<DayCheckbox> {
           }
         }
       } else {
-        widget.toggleStatus(context, widget.goalId, widget.date, 'skipped');
+        widget.toggleStatus(context, widget.goalId, widget.date, widget.status);
       }
     }
 

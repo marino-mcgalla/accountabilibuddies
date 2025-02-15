@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../widgets/goal_card.dart';
 import '../../services/goals_service.dart';
 import '../../models/goal_model.dart';
@@ -22,8 +23,20 @@ class _MyGoalsScreenState extends State<MyGoalsScreen> {
     _loadGoals();
   }
 
+  //TODO: maybe using state correctly now??????
   Future<void> _loadGoals() async {
     List<Goal> goals = await _goalsService.getGoals();
+    //TODO: break this out into a service instead of here
+    for (Goal goal in goals) {
+      QuerySnapshot weekSnapshot = await FirebaseFirestore.instance
+          .collection('weeks')
+          .where('goalId', isEqualTo: goal.id)
+          .where('isActive', isEqualTo: true)
+          .get();
+      if (weekSnapshot.docs.isNotEmpty) {
+        goal.weekStatus = weekSnapshot.docs.first['weekStatus'];
+      }
+    }
     setState(() {
       _goals = goals;
       _isLoading = false;
@@ -177,11 +190,11 @@ class _MyGoalsScreenState extends State<MyGoalsScreen> {
                   goalName: goal.name,
                   goalFrequency: goal.frequency,
                   goalCriteria: goal.criteria,
-                  weekStatus: goal.weekStatus,
+                  week: goal.weekStatus,
                   toggleStatus: (context, docId, date, currentStatus) =>
                       _toggleStatus(context, docId, date, currentStatus),
                   onDelete: () async {
-                    await _goalsService.deleteGoal(goal.id);
+                    await _goalsService.deleteGoal(context, goal.id);
                     _loadGoals(); // Refresh the goals after deleting a goal
                   },
                   onEdit: () => _showEditGoalDialog(context, goal),

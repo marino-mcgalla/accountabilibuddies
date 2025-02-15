@@ -6,14 +6,14 @@ class Goal {
   final String name;
   final int frequency;
   final String criteria;
-  final List<dynamic> weekStatus;
+  List<dynamic> weekStatus; // This will be populated later
 
   Goal({
     required this.id,
     required this.name,
     required this.frequency,
     required this.criteria,
-    required this.weekStatus,
+    this.weekStatus = const [],
   });
 
   factory Goal.fromFirestore(DocumentSnapshot doc) {
@@ -23,7 +23,6 @@ class Goal {
       name: data['goalName'] ?? '',
       frequency: data['goalFrequency'] ?? 0,
       criteria: data['goalCriteria'] ?? '',
-      weekStatus: data['weekStatus'] ?? [],
     );
   }
 
@@ -32,7 +31,6 @@ class Goal {
       'goalName': name,
       'goalFrequency': frequency,
       'goalCriteria': criteria,
-      'weekStatus': weekStatus,
     };
   }
 }

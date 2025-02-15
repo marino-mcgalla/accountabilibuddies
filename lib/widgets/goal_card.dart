@@ -6,7 +6,7 @@ class GoalCard extends StatelessWidget {
   final String goalName;
   final int goalFrequency;
   final String goalCriteria;
-  final List<dynamic> weekStatus;
+  final List<dynamic> week;
   final Function(BuildContext, String, String, String) toggleStatus;
   final VoidCallback? onDelete; // Optional callback for delete action
   final VoidCallback? onEdit; // Optional callback for edit action
@@ -16,7 +16,7 @@ class GoalCard extends StatelessWidget {
     required this.goalName,
     required this.goalFrequency,
     required this.goalCriteria,
-    required this.weekStatus,
+    required this.week,
     required this.toggleStatus,
     this.onDelete, // Optional delete action
     this.onEdit, // Optional edit action
@@ -42,9 +42,7 @@ class GoalCard extends StatelessWidget {
             Text("Criteria: $goalCriteria"),
             const SizedBox(height: 20),
             WeekViewGrid(
-                goalId: goalId,
-                weekStatus: weekStatus,
-                toggleStatus: toggleStatus),
+                goalId: goalId, week: week, toggleStatus: toggleStatus),
             const SizedBox(height: 20),
             Row(
               mainAxisAlignment: MainAxisAlignment.end,

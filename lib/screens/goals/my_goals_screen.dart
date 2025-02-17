@@ -43,11 +43,11 @@ class _MyGoalsScreenState extends State<MyGoalsScreen> {
     });
   }
 
-  Future<void> _toggleStatus(BuildContext context, String docId, String date,
-      String currentStatus) async {
-    await _goalsService.toggleStatus(docId, date, currentStatus);
-    _loadGoals(); // Refresh the goals after toggling status
-  }
+  // Future<void> _scheduleOrSkip(BuildContext context, String docId, String date,
+  //     String currentStatus) async {
+  //   // await _goalsService.scheduleOrSkip(docId, date, currentStatus);
+  //   _loadGoals(); // Refresh the goals after toggling status
+  // }
 
   void _showAddGoalDialog(BuildContext context) {
     TextEditingController nameController = TextEditingController();
@@ -191,8 +191,8 @@ class _MyGoalsScreenState extends State<MyGoalsScreen> {
                   goalFrequency: goal.frequency,
                   goalCriteria: goal.criteria,
                   week: goal.weekStatus,
-                  toggleStatus: (context, docId, date, currentStatus) =>
-                      _toggleStatus(context, docId, date, currentStatus),
+                  // scheduleOrSkip: (context, docId, date, currentStatus) =>
+                  //     _scheduleOrSkip(context, docId, date, currentStatus),
                   onDelete: () async {
                     await _goalsService.deleteGoal(context, goal.id);
                     _loadGoals(); // Refresh the goals after deleting a goal

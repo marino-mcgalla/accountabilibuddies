@@ -8,14 +8,6 @@ import 'package:intl/intl.dart';
 class GoalsService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
-  // Future<void> createGoal(Goal goal) async {
-  //   String currentUserId = FirebaseAuth.instance.currentUser?.uid ?? "";
-  //   await _firestore.collection('goals').add({
-  //     'ownerId': currentUserId,
-  //     ...goal.toMap(),
-  //   });
-  // }
-
   Future<void> createGoal(
       String goalName, int goalFrequency, String goalCriteria) async {
     String currentUserId = FirebaseAuth.instance.currentUser?.uid ?? "";
@@ -32,6 +24,7 @@ class GoalsService {
   }
 
   Future<void> _createWeek(String goalId, String userId) async {
+    print('creating week');
     List<Map<String, dynamic>> initialWeekStatus = List.generate(7, (index) {
       DateTime date = DateTime.now()
           .subtract(Duration(days: DateTime.now().weekday - 1))
@@ -39,16 +32,29 @@ class GoalsService {
       return {
         'date': DateFormat('yyyy-MM-dd').format(date),
         'status': 'blank',
-        'updatedBy': userId, //TODO: why do we need this??
+        'updatedBy': userId,
         'updatedAt': Timestamp.now(),
       };
     });
-
+    print(initialWeekStatus);
     await _firestore.collection('weeks').add({
       'goalId': goalId,
       'weekStatus': initialWeekStatus,
       'isActive': true,
     });
+  }
+
+  Future<void> updateWeek(
+      String goalId, List<Map<String, dynamic>> updatedWeekStatus) async {
+    QuerySnapshot snapshot = await _firestore
+        .collection('weeks')
+        .where('goalId', isEqualTo: goalId)
+        .where('isActive', isEqualTo: true)
+        .get();
+    if (snapshot.docs.isNotEmpty) {
+      DocumentSnapshot doc = snapshot.docs.first;
+      await doc.reference.update({'weekStatus': updatedWeekStatus});
+    }
   }
 
   Future<List<Goal>> getGoals() async {
@@ -65,8 +71,6 @@ class GoalsService {
   }
 
   Future<void> deleteGoal(BuildContext context, String goalId) async {
-    // Show confirmation dialog before deleting
-    //TODO: move confirmation dialog UI somewhere else
     bool shouldDelete = await showDialog(
       context: context,
       builder: (BuildContext context) {
@@ -88,9 +92,14 @@ class GoalsService {
     );
 
     if (shouldDelete) {
-      // Delete goal and related data from Firestore
-      //TODO: also delete weeks associated with a goal?? or no?
-      await FirebaseFirestore.instance.collection('goals').doc(goalId).delete();
+      await _firestore.collection('goals').doc(goalId).delete();
+      QuerySnapshot weeks = await _firestore
+          .collection('weeks')
+          .where('goalId', isEqualTo: goalId)
+          .get();
+      for (var doc in weeks.docs) {
+        await doc.reference.delete();
+      }
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Goal deleted'),
@@ -99,30 +108,8 @@ class GoalsService {
     }
   }
 
-  //TODO: Implement archiveGoal
-  Future<void> archiveGoal() async {
-    print('archive goal');
-  }
-
-  Future<void> toggleStatus(
-      String goalId, String date, String currentStatus) async {
-    print('TOGGLED');
-    // QuerySnapshot weekSnapshot = await _firestore
-    //     .collection('weeks')
-    //     .where('goalId', isEqualTo: goalId)
-    //     .where('isActive', isEqualTo: true)
-    //     .get();
-
-    // if (weekSnapshot.docs.isNotEmpty) {
-    //   DocumentReference weekRef = weekSnapshot.docs.first.reference;
-    //   //TODO: weekStatus should probably be dayStatus instead
-    //   List<dynamic> weekStatus = weekSnapshot.docs.first['weekStatus'] ?? [];
-    //   int index = weekStatus.indexWhere((day) => day['date'] == date);
-    //   if (index != -1) {
-    //     String newStatus = currentStatus == 'skipped' ? 'blank' : 'skipped';
-    //     weekStatus[index]['status'] = newStatus;
-    //     await weekRef.update({'weekStatus': weekStatus});
-    //   }
-    // }
-  }
+  // Future<void> scheduleOrSkip(
+  //     String goalId, String date, String currentStatus) async {
+  //   print('TOGGLED from service');
+  // }
 }

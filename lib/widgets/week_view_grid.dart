@@ -4,12 +4,12 @@ import 'day_checkbox.dart';
 class WeekViewGrid extends StatelessWidget {
   final String goalId;
   final List<dynamic> week;
-  final Function(BuildContext, String, String, String) toggleStatus;
+  final Function(BuildContext, String, String, String) scheduleOrSkip;
 
   const WeekViewGrid({
     required this.goalId,
     required this.week,
-    required this.toggleStatus,
+    required this.scheduleOrSkip,
     Key? key,
   }) : super(key: key);
 
@@ -58,7 +58,7 @@ class WeekViewGrid extends StatelessWidget {
                   goalId: goalId,
                   date: date,
                   status: status,
-                  toggleStatus: toggleStatus,
+                  scheduleOrSkip: scheduleOrSkip,
                 ),
               ),
             ),

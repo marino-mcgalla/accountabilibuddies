@@ -1,4 +1,3 @@
-// day_checkbox.dart
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
@@ -14,13 +13,13 @@ class DayCheckbox extends StatefulWidget {
   final String goalId;
   final String date;
   final String status;
-  final Function(BuildContext, String, String, String) toggleStatus;
+  final Function(BuildContext, String, String, String) scheduleOrSkip;
 
   const DayCheckbox({
     required this.goalId,
     required this.date,
     required this.status,
-    required this.toggleStatus,
+    required this.scheduleOrSkip,
     Key? key,
   }) : super(key: key);
 
@@ -101,16 +100,15 @@ class _DayCheckboxState extends State<DayCheckbox> {
     String today = DateFormat('yyyy-MM-dd').format(DateTime.now());
     IconData? iconData;
 
-    //WIP: toggling statuses
-    // if (isFutureDay(widget.date)) {
-    //   print(widget.date + ':' + widget.status);
-    //   buttonColor = Colors.white;
-    //   iconData = null;
-    // } else {
+    //TODO: move this probably
     switch (widget.status) {
       case 'skipped':
-        buttonColor = Colors.grey;
-        iconData = Icons.block;
+        buttonColor = const Color.fromARGB(255, 194, 192, 192);
+        iconData = Icons.redo;
+        break;
+      case 'scheduled':
+        buttonColor = Colors.blue;
+        iconData = Icons.calendar_month;
         break;
       case 'pending':
         buttonColor = Colors.yellow;
@@ -130,45 +128,46 @@ class _DayCheckboxState extends State<DayCheckbox> {
       // }
     }
 
+    //TODO: reimplement this somewhere else
     void _onDayPressed(BuildContext newContext) async {
-      if (!isFutureDay(widget.date)) {
-        if (DateTime.parse(widget.date).isBefore(DateTime.now()) ||
-            widget.date == today) {
-          if (await _requestPermissions()) {
-            // Ask the user if they want to upload proof.
-            bool? uploadProof = await showDialog<bool>(
-              context: newContext,
-              builder: (BuildContext context) {
-                return AlertDialog(
-                  title: const Text("Upload Proof"),
-                  content:
-                      const Text("Do you want to upload proof for this day?"),
-                  actions: [
-                    TextButton(
-                      onPressed: () => Navigator.pop(context, false),
-                      child: const Text("Cancel"),
-                    ),
-                    ElevatedButton(
-                      onPressed: () => Navigator.pop(context, true),
-                      child: const Text("Upload Proof"),
-                    ),
-                  ],
-                );
-              },
-            );
+      //   if (!isFutureDay(widget.date)) {
+      //     if (DateTime.parse(widget.date).isBefore(DateTime.now()) ||
+      //         widget.date == today) {
+      //       if (await _requestPermissions()) {
+      //         // Ask the user if they want to upload proof.
+      //         bool? uploadProof = await showDialog<bool>(
+      //           context: newContext,
+      //           builder: (BuildContext context) {
+      //             return AlertDialog(
+      //               title: const Text("Upload Proof"),
+      //               content:
+      //                   const Text("Do you want to upload proof for this day?"),
+      //               actions: [
+      //                 TextButton(
+      //                   onPressed: () => Navigator.pop(context, false),
+      //                   child: const Text("Cancel"),
+      //                 ),
+      //                 ElevatedButton(
+      //                   onPressed: () => Navigator.pop(context, true),
+      //                   child: const Text("Upload Proof"),
+      //                 ),
+      //               ],
+      //             );
+      //           },
+      //         );
 
-            if (uploadProof == true) {
-              await _handleUploadProof(newContext);
-            }
-          } else {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Photo permissions denied')),
-            );
-          }
-        }
-      } else {
-        widget.toggleStatus(context, widget.goalId, widget.date, widget.status);
-      }
+      //         if (uploadProof == true) {
+      //           await _handleUploadProof(newContext);
+      //         }
+      //       } else {
+      //         ScaffoldMessenger.of(context).showSnackBar(
+      //           const SnackBar(content: Text('Photo permissions denied')),
+      //         );
+      //       }
+      //     }
+      //   } else {
+      //     widget.scheduleOrSkip(context, widget.goalId, widget.date, widget.status);
+      //   }
     }
 
     return Container(
@@ -180,7 +179,10 @@ class _DayCheckboxState extends State<DayCheckbox> {
       child: Builder(
         builder: (BuildContext newContext) {
           return ElevatedButton(
-            onPressed: () => _onDayPressed(newContext),
+            onPressed: () {
+              widget.scheduleOrSkip(
+                  newContext, widget.goalId, widget.date, widget.status);
+            },
             style: ElevatedButton.styleFrom(
               backgroundColor: buttonColor,
               shape: const CircleBorder(),

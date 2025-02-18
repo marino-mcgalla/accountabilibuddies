@@ -6,14 +6,17 @@ class Goal {
   final String name;
   final int frequency;
   final String criteria;
-  List<dynamic> weekStatus; // This will be populated later
+  final String type;
+  //type of goal????? week or additive (can do several in one day and fills up progress bar)
+  // List<dynamic> weekStatus; // This will be populated later
 
   Goal({
     required this.id,
     required this.name,
     required this.frequency,
     required this.criteria,
-    this.weekStatus = const [],
+    required this.type,
+    // this.weekStatus = const [],
   });
 
   factory Goal.fromFirestore(DocumentSnapshot doc) {
@@ -23,6 +26,7 @@ class Goal {
       name: data['goalName'] ?? '',
       frequency: data['goalFrequency'] ?? 0,
       criteria: data['goalCriteria'] ?? '',
+      type: data['goalType'] ?? '',
     );
   }
 

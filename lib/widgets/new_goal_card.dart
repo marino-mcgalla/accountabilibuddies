@@ -1,6 +1,4 @@
 import 'package:flutter/material.dart';
-import 'new_week_view_grid.dart';
-import '../../services/new_goals_service.dart';
 
 class GoalCard extends StatefulWidget {
   final String goalId;
@@ -17,8 +15,6 @@ class GoalCard extends StatefulWidget {
     required this.goalFrequency,
     required this.goalCriteria,
     required this.goalType,
-    // required this.week,
-    // required this.scheduleOrSkip,
     this.onDelete, // Optional delete action
     this.onEdit, // Optional edit action
     Key? key,
@@ -35,8 +31,6 @@ class _GoalCardState extends State<GoalCard> {
   @override
   void initState() {
     super.initState();
-    // _weekStatus = List.from(widget.week);
-    print('Initial week status for goal ${widget.goalId}: $_weekStatus');
   }
 
   void _setEditMode(String mode) {
@@ -45,38 +39,8 @@ class _GoalCardState extends State<GoalCard> {
     });
   }
 
-  void _handleDayPress(
-      BuildContext context, String goalId, String date, String currentStatus) {
-    // print('Before update for goal $goalId: $_weekStatus');
-    // if (_editMode == 'schedule') {
-    //   setState(() {
-    //     int index = _weekStatus.indexWhere((day) => day['date'] == date);
-    //     if (index != -1) {
-    //       _weekStatus[index]['status'] = 'scheduled';
-    //     }
-    //     print('After update (schedule) for goal $goalId: $_weekStatus');
-    //   });
-    // } else if (_editMode == 'skip') {
-    //   setState(() {
-    //     int index = _weekStatus.indexWhere((day) => day['date'] == date);
-    //     if (index != -1) {
-    //       _weekStatus[index]['status'] = 'skipped';
-    //     }
-    //     print('After update (skip) for goal $goalId: $_weekStatus');
-    //   });
-    // } else {
-    //   // widget.scheduleOrSkip(context, widget.goalId, date, currentStatus);
-    // }
-  }
-
   Future<void> _saveChanges() async {
-    // print('Before save for goal ${widget.goalId}: $_weekStatus');
-    // // Update the status of the days in Firebase
-    // await GoalsService().updateWeek(widget.goalId, _weekStatus);
-    // setState(() {
-    //   _editMode = null;
-    //   print('After save for goal ${widget.goalId}: $_weekStatus');
-    // });
+    print('saved');
   }
 
   @override

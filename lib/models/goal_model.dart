@@ -1,40 +1,50 @@
-// models/goal.dart
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'progress_tracker_model.dart';
 
 class Goal {
   final String id;
-  final String name;
+  final String ownerId;
+  final String goalName;
   final int frequency;
   final String criteria;
-  final String type;
-  //type of goal????? week or additive (can do several in one day and fills up progress bar)
-  // List<dynamic> weekStatus; // This will be populated later
+  final String goalType;
+  final List<ProgressTrackerModel> history; // Add history field
 
   Goal({
     required this.id,
-    required this.name,
+    required this.ownerId,
+    required this.goalName,
     required this.frequency,
     required this.criteria,
-    required this.type,
-    // this.weekStatus = const [],
+    required this.goalType,
+    required this.history,
   });
 
   factory Goal.fromFirestore(DocumentSnapshot doc) {
     Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
     return Goal(
       id: doc.id,
-      name: data['goalName'] ?? '',
+      ownerId: data['ownerId'] ?? '',
+      goalName: data['goalName'] ?? '',
       frequency: data['goalFrequency'] ?? 0,
       criteria: data['goalCriteria'] ?? '',
-      type: data['goalType'] ?? '',
+      goalType: data['goalType'] ?? '',
+      history: data['history'] != null
+          ? (data['history'] as List)
+              .map((item) => ProgressTrackerModel.fromMap(item))
+              .toList()
+          : [],
     );
   }
 
   Map<String, dynamic> toMap() {
     return {
-      'goalName': name,
+      'ownerId': ownerId,
+      'goalName': goalName,
       'goalFrequency': frequency,
       'goalCriteria': criteria,
+      'goalType': goalType,
+      'history': history.map((item) => item.toMap()).toList(),
     };
   }
 }

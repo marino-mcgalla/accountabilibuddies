@@ -1,4 +1,10 @@
+import 'package:auth_test/models/goal_model.dart';
+import 'package:auth_test/models/progress_tracker_model.dart';
+import 'package:auth_test/services/new_goals_service.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import '../widgets/daily_progress_tracker.dart';
+import '../widgets/total_progress_tracker.dart';
 
 class GoalCard extends StatefulWidget {
   final String goalId;
@@ -6,8 +12,8 @@ class GoalCard extends StatefulWidget {
   final int goalFrequency;
   final String goalCriteria;
   final String goalType;
-  final VoidCallback? onDelete; // Optional callback for delete action
-  final VoidCallback? onEdit; // Optional callback for edit action
+  final VoidCallback? onDelete;
+  final VoidCallback? onEdit;
 
   const GoalCard({
     required this.goalId,
@@ -15,91 +21,101 @@ class GoalCard extends StatefulWidget {
     required this.goalFrequency,
     required this.goalCriteria,
     required this.goalType,
-    this.onDelete, // Optional delete action
-    this.onEdit, // Optional edit action
-    Key? key,
-  }) : super(key: key);
+    this.onDelete,
+    this.onEdit,
+    super.key,
+  });
 
   @override
-  _GoalCardState createState() => _GoalCardState();
+  GoalCardState createState() => GoalCardState();
 }
 
-class _GoalCardState extends State<GoalCard> {
-  String? _editMode;
-  List<Map<String, dynamic>> _weekStatus = [];
+class GoalCardState extends State<GoalCard> {
+  ProgressTrackerModel? _progressTracker;
+  Goal? _goal;
+  final GoalsService _goalsService = GoalsService();
 
   @override
   void initState() {
     super.initState();
+    _fetchGoal();
+    _fetchProgressTracker();
   }
 
-  void _setEditMode(String mode) {
-    setState(() {
-      _editMode = mode;
-    });
+  Future<void> _fetchGoal() async {
+    DocumentSnapshot doc = await FirebaseFirestore.instance
+        .collection('goals')
+        .doc(widget.goalId)
+        .get();
+    if (doc.exists) {
+      setState(() {
+        _goal = Goal.fromFirestore(doc);
+      });
+    }
   }
 
-  Future<void> _saveChanges() async {
-    print('saved');
+  Future<void> _fetchProgressTracker() async {
+    DocumentSnapshot doc = await FirebaseFirestore.instance
+        .collection('weekly_progress')
+        .doc(widget.goalId)
+        .get();
+    if (doc.exists) {
+      setState(() {
+        _progressTracker = ProgressTrackerModel.fromFirestore(doc);
+      });
+    } else {
+      setState(() {
+        _progressTracker = null;
+      });
+    }
+  }
+
+  Future<void> _simulateEndOfWeek() async {
+    if (_goal != null) {
+      await _goalsService.archiveCurrentWeek(_goal!.id);
+      await _goalsService.createFreshWeek(
+          widget.goalId, _goal!.goalType, _goal!.frequency);
+      _fetchProgressTracker(); // Refresh the progress tracker for the new week
+    } else {}
   }
 
   @override
   Widget build(BuildContext context) {
     return Card(
-      margin: const EdgeInsets.symmetric(vertical: 10),
       child: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisSize: MainAxisSize.min,
           children: [
-            Text(widget.goalName,
-                style:
-                    const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-            const SizedBox(height: 10),
-            Text("Frequency: ${widget.goalFrequency} times per week"),
-            const SizedBox(height: 10),
-            Text("Criteria: ${widget.goalCriteria}"),
-            const SizedBox(height: 20),
-            Text("Type: ${widget.goalType}"),
-            const SizedBox(height: 20),
-            // WeekViewGrid(
-            //     goalId: widget.goalId,
-            //     week: _weekStatus,
-            //     scheduleOrSkip: _handleDayPress),
-            const SizedBox(height: 20),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.end,
-              children: [
-                if (_editMode == null) ...[
-                  ElevatedButton(
-                    onPressed: () => _setEditMode('schedule'),
-                    child: const Text('Schedule'),
-                  ),
-                  const SizedBox(width: 10),
-                  ElevatedButton(
-                    onPressed: () => _setEditMode('skip'),
-                    child: const Text('Skip'),
-                  ),
-                ] else ...[
-                  ElevatedButton(
-                    onPressed: _saveChanges,
-                    child: const Text('Save'),
-                  ),
-                ],
-                const SizedBox(width: 10),
-                if (widget.onEdit != null)
-                  IconButton(
-                    icon: const Icon(Icons.edit, color: Colors.blue),
-                    onPressed: widget.onEdit,
-                  ),
-                if (widget.onDelete != null)
-                  IconButton(
-                    icon: const Icon(Icons.delete, color: Colors.red),
-                    onPressed: widget.onDelete,
-                  ),
-              ],
+            Text(
+              widget.goalName,
+              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
             ),
+            SizedBox(height: 8),
+            Text('Frequency: ${widget.goalFrequency}'),
+            Text('Criteria: ${widget.goalCriteria}'),
+            Text('Type: ${widget.goalType}'),
+            SizedBox(height: 16),
+            if (_progressTracker != null)
+              widget.goalType == 'daily'
+                  ? DailyProgressGrid(progressTracker: _progressTracker!)
+                  : TotalProgressBar(progressTracker: _progressTracker!),
+            // Other UI elements...
+            SizedBox(height: 16),
+            ElevatedButton(
+              onPressed: _simulateEndOfWeek,
+              child: Text('Simulate End of Week'),
+            ),
+            if (widget.onDelete != null)
+              ElevatedButton(
+                onPressed: widget.onDelete,
+                child: Text('Delete Goal'),
+              ),
+            if (widget.onEdit != null)
+              ElevatedButton(
+                onPressed: widget.onEdit,
+                child: Text('Edit Goal'),
+              ),
           ],
         ),
       ),

@@ -6,8 +6,6 @@ import '../../models/goal_model.dart';
 import '../../widgets/add_goal_dialog.dart';
 
 class MyGoalsScreen extends StatefulWidget {
-  //constructor
-  //The key parameter is used to uniquely identify widgets in the widget tree
   const MyGoalsScreen({super.key});
 
   @override
@@ -64,10 +62,10 @@ class MyGoalsScreenState extends State<MyGoalsScreen> {
                 final goal = _goals[index];
                 return GoalCard(
                   goalId: goal.id,
-                  goalName: goal.name,
+                  goalName: goal.goalName,
                   goalFrequency: goal.frequency,
                   goalCriteria: goal.criteria,
-                  goalType: goal.type,
+                  goalType: goal.goalType,
                   onDelete: () async {
                     await _goalsService.deleteGoal(context, goal.id);
                     _loadGoals(); // Refresh the goals after deleting a goal

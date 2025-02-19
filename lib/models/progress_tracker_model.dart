@@ -3,9 +3,9 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 class ProgressTrackerModel {
   final String goalId;
   final DateTime weekStartDate;
-  final List<DayProgress>? days; // For daily completions
-  final int? totalCompletions; // For total completions
-  final int? targetCompletions; // For total completions
+  final List<DayProgress>? days;
+  final int? totalCompletions;
+  final int? targetCompletions;
 
   ProgressTrackerModel({
     required this.goalId,
@@ -15,11 +15,13 @@ class ProgressTrackerModel {
     this.targetCompletions,
   });
 
-  // Factory constructor to create a ProgressTrackerModel from a Firestore document
   factory ProgressTrackerModel.fromFirestore(DocumentSnapshot doc) {
-    Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
+    Map<String, dynamic>? data = doc.data() as Map<String, dynamic>?;
+    if (data == null) {
+      throw StateError('Missing data for ProgressTrackerModel');
+    }
     return ProgressTrackerModel(
-      goalId: data['goalId'],
+      goalId: data['goalId'] ?? '',
       weekStartDate: (data['weekStartDate'] as Timestamp).toDate(),
       days: data['days'] != null
           ? (data['days'] as List)
@@ -31,7 +33,20 @@ class ProgressTrackerModel {
     );
   }
 
-  // Method to convert a ProgressTrackerModel to a map for Firestore
+  factory ProgressTrackerModel.fromMap(Map<String, dynamic> map) {
+    return ProgressTrackerModel(
+      goalId: map['goalId'],
+      weekStartDate: (map['weekStartDate'] as Timestamp).toDate(),
+      days: map['days'] != null
+          ? (map['days'] as List)
+              .map((day) => DayProgress.fromMap(day))
+              .toList()
+          : null,
+      totalCompletions: map['totalCompletions'],
+      targetCompletions: map['targetCompletions'],
+    );
+  }
+
   Map<String, dynamic> toMap() {
     return {
       'goalId': goalId,
@@ -52,7 +67,6 @@ class DayProgress {
     required this.status,
   });
 
-  // Factory constructor to create a DayProgress from a map
   factory DayProgress.fromMap(Map<String, dynamic> map) {
     return DayProgress(
       date: (map['date'] as Timestamp).toDate(),
@@ -60,7 +74,6 @@ class DayProgress {
     );
   }
 
-  // Method to convert a DayProgress to a map for Firestore
   Map<String, dynamic> toMap() {
     return {
       'date': date,

@@ -14,10 +14,10 @@ class AddGoalDialog extends StatefulWidget {
   }) : super(key: key);
 
   @override
-  _AddGoalDialogState createState() => _AddGoalDialogState();
+  AddGoalDialogState createState() => AddGoalDialogState();
 }
 
-class _AddGoalDialogState extends State<AddGoalDialog> {
+class AddGoalDialogState extends State<AddGoalDialog> {
   final TextEditingController nameController = TextEditingController();
   final TextEditingController criteriaController = TextEditingController();
   final TextEditingController completionsController = TextEditingController();
@@ -141,15 +141,17 @@ class _AddGoalDialogState extends State<AddGoalDialog> {
                     completionsController.text.isNotEmpty)) {
               final goal = Goal(
                 id: '', // Firebase will generate the ID
-                name: nameController.text,
+                goalName: nameController.text,
                 frequency: selectedGoalType == 0
                     ? selectedFrequency.round()
                     : int.tryParse(completionsController.text) ?? 0,
                 criteria: criteriaController.text,
-                type: selectedGoalType == 0 ? "daily" : "total",
+                goalType: selectedGoalType == 0 ? "daily" : "total",
+                ownerId: 'ownerId', // Replace with actual ownerId
+                history: [], // Replace with actual history if needed
               );
               await widget.goalsService.createGoal(
-                  goal.name, goal.frequency, goal.criteria, goal.type);
+                  goal.goalName, goal.frequency, goal.criteria, goal.goalType);
               Navigator.pop(context);
               widget.onGoalAdded(); // Callback to refresh the goals
             } else {

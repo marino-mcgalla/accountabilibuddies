@@ -4,6 +4,7 @@ import '../../widgets/new_goal_card.dart';
 import '../../services/new_goals_service.dart';
 import '../../models/goal_model.dart';
 import '../../widgets/add_goal_dialog.dart';
+import '../../widgets/edit_goal_dialog.dart';
 
 class MyGoalsScreen extends StatefulWidget {
   const MyGoalsScreen({super.key});
@@ -44,6 +45,10 @@ class MyGoalsScreenState extends State<MyGoalsScreen> {
     );
   }
 
+  void _showEditGoalDialog(BuildContext context, Goal goal) {
+    showEditGoalDialog(context, goal, _goalsService, _loadGoals);
+  }
+
   @override
   Widget build(BuildContext context) {
     User? user = FirebaseAuth.instance.currentUser;
@@ -70,7 +75,7 @@ class MyGoalsScreenState extends State<MyGoalsScreen> {
                     await _goalsService.deleteGoal(context, goal.id);
                     _loadGoals(); // Refresh the goals after deleting a goal
                   },
-                  // onEdit: () => _showEditGoalDialog(context, goal),
+                  onEdit: () => _showEditGoalDialog(context, goal),
                 );
               },
             ),

@@ -140,15 +140,17 @@ class AddGoalDialogState extends State<AddGoalDialog> {
                 (selectedGoalType == 0 ||
                     completionsController.text.isNotEmpty)) {
               final goal = Goal(
-                id: '', // Firebase will generate the ID
+                id: '',
                 goalName: nameController.text,
                 frequency: selectedGoalType == 0
                     ? selectedFrequency.round()
                     : int.tryParse(completionsController.text) ?? 0,
                 criteria: criteriaController.text,
-                goalType: selectedGoalType == 0 ? "daily" : "total",
-                ownerId: 'ownerId', // Replace with actual ownerId
-                history: [], // Replace with actual history if needed
+                goalType: selectedGoalType == 0
+                    ? "daily"
+                    : "total", //TODO: probably don't use 0 and 1 for this, just use a string
+                ownerId: 'ownerId',
+                history: [],
               );
               await widget.goalsService.createGoal(
                   goal.goalName, goal.frequency, goal.criteria, goal.goalType);

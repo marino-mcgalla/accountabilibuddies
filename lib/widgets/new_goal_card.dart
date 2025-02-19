@@ -70,13 +70,17 @@ class GoalCardState extends State<GoalCard> {
     }
   }
 
+  //TODO: implement this from party screen, party leader can end the week when everyone is ready
   Future<void> _simulateEndOfWeek() async {
     if (_goal != null) {
       await _goalsService.archiveCurrentWeek(_goal!.id);
+      await _fetchProgressTracker();
+      await _fetchGoal();
       await _goalsService.createFreshWeek(
-          widget.goalId, _goal!.goalType, _goal!.frequency);
-      _fetchProgressTracker(); // Refresh the progress tracker for the new week
-    } else {}
+          _goal!.id, _goal!.goalType, _goal!.frequency);
+    } else {
+      // print('Goal is null');
+    }
   }
 
   @override

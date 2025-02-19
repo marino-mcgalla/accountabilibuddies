@@ -38,8 +38,8 @@ class GoalsService {
                   date: weekStartDate.add(Duration(days: index)),
                   status: 'blank'))
           : null,
-      totalCompletions: goalType == 'total' ? 0 : null,
-      targetCompletions: goalType == 'total' ? goalFrequency : null,
+      totalCompletions: 0,
+      targetCompletions: goalFrequency,
     );
 
     await _firestore
@@ -86,7 +86,7 @@ class GoalsService {
                   date: weekStartDate.add(Duration(days: index)),
                   status: 'blank'))
           : null,
-      totalCompletions: goalType == 'total' ? 0 : null, //COME BACK TO THIS
+      totalCompletions: 0,
       targetCompletions: goalFrequency,
     );
 

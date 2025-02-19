@@ -46,35 +46,27 @@ class ImageHandler {
       String downloadUrl;
       if (kIsWeb) {
         final bytes = await file.readAsBytes();
-        final originalSize = bytes.lengthInBytes;
+        // final originalSize = bytes.lengthInBytes;
 
         final compressedBytes = await compressImageWeb(bytes);
-        final compressedSize = compressedBytes.length;
-
-        // Log to the console
-        print('Original Size: $originalSize bytes');
-        print('Compressed Size: $compressedSize bytes');
+        // final compressedSize = compressedBytes.length;
 
         // Use FirebaseStorageUtil to upload the file
         downloadUrl = await _storageUtil.uploadBytes(compressedBytes);
       } else {
         final ioFile = io.File(file.path);
-        final originalSize = await getFileSize(ioFile);
+        // final originalSize = await getFileSize(ioFile);
         final compressedFile = await compressImage(ioFile);
-        final compressedSize = await getFileSize(compressedFile);
+        // final compressedSize = await getFileSize(compressedFile);
 
         // Log to the console
-        print('Original Size: $originalSize bytes');
-        print('Compressed Size: $compressedSize bytes');
 
         // Use FirebaseStorageUtil to upload the file
         downloadUrl = await _storageUtil.uploadFile(compressedFile);
       }
       onUploadSuccess(downloadUrl);
-      print('Upload successful');
     } catch (e) {
       onUploadFailure('Operation failed: $e');
-      print('Operation failed: $e');
     }
   }
 }

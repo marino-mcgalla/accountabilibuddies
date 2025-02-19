@@ -4,8 +4,7 @@ import '../models/progress_tracker_model.dart';
 class TotalProgressBar extends StatelessWidget {
   final ProgressTrackerModel progressTracker;
 
-  const TotalProgressBar({required this.progressTracker, Key? key})
-      : super(key: key);
+  const TotalProgressBar({required this.progressTracker, super.key});
 
   @override
   Widget build(BuildContext context) {

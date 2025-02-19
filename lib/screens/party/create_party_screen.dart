@@ -7,8 +7,8 @@ class CreatePartyScreen extends StatelessWidget {
   const CreatePartyScreen({
     required this.partyNameController,
     required this.createParty,
-    Key? key,
-  }) : super(key: key);
+    super.key,
+  });
 
   @override
   Widget build(BuildContext context) {

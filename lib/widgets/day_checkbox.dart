@@ -20,14 +20,14 @@ class DayCheckbox extends StatefulWidget {
     required this.date,
     required this.status,
     required this.scheduleOrSkip,
-    Key? key,
-  }) : super(key: key);
+    super.key,
+  });
 
   @override
-  _DayCheckboxState createState() => _DayCheckboxState();
+  DayCheckboxState createState() => DayCheckboxState();
 }
 
-class _DayCheckboxState extends State<DayCheckbox> {
+class DayCheckboxState extends State<DayCheckbox> {
   Color buttonColor = Colors.white;
 
   bool isFutureDay(String dayDate) {

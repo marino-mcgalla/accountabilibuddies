@@ -10,8 +10,8 @@ class WeekViewGrid extends StatelessWidget {
     required this.goalId,
     required this.week,
     required this.scheduleOrSkip,
-    Key? key,
-  }) : super(key: key);
+    super.key,
+  });
 
   @override
   Widget build(BuildContext context) {

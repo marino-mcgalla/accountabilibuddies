@@ -10,8 +10,8 @@ class AddGoalDialog extends StatefulWidget {
   const AddGoalDialog({
     required this.goalsService,
     required this.onGoalAdded,
-    Key? key,
-  }) : super(key: key);
+    super.key,
+  });
 
   @override
   AddGoalDialogState createState() => AddGoalDialogState();

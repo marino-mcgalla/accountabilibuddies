@@ -33,6 +33,14 @@ class MyGoalsScreenState extends State<MyGoalsScreen> {
     });
   }
 
+  Goal? _getGoalById(String goalId) {
+    try {
+      return _goals.firstWhere((goal) => goal.id == goalId);
+    } catch (e) {
+      return null;
+    }
+  }
+
   void _showAddGoalDialog(BuildContext context) {
     showDialog(
       context: context,
@@ -45,8 +53,14 @@ class MyGoalsScreenState extends State<MyGoalsScreen> {
     );
   }
 
-  void _showEditGoalDialog(BuildContext context, Goal goal) {
-    showEditGoalDialog(context, goal, _goalsService, _loadGoals);
+  void _showEditGoalDialog(BuildContext context, String goalId) {
+    print("HELPPPPPPPPPP"); // Debug print
+    final goal = _getGoalById(goalId);
+    if (goal != null) {
+      print("this one");
+      print(goal.toMap()); // Debug print
+      showEditGoalDialog(context, goal, _goalsService, _loadGoals);
+    }
   }
 
   @override
@@ -75,7 +89,9 @@ class MyGoalsScreenState extends State<MyGoalsScreen> {
                     await _goalsService.deleteGoal(context, goal.id);
                     _loadGoals(); // Refresh the goals after deleting a goal
                   },
-                  onEdit: () => _showEditGoalDialog(context, goal),
+                  onEdit: () => _showEditGoalDialog(context, goal.id),
+                  onSimulateEndOfWeek:
+                      _loadGoals, // Pass the callback to refresh goals
                 );
               },
             ),

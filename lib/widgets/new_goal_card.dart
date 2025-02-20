@@ -5,6 +5,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import '../widgets/daily_progress_tracker.dart';
 import '../widgets/total_progress_tracker.dart';
+import '../widgets/edit_goal_dialog.dart';
 
 class GoalCard extends StatefulWidget {
   final String goalId;
@@ -14,6 +15,7 @@ class GoalCard extends StatefulWidget {
   final String goalType;
   final VoidCallback? onDelete;
   final VoidCallback? onEdit;
+  final VoidCallback? onSimulateEndOfWeek; // Add the callback
 
   const GoalCard({
     required this.goalId,
@@ -23,6 +25,7 @@ class GoalCard extends StatefulWidget {
     required this.goalType,
     this.onDelete,
     this.onEdit,
+    this.onSimulateEndOfWeek, // Add the callback
     super.key,
   });
 
@@ -50,6 +53,8 @@ class GoalCardState extends State<GoalCard> {
     if (doc.exists) {
       setState(() {
         _goal = Goal.fromFirestore(doc);
+        print(_goal?.toMap()); // Debug print
+        print('up there');
       });
     }
   }
@@ -62,6 +67,7 @@ class GoalCardState extends State<GoalCard> {
     if (doc.exists) {
       setState(() {
         _progressTracker = ProgressTrackerModel.fromFirestore(doc);
+        // print('Fetched progress tracker: $_progressTracker'); // Debug print
       });
     } else {
       setState(() {
@@ -70,17 +76,42 @@ class GoalCardState extends State<GoalCard> {
     }
   }
 
-  //TODO: implement this from party screen, party leader can end the week when everyone is ready
   Future<void> _simulateEndOfWeek() async {
     if (_goal != null) {
       await _goalsService.archiveCurrentWeek(_goal!.id);
-      await _fetchProgressTracker();
-      await _fetchGoal();
       await _goalsService.createFreshWeek(
           _goal!.id, _goal!.goalType, _goal!.frequency);
+      await _fetchGoal(); // Fetch the updated goal
+      await _fetchProgressTracker(); // Fetch the updated progress tracker
+      setState(() {
+        // Ensure the state is updated to trigger a rebuild
+        print('down there');
+        print(_goal?.toMap()); // Debug print
+        //   print(
+        //       'Updated progress tracker after simulateEndOfWeek: $_progressTracker'); // Debug print
+      });
+      // Call the onSimulateEndOfWeek callback to refresh the goals list in the parent widget
+      if (widget.onSimulateEndOfWeek != null) {
+        widget.onSimulateEndOfWeek!();
+      }
     } else {
       // print('Goal is null');
     }
+  }
+
+  void _showEditGoalDialog(BuildContext context) {
+    print('Current goal: $_goal'); // Log the current goal
+    showEditGoalDialog(context, _goal!, _goalsService, () async {
+      print('Goal history: ${_goal?.history}'); // Log the goal history
+      await _fetchGoal();
+      await _fetchProgressTracker();
+      setState(() {
+        // Ensure the state is updated to trigger a rebuild
+        print('Updated goal after edit: ${_goal?.toMap()}'); // Debug print
+        print(
+            'Updated progress tracker after edit: $_progressTracker'); // Debug print
+      });
+    });
   }
 
   @override
@@ -101,7 +132,8 @@ class GoalCardState extends State<GoalCard> {
             Text('Type: ${widget.goalType}'),
             SizedBox(height: 16),
             if (_progressTracker != null)
-              widget.goalType == 'daily'
+              _goal?.goalType ==
+                      'daily' // Use _goal?.goalType instead of widget.goalType
                   ? DailyProgressGrid(progressTracker: _progressTracker!)
                   : TotalProgressBar(progressTracker: _progressTracker!),
             // Other UI elements...
@@ -117,7 +149,8 @@ class GoalCardState extends State<GoalCard> {
               ),
             if (widget.onEdit != null)
               ElevatedButton(
-                onPressed: widget.onEdit,
+                onPressed: widget
+                    .onEdit, // Ensure this is correctly calling the function
                 child: Text('Edit Goal'),
               ),
           ],

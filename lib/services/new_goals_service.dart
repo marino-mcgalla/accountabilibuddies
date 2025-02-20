@@ -2,7 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import '../models/goal_model.dart';
-import '../models/progress_tracker_model.dart'; // Import the ProgressTrackerModel
+import '../models/progress_tracker_model.dart';
 
 class GoalsService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
@@ -106,6 +106,38 @@ class GoalsService {
   }
 
   Future<void> editGoal(Goal goal) async {
+    // Fetch the current progress tracker
+    DocumentSnapshot currentProgressDoc =
+        await _firestore.collection('weekly_progress').doc(goal.id).get();
+    if (currentProgressDoc.exists) {
+      ProgressTrackerModel currentProgress =
+          ProgressTrackerModel.fromFirestore(currentProgressDoc);
+
+      // If the goal type is changed to daily, initialize the days field
+      if (goal.goalType == 'daily' &&
+          (currentProgress.days == null || currentProgress.days!.isEmpty)) {
+        currentProgress = ProgressTrackerModel(
+          goalId: currentProgress.goalId,
+          weekStartDate: currentProgress.weekStartDate,
+          days: List.generate(
+              7,
+              (index) => DayProgress(
+                  date:
+                      currentProgress.weekStartDate.add(Duration(days: index)),
+                  status: 'blank')),
+          totalCompletions: currentProgress.totalCompletions,
+          targetCompletions: currentProgress.targetCompletions,
+        );
+
+        // Update the progress tracker in Firestore
+        await _firestore
+            .collection('weekly_progress')
+            .doc(goal.id)
+            .set(currentProgress.toMap());
+      }
+    }
+
+    // Update the goal document
     await _firestore.collection('goals').doc(goal.id).update(goal.toMap());
   }
 

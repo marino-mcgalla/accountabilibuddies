@@ -12,8 +12,8 @@ class InviteList extends StatelessWidget {
     required this.title,
     required this.onAction,
     required this.isOutgoing,
-    Key? key,
-  }) : super(key: key);
+    super.key,
+  });
 
   Future<Map<String, dynamic>?> _fetchUserDetails(String userId) async {
     DocumentSnapshot userDoc =

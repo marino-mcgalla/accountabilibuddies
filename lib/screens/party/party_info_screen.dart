@@ -17,8 +17,8 @@ class PartyInfoScreen extends StatelessWidget {
     required this.updateCounter,
     required this.leaveParty,
     required this.closeParty,
-    Key? key,
-  }) : super(key: key);
+    super.key,
+  });
 
   Stream<DocumentSnapshot> _fetchUserDetailsStream(String userId) {
     return FirebaseFirestore.instance
@@ -61,61 +61,58 @@ class PartyInfoScreen extends StatelessWidget {
             const Text("Party Members",
                 style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
             const SizedBox(height: 8),
-            ...members
-                .map((member) => StreamBuilder<DocumentSnapshot>(
-                      stream: _fetchUserDetailsStream(member),
-                      builder: (context, snapshot) {
-                        if (snapshot.connectionState ==
-                            ConnectionState.waiting) {
-                          return const ListTile(
-                            leading: CircularProgressIndicator(),
-                            title: Text("Loading..."),
-                          );
-                        }
-                        if (!snapshot.hasData ||
-                            snapshot.data == null ||
-                            !snapshot.data!.exists) {
-                          return const ListTile(
-                            leading: Icon(Icons.error),
-                            title: Text("Error loading user details"),
-                          );
-                        }
-                        var userDetails =
-                            snapshot.data!.data() as Map<String, dynamic>;
-                        String displayName = userDetails['username'] ??
-                            userDetails['email'] ??
-                            'Unknown';
-                        int counter = userDetails['counter'] ?? 0;
-                        bool isOwner = member == partyOwner;
-                        return ListTile(
-                          leading: const Icon(Icons.person),
-                          title: Row(
-                            children: [
-                              Text(displayName),
-                              if (isOwner)
-                                const Icon(Icons.star,
-                                    color: Colors.amber, size: 16),
-                            ],
-                          ),
-                          subtitle: Row(
-                            children: [
-                              if (member != currentUserId)
-                                IconButton(
-                                  icon: const Icon(Icons.remove),
-                                  onPressed: () => updateCounter(member, -1),
-                                ),
-                              Text('Counter: $counter'),
-                              if (member != currentUserId)
-                                IconButton(
-                                  icon: const Icon(Icons.add),
-                                  onPressed: () => updateCounter(member, 1),
-                                ),
-                            ],
-                          ),
-                        );
-                      },
-                    ))
-                .toList(),
+            ...members.map((member) => StreamBuilder<DocumentSnapshot>(
+                  stream: _fetchUserDetailsStream(member),
+                  builder: (context, snapshot) {
+                    if (snapshot.connectionState == ConnectionState.waiting) {
+                      return const ListTile(
+                        leading: CircularProgressIndicator(),
+                        title: Text("Loading..."),
+                      );
+                    }
+                    if (!snapshot.hasData ||
+                        snapshot.data == null ||
+                        !snapshot.data!.exists) {
+                      return const ListTile(
+                        leading: Icon(Icons.error),
+                        title: Text("Error loading user details"),
+                      );
+                    }
+                    var userDetails =
+                        snapshot.data!.data() as Map<String, dynamic>;
+                    String displayName = userDetails['username'] ??
+                        userDetails['email'] ??
+                        'Unknown';
+                    int counter = userDetails['counter'] ?? 0;
+                    bool isOwner = member == partyOwner;
+                    return ListTile(
+                      leading: const Icon(Icons.person),
+                      title: Row(
+                        children: [
+                          Text(displayName),
+                          if (isOwner)
+                            const Icon(Icons.star,
+                                color: Colors.amber, size: 16),
+                        ],
+                      ),
+                      subtitle: Row(
+                        children: [
+                          if (member != currentUserId)
+                            IconButton(
+                              icon: const Icon(Icons.remove),
+                              onPressed: () => updateCounter(member, -1),
+                            ),
+                          Text('Counter: $counter'),
+                          if (member != currentUserId)
+                            IconButton(
+                              icon: const Icon(Icons.add),
+                              onPressed: () => updateCounter(member, 1),
+                            ),
+                        ],
+                      ),
+                    );
+                  },
+                )),
             const SizedBox(height: 20),
             ElevatedButton(
               onPressed: leaveParty,

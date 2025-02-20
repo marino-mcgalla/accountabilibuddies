@@ -5,8 +5,7 @@ import '../screens/auth/auth_gate.dart';
 import '../screens/home/home_screen.dart';
 import '../screens/party/party_screen.dart';
 import '../screens/user/user_info_screen.dart';
-import '../screens/goals/my_goals_screen.dart';
-import '../screens/sandbox/sandbox_screen.dart'; // Import the SandboxScreen
+import '../screens/goals/new_my_goals_screen.dart';
 import '../widgets/app_scaffold.dart';
 
 final GoRouter appRouter = GoRouter(
@@ -41,7 +40,7 @@ final GoRouter appRouter = GoRouter(
     ),
     GoRoute(
       path: '/goals',
-      builder: (context, state) => const AppScaffold(child: MyGoalsScreen()),
+      builder: (context, state) => AppScaffold(child: MyGoalsScreen()),
     ),
     // GoRoute(
     //   path: '/sandbox',

@@ -2,11 +2,13 @@ import 'package:flutter/material.dart';
 import '../../utils/image_handler.dart';
 
 class SandboxScreen extends StatefulWidget {
+  const SandboxScreen({super.key});
+
   @override
-  _SandboxScreenState createState() => _SandboxScreenState();
+  SandboxScreenState createState() => SandboxScreenState();
 }
 
-class _SandboxScreenState extends State<SandboxScreen> {
+class SandboxScreenState extends State<SandboxScreen> {
   final ImageHandler _imageHandler = ImageHandler();
 
   @override

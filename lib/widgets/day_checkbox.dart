@@ -1,4 +1,3 @@
-// day_checkbox.dart
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
@@ -14,27 +13,28 @@ class DayCheckbox extends StatefulWidget {
   final String goalId;
   final String date;
   final String status;
-  final Function(BuildContext, String, String, String) toggleStatus;
+  final Function(BuildContext, String, String, String) scheduleOrSkip;
 
   const DayCheckbox({
     required this.goalId,
     required this.date,
     required this.status,
-    required this.toggleStatus,
-    Key? key,
-  }) : super(key: key);
+    required this.scheduleOrSkip,
+    super.key,
+  });
 
   @override
-  _DayCheckboxState createState() => _DayCheckboxState();
+  DayCheckboxState createState() => DayCheckboxState();
 }
 
-class _DayCheckboxState extends State<DayCheckbox> {
+class DayCheckboxState extends State<DayCheckbox> {
   Color buttonColor = Colors.white;
 
   bool isFutureDay(String dayDate) {
     return DateTime.parse(dayDate).isAfter(DateTime.now());
   }
 
+  //TODO: didn't we make a util for this?
   Future<bool> _requestPermissions() async {
     if (kIsWeb) return true;
 
@@ -100,72 +100,74 @@ class _DayCheckboxState extends State<DayCheckbox> {
     String today = DateFormat('yyyy-MM-dd').format(DateTime.now());
     IconData? iconData;
 
-    if (isFutureDay(widget.date)) {
-      buttonColor = Colors.white;
-      iconData = null;
-    } else {
-      switch (widget.status) {
-        case 'skipped':
-          buttonColor = Colors.grey;
-          iconData = Icons.block;
-          break;
-        case 'pending':
-          buttonColor = Colors.yellow;
-          iconData = Icons.warning;
-          break;
-        case 'approved':
-          buttonColor = Colors.green;
-          iconData = Icons.check;
-          break;
-        case 'denied':
-          buttonColor = Colors.red;
-          iconData = Icons.close;
-          break;
-        default:
-          buttonColor = Colors.white;
-          iconData = Icons.add;
-      }
+    //TODO: move this probably
+    switch (widget.status) {
+      case 'skipped':
+        buttonColor = const Color.fromARGB(255, 194, 192, 192);
+        iconData = Icons.redo;
+        break;
+      case 'scheduled':
+        buttonColor = Colors.blue;
+        iconData = Icons.calendar_month;
+        break;
+      case 'pending':
+        buttonColor = Colors.yellow;
+        iconData = Icons.warning;
+        break;
+      case 'approved':
+        buttonColor = Colors.green;
+        iconData = Icons.check;
+        break;
+      case 'denied':
+        buttonColor = Colors.red;
+        iconData = Icons.close;
+        break;
+      default:
+        buttonColor = Colors.white;
+        iconData = Icons.add;
+      // }
     }
 
+    //TODO: reimplement this somewhere else
     void _onDayPressed(BuildContext newContext) async {
-      if (!isFutureDay(widget.date)) {
-        if (DateTime.parse(widget.date).isBefore(DateTime.now()) ||
-            widget.date == today) {
-          if (await _requestPermissions()) {
-            // Ask the user if they want to upload proof.
-            bool? uploadProof = await showDialog<bool>(
-              context: newContext,
-              builder: (BuildContext context) {
-                return AlertDialog(
-                  title: const Text("Upload Proof"),
-                  content:
-                      const Text("Do you want to upload proof for this day?"),
-                  actions: [
-                    TextButton(
-                      onPressed: () => Navigator.pop(context, false),
-                      child: const Text("Cancel"),
-                    ),
-                    ElevatedButton(
-                      onPressed: () => Navigator.pop(context, true),
-                      child: const Text("Upload Proof"),
-                    ),
-                  ],
-                );
-              },
-            );
+      //   if (!isFutureDay(widget.date)) {
+      //     if (DateTime.parse(widget.date).isBefore(DateTime.now()) ||
+      //         widget.date == today) {
+      //       if (await _requestPermissions()) {
+      //         // Ask the user if they want to upload proof.
+      //         bool? uploadProof = await showDialog<bool>(
+      //           context: newContext,
+      //           builder: (BuildContext context) {
+      //             return AlertDialog(
+      //               title: const Text("Upload Proof"),
+      //               content:
+      //                   const Text("Do you want to upload proof for this day?"),
+      //               actions: [
+      //                 TextButton(
+      //                   onPressed: () => Navigator.pop(context, false),
+      //                   child: const Text("Cancel"),
+      //                 ),
+      //                 ElevatedButton(
+      //                   onPressed: () => Navigator.pop(context, true),
+      //                   child: const Text("Upload Proof"),
+      //                 ),
+      //               ],
+      //             );
+      //           },
+      //         );
 
-            if (uploadProof == true) {
-              await _handleUploadProof(newContext);
-            }
-          } else {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Photo permissions denied')),
-            );
-          }
-        }
-      } else {
-        widget.toggleStatus(context, widget.goalId, widget.date, 'skipped');
-      }
+      //         if (uploadProof == true) {
+      //           await _handleUploadProof(newContext);
+      //         }
+      //       } else {
+      //         ScaffoldMessenger.of(context).showSnackBar(
+      //           const SnackBar(content: Text('Photo permissions denied')),
+      //         );
+      //       }
+      //     }
+      //   } else {
+      //     widget.scheduleOrSkip(context, widget.goalId, widget.date, widget.status);
+      //   }
     }
 
     return Container(
@@ -177,7 +179,10 @@ class _DayCheckboxState extends State<DayCheckbox> {
       child: Builder(
         builder: (BuildContext newContext) {
           return ElevatedButton(
-            onPressed: () => _onDayPressed(newContext),
+            onPressed: () {
+              widget.scheduleOrSkip(
+                  newContext, widget.goalId, widget.date, widget.status);
+            },
             style: ElevatedButton.styleFrom(
               backgroundColor: buttonColor,
               shape: const CircleBorder(),

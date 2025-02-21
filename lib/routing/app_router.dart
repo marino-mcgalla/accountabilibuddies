@@ -5,8 +5,7 @@ import '../screens/auth/auth_gate.dart';
 import '../screens/home/home_screen.dart';
 import '../screens/party/party_screen.dart';
 import '../screens/user/user_info_screen.dart';
-import '../screens/goals/my_goals_screen.dart';
-import '../screens/sandbox/sandbox_screen.dart'; // Import the SandboxScreen
+import '../refactor/new_my_goals_screen.dart';
 import '../widgets/app_scaffold.dart';
 
 final GoRouter appRouter = GoRouter(

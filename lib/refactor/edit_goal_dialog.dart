@@ -8,13 +8,13 @@ import 'weekly_goal.dart';
 class EditGoalDialog extends StatefulWidget {
   final Goal goal;
 
-  const EditGoalDialog({required this.goal, Key? key}) : super(key: key);
+  const EditGoalDialog({required this.goal, super.key});
 
   @override
-  _EditGoalDialogState createState() => _EditGoalDialogState();
+  EditGoalDialogState createState() => EditGoalDialogState();
 }
 
-class _EditGoalDialogState extends State<EditGoalDialog> {
+class EditGoalDialogState extends State<EditGoalDialog> {
   final _formKey = GlobalKey<FormState>();
   late String _goalName;
   late int _goalFrequency;
@@ -91,9 +91,10 @@ class _EditGoalDialogState extends State<EditGoalDialog> {
                 setState(() {
                   _goalType = value!;
                   if (_goalType == 'total') {
-                    _goalFrequency = 0; // Initialize with a default value
+                    _goalFrequency = 0;
                   } else if (_goalType == 'weekly') {
-                    _goalFrequency = 7; // Set to 7 for weekly goals
+                    _goalFrequency =
+                        4; // Set to 4 as default since it's in the middle
                   }
                 });
               },

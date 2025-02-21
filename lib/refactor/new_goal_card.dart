@@ -1,6 +1,4 @@
 import 'package:flutter/material.dart';
-import 'edit_goal_dialog.dart';
-import 'goal_model.dart';
 
 class GoalCard extends StatelessWidget {
   final String goalId;
@@ -19,8 +17,8 @@ class GoalCard extends StatelessWidget {
     required this.goalType,
     this.onDelete,
     this.onEdit,
-    Key? key,
-  }) : super(key: key);
+    super.key,
+  });
 
   @override
   Widget build(BuildContext context) {

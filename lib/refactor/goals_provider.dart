@@ -33,23 +33,9 @@ class GoalsProvider with ChangeNotifier {
     });
   }
 
-  @override
-  void dispose() {
-    _goalsSubscription.cancel();
-    super.dispose();
-  }
-
   Future<void> addGoal(Goal goal) async {
     _setLoading(true);
     _goals.add(goal);
-    await _updateGoalsInFirestore();
-    _setLoading(false);
-    notifyListeners();
-  }
-
-  Future<void> removeGoal(BuildContext context, String goalId) async {
-    _setLoading(true);
-    _goals.removeWhere((goal) => goal.id == goalId);
     await _updateGoalsInFirestore();
     _setLoading(false);
     notifyListeners();
@@ -66,6 +52,15 @@ class GoalsProvider with ChangeNotifier {
     notifyListeners();
   }
 
+  Future<void> removeGoal(BuildContext context, String goalId) async {
+    _setLoading(true);
+    _goals.removeWhere((goal) => goal.id == goalId);
+    await _updateGoalsInFirestore();
+    _setLoading(false);
+    notifyListeners();
+  }
+
+  // adds 1 for total goals
   Future<void> incrementCompletions(String goalId) async {
     int index = _goals.indexWhere((goal) => goal.id == goalId);
     if (index != -1 && _goals[index] is TotalGoal) {
@@ -75,6 +70,7 @@ class GoalsProvider with ChangeNotifier {
     }
   }
 
+  // marks day as complete for weekly goals
   Future<void> toggleCompletion(
       String goalId, String day, bool isCompleted) async {
     int index = _goals.indexWhere((goal) => goal.id == goalId);
@@ -93,6 +89,12 @@ class GoalsProvider with ChangeNotifier {
         .collection('userGoals')
         .doc(currentUserId)
         .set({'goals': goalsData});
+  }
+
+  @override
+  void dispose() {
+    _goalsSubscription.cancel();
+    super.dispose();
   }
 
   void _setLoading(bool value) {

@@ -8,17 +8,19 @@ import 'total_goal.dart';
 import 'weekly_goal.dart';
 
 class AddGoalDialog extends StatefulWidget {
+  const AddGoalDialog({super.key});
+
   @override
-  _AddGoalDialogState createState() => _AddGoalDialogState();
+  AddGoalDialogState createState() => AddGoalDialogState();
 }
 
-class _AddGoalDialogState extends State<AddGoalDialog> {
+class AddGoalDialogState extends State<AddGoalDialog> {
   final _formKey = GlobalKey<FormState>();
   String _goalName = '';
   int _goalFrequency = 0;
   String _goalCriteria = '';
   String _goalType = 'total';
-  Map<String, bool> _completions = {};
+  final Map<String, bool> _completions = {};
 
   @override
   Widget build(BuildContext context) {

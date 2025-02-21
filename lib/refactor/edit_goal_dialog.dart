@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'goals_provider.dart';
 import 'goal_model.dart';
+import 'total_goal.dart';
+import 'weekly_goal.dart';
 
 class EditGoalDialog extends StatefulWidget {
   final Goal goal;
@@ -18,14 +20,19 @@ class _EditGoalDialogState extends State<EditGoalDialog> {
   late int _goalFrequency;
   late String _goalCriteria;
   late String _goalType;
+  late Map<String, bool> _completions;
 
   @override
   void initState() {
     super.initState();
     _goalName = widget.goal.goalName;
-    _goalFrequency = widget.goal.goalFrequency;
     _goalCriteria = widget.goal.goalCriteria;
     _goalType = widget.goal.goalType;
+    _goalFrequency = widget.goal.goalFrequency;
+
+    if (widget.goal is WeeklyGoal) {
+      _completions = (widget.goal as WeeklyGoal).completions;
+    }
   }
 
   @override
@@ -74,7 +81,7 @@ class _EditGoalDialogState extends State<EditGoalDialog> {
             DropdownButtonFormField<String>(
               value: _goalType,
               decoration: InputDecoration(labelText: 'Goal Type'),
-              items: ['daily', 'weekly', 'additive']
+              items: ['total', 'weekly']
                   .map((type) => DropdownMenuItem(
                         value: type,
                         child: Text(type),
@@ -83,6 +90,11 @@ class _EditGoalDialogState extends State<EditGoalDialog> {
               onChanged: (value) {
                 setState(() {
                   _goalType = value!;
+                  if (_goalType == 'total') {
+                    _goalFrequency = 0; // Initialize with a default value
+                  } else if (_goalType == 'weekly') {
+                    _goalFrequency = 7; // Set to 7 for weekly goals
+                  }
                 });
               },
               onSaved: (value) {
@@ -103,13 +115,31 @@ class _EditGoalDialogState extends State<EditGoalDialog> {
           onPressed: () {
             if (_formKey.currentState!.validate()) {
               _formKey.currentState!.save();
-              Provider.of<GoalsProvider>(context, listen: false).editGoal(
-                widget.goal.id,
-                _goalName,
-                _goalFrequency,
-                _goalCriteria,
-                _goalType,
-              );
+              Goal updatedGoal;
+              if (_goalType == 'total') {
+                updatedGoal = TotalGoal(
+                  id: widget.goal.id,
+                  ownerId: widget.goal.ownerId,
+                  goalName: _goalName,
+                  goalCriteria: _goalCriteria,
+                  goalFrequency: _goalFrequency,
+                  completions: widget.goal is TotalGoal
+                      ? (widget.goal as TotalGoal).completions
+                      : 0,
+                );
+              } else {
+                updatedGoal = WeeklyGoal(
+                  id: widget.goal.id,
+                  ownerId: widget.goal.ownerId,
+                  goalName: _goalName,
+                  goalCriteria: _goalCriteria,
+                  completions: widget.goal is WeeklyGoal
+                      ? (widget.goal as WeeklyGoal).completions
+                      : {},
+                );
+              }
+              Provider.of<GoalsProvider>(context, listen: false)
+                  .editGoal(updatedGoal);
               Navigator.of(context).pop();
             }
           },

@@ -1,6 +1,11 @@
+import 'package:auth_test/refactor/goal_model.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'goals_provider.dart';
+import 'total_goal.dart';
+import 'weekly_goal.dart';
 
 class AddGoalDialog extends StatefulWidget {
   @override
@@ -12,7 +17,8 @@ class _AddGoalDialogState extends State<AddGoalDialog> {
   String _goalName = '';
   int _goalFrequency = 0;
   String _goalCriteria = '';
-  String _goalType = 'daily';
+  String _goalType = 'total';
+  Map<String, bool> _completions = {};
 
   @override
   Widget build(BuildContext context) {
@@ -33,34 +39,32 @@ class _AddGoalDialogState extends State<AddGoalDialog> {
               },
               onSaved: (value) {
                 _goalName = value!;
-                print('Goal Name: $_goalName');
               },
             ),
-            TextFormField(
-              decoration: InputDecoration(labelText: 'Goal Frequency'),
-              keyboardType: TextInputType.number,
-              validator: (value) {
-                if (value == null || value.isEmpty) {
-                  return 'Please enter a goal frequency';
-                }
-                return null;
-              },
-              onSaved: (value) {
-                _goalFrequency = int.parse(value!);
-                print('Goal Frequency: $_goalFrequency');
-              },
-            ),
+            if (_goalType == 'total')
+              TextFormField(
+                decoration: InputDecoration(labelText: 'Goal Frequency'),
+                keyboardType: TextInputType.number,
+                validator: (value) {
+                  if (value == null || value.isEmpty) {
+                    return 'Please enter a goal frequency';
+                  }
+                  return null;
+                },
+                onSaved: (value) {
+                  _goalFrequency = int.parse(value!);
+                },
+              ),
             TextFormField(
               decoration: InputDecoration(labelText: 'Goal Criteria'),
               onSaved: (value) {
                 _goalCriteria = value!;
-                print('Goal Criteria: $_goalCriteria');
               },
             ),
             DropdownButtonFormField<String>(
               value: _goalType,
               decoration: InputDecoration(labelText: 'Goal Type'),
-              items: ['daily', 'weekly', 'additive']
+              items: ['total', 'weekly']
                   .map((type) => DropdownMenuItem(
                         value: type,
                         child: Text(type),
@@ -73,7 +77,6 @@ class _AddGoalDialogState extends State<AddGoalDialog> {
               },
               onSaved: (value) {
                 _goalType = value!;
-                print('Goal Type: $_goalType');
               },
             ),
           ],
@@ -90,17 +93,26 @@ class _AddGoalDialogState extends State<AddGoalDialog> {
           onPressed: () {
             if (_formKey.currentState!.validate()) {
               _formKey.currentState!.save();
-              print('Form Saved:');
-              print('Goal Name: $_goalName');
-              print('Goal Frequency: $_goalFrequency');
-              print('Goal Criteria: $_goalCriteria');
-              print('Goal Type: $_goalType');
-              Provider.of<GoalsProvider>(context, listen: false).addGoal(
-                _goalName,
-                _goalFrequency,
-                _goalCriteria,
-                _goalType,
-              );
+              Goal newGoal;
+              if (_goalType == 'total') {
+                newGoal = TotalGoal(
+                  id: FirebaseFirestore.instance.collection('goals').doc().id,
+                  ownerId: FirebaseAuth.instance.currentUser?.uid ?? '',
+                  goalName: _goalName,
+                  goalCriteria: _goalCriteria,
+                  goalFrequency: _goalFrequency,
+                );
+              } else {
+                newGoal = WeeklyGoal(
+                  id: FirebaseFirestore.instance.collection('goals').doc().id,
+                  ownerId: FirebaseAuth.instance.currentUser?.uid ?? '',
+                  goalName: _goalName,
+                  goalCriteria: _goalCriteria,
+                  completions: _completions,
+                );
+              }
+              Provider.of<GoalsProvider>(context, listen: false)
+                  .addGoal(newGoal);
               Navigator.of(context).pop();
             }
           },

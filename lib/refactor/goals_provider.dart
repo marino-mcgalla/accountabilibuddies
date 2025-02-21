@@ -3,6 +3,8 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'goal_model.dart';
+import 'total_goal.dart';
+import 'weekly_goal.dart';
 
 class GoalsProvider with ChangeNotifier {
   List<Goal> _goals = [];
@@ -37,19 +39,9 @@ class GoalsProvider with ChangeNotifier {
     super.dispose();
   }
 
-  Future<void> addGoal(String goalName, int goalFrequency, String goalCriteria,
-      String goalType) async {
+  Future<void> addGoal(Goal goal) async {
     _setLoading(true);
-    String currentUserId = FirebaseAuth.instance.currentUser?.uid ?? "";
-    Goal newGoal = Goal(
-      id: FirebaseFirestore.instance.collection('goals').doc().id,
-      ownerId: currentUserId,
-      goalName: goalName,
-      goalFrequency: goalFrequency,
-      goalCriteria: goalCriteria,
-      goalType: goalType,
-    );
-    _goals.add(newGoal);
+    _goals.add(goal);
     await _updateGoalsInFirestore();
     _setLoading(false);
     notifyListeners();
@@ -63,23 +55,34 @@ class GoalsProvider with ChangeNotifier {
     notifyListeners();
   }
 
-  Future<void> editGoal(String goalId, String goalName, int goalFrequency,
-      String goalCriteria, String goalType) async {
+  Future<void> editGoal(Goal updatedGoal) async {
     _setLoading(true);
-    int index = _goals.indexWhere((goal) => goal.id == goalId);
+    int index = _goals.indexWhere((goal) => goal.id == updatedGoal.id);
     if (index != -1) {
-      _goals[index] = Goal(
-        id: goalId,
-        ownerId: _goals[index].ownerId,
-        goalName: goalName,
-        goalFrequency: goalFrequency,
-        goalCriteria: goalCriteria,
-        goalType: goalType,
-      );
+      _goals[index] = updatedGoal;
       await _updateGoalsInFirestore();
     }
     _setLoading(false);
     notifyListeners();
+  }
+
+  Future<void> incrementCompletions(String goalId) async {
+    int index = _goals.indexWhere((goal) => goal.id == goalId);
+    if (index != -1 && _goals[index] is TotalGoal) {
+      (_goals[index] as TotalGoal).completions++;
+      await _updateGoalsInFirestore();
+      notifyListeners();
+    }
+  }
+
+  Future<void> toggleCompletion(
+      String goalId, String day, bool isCompleted) async {
+    int index = _goals.indexWhere((goal) => goal.id == goalId);
+    if (index != -1 && _goals[index] is WeeklyGoal) {
+      (_goals[index] as WeeklyGoal).completions[day] = isCompleted;
+      await _updateGoalsInFirestore();
+      notifyListeners();
+    }
   }
 
   Future<void> _updateGoalsInFirestore() async {

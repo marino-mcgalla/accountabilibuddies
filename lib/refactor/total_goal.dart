@@ -1,22 +1,24 @@
 import 'goal_model.dart';
 
 class TotalGoal extends Goal {
-  int completions;
-
   TotalGoal({
     required String id,
     required String ownerId,
     required String goalName,
     required String goalCriteria,
     required int goalFrequency,
-    this.completions = 0,
+    required DateTime weekStartDate,
+    required Map<String, int> currentWeekCompletions,
   }) : super(
-            id: id,
-            ownerId: ownerId,
-            goalName: goalName,
-            goalType: 'total',
-            goalCriteria: goalCriteria,
-            goalFrequency: goalFrequency);
+          id: id,
+          ownerId: ownerId,
+          goalName: goalName,
+          goalType: 'total',
+          goalCriteria: goalCriteria,
+          goalFrequency: goalFrequency,
+          weekStartDate: weekStartDate,
+          currentWeekCompletions: currentWeekCompletions,
+        );
 
   @override
   Map<String, dynamic> toMap() {
@@ -27,7 +29,8 @@ class TotalGoal extends Goal {
       'goalType': goalType,
       'goalCriteria': goalCriteria,
       'goalFrequency': goalFrequency,
-      'completions': completions,
+      'weekStartDate': weekStartDate.toIso8601String(),
+      'currentWeekCompletions': currentWeekCompletions,
     };
   }
 
@@ -38,7 +41,9 @@ class TotalGoal extends Goal {
       goalName: data['goalName'],
       goalCriteria: data['goalCriteria'],
       goalFrequency: data['goalFrequency'],
-      completions: data['completions'] ?? 0,
+      weekStartDate: DateTime.parse(data['weekStartDate']),
+      currentWeekCompletions:
+          Map<String, int>.from(data['currentWeekCompletions']),
     );
   }
 }

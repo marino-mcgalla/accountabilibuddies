@@ -20,7 +20,7 @@ class EditGoalDialogState extends State<EditGoalDialog> {
   late int _goalFrequency;
   late String _goalCriteria;
   late String _goalType;
-  late Map<String, bool> _completions;
+  late Map<String, dynamic> _currentWeekCompletions;
 
   @override
   void initState() {
@@ -29,10 +29,7 @@ class EditGoalDialogState extends State<EditGoalDialog> {
     _goalCriteria = widget.goal.goalCriteria;
     _goalType = widget.goal.goalType;
     _goalFrequency = widget.goal.goalFrequency;
-
-    if (widget.goal is WeeklyGoal) {
-      _completions = (widget.goal as WeeklyGoal).completions;
-    }
+    _currentWeekCompletions = widget.goal.currentWeekCompletions;
   }
 
   @override
@@ -117,6 +114,7 @@ class EditGoalDialogState extends State<EditGoalDialog> {
             if (_formKey.currentState!.validate()) {
               _formKey.currentState!.save();
               Goal updatedGoal;
+              DateTime now = DateTime.now();
               if (_goalType == 'total') {
                 updatedGoal = TotalGoal(
                   id: widget.goal.id,
@@ -124,9 +122,9 @@ class EditGoalDialogState extends State<EditGoalDialog> {
                   goalName: _goalName,
                   goalCriteria: _goalCriteria,
                   goalFrequency: _goalFrequency,
-                  completions: widget.goal is TotalGoal
-                      ? (widget.goal as TotalGoal).completions
-                      : 0,
+                  weekStartDate: now,
+                  currentWeekCompletions:
+                      Map<String, int>.from(_currentWeekCompletions),
                 );
               } else {
                 updatedGoal = WeeklyGoal(
@@ -134,9 +132,9 @@ class EditGoalDialogState extends State<EditGoalDialog> {
                   ownerId: widget.goal.ownerId,
                   goalName: _goalName,
                   goalCriteria: _goalCriteria,
-                  completions: widget.goal is WeeklyGoal
-                      ? (widget.goal as WeeklyGoal).completions
-                      : {},
+                  weekStartDate: now,
+                  currentWeekCompletions:
+                      Map<String, bool>.from(_currentWeekCompletions),
                 );
               }
               Provider.of<GoalsProvider>(context, listen: false)

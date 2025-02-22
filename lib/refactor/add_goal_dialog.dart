@@ -1,9 +1,9 @@
-import 'package:auth_test/refactor/goal_model.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'goals_provider.dart';
+import 'goal_model.dart';
 import 'total_goal.dart';
 import 'weekly_goal.dart';
 
@@ -43,20 +43,19 @@ class AddGoalDialogState extends State<AddGoalDialog> {
                 _goalName = value!;
               },
             ),
-            if (_goalType == 'total')
-              TextFormField(
-                decoration: InputDecoration(labelText: 'Goal Frequency'),
-                keyboardType: TextInputType.number,
-                validator: (value) {
-                  if (value == null || value.isEmpty) {
-                    return 'Please enter a goal frequency';
-                  }
-                  return null;
-                },
-                onSaved: (value) {
-                  _goalFrequency = int.parse(value!);
-                },
-              ),
+            TextFormField(
+              decoration: InputDecoration(labelText: 'Goal Frequency'),
+              keyboardType: TextInputType.number,
+              validator: (value) {
+                if (value == null || value.isEmpty) {
+                  return 'Please enter a goal frequency';
+                }
+                return null;
+              },
+              onSaved: (value) {
+                _goalFrequency = int.parse(value!);
+              },
+            ),
             TextFormField(
               decoration: InputDecoration(labelText: 'Goal Criteria'),
               onSaved: (value) {
@@ -75,6 +74,12 @@ class AddGoalDialogState extends State<AddGoalDialog> {
               onChanged: (value) {
                 setState(() {
                   _goalType = value!;
+                  if (_goalType == 'total') {
+                    _goalFrequency = 0;
+                  } else if (_goalType == 'weekly') {
+                    _goalFrequency =
+                        4; // Set to 4 as default since it's in the middle
+                  }
                 });
               },
               onSaved: (value) {
@@ -96,6 +101,7 @@ class AddGoalDialogState extends State<AddGoalDialog> {
             if (_formKey.currentState!.validate()) {
               _formKey.currentState!.save();
               Goal newGoal;
+              DateTime now = DateTime.now();
               if (_goalType == 'total') {
                 newGoal = TotalGoal(
                   id: FirebaseFirestore.instance.collection('goals').doc().id,
@@ -103,6 +109,8 @@ class AddGoalDialogState extends State<AddGoalDialog> {
                   goalName: _goalName,
                   goalCriteria: _goalCriteria,
                   goalFrequency: _goalFrequency,
+                  weekStartDate: now,
+                  currentWeekCompletions: {},
                 );
               } else {
                 newGoal = WeeklyGoal(
@@ -110,7 +118,8 @@ class AddGoalDialogState extends State<AddGoalDialog> {
                   ownerId: FirebaseAuth.instance.currentUser?.uid ?? '',
                   goalName: _goalName,
                   goalCriteria: _goalCriteria,
-                  completions: _completions,
+                  weekStartDate: now,
+                  currentWeekCompletions: {},
                 );
               }
               Provider.of<GoalsProvider>(context, listen: false)

@@ -64,7 +64,10 @@ class GoalsProvider with ChangeNotifier {
   Future<void> incrementCompletions(String goalId) async {
     int index = _goals.indexWhere((goal) => goal.id == goalId);
     if (index != -1 && _goals[index] is TotalGoal) {
-      (_goals[index] as TotalGoal).completions++;
+      final goal = _goals[index] as TotalGoal;
+      final day = DateTime.now().toIso8601String().split('T').first;
+      goal.currentWeekCompletions[day] =
+          (goal.currentWeekCompletions[day] ?? 0) + 1;
       await _updateGoalsInFirestore();
       notifyListeners();
     }
@@ -75,10 +78,41 @@ class GoalsProvider with ChangeNotifier {
       String goalId, String day, bool isCompleted) async {
     int index = _goals.indexWhere((goal) => goal.id == goalId);
     if (index != -1 && _goals[index] is WeeklyGoal) {
-      (_goals[index] as WeeklyGoal).completions[day] = isCompleted;
+      final goal = _goals[index] as WeeklyGoal;
+      goal.currentWeekCompletions[day] = isCompleted;
       await _updateGoalsInFirestore();
       notifyListeners();
     }
+  }
+
+  Future<void> endWeek() async {
+    _setLoading(true);
+
+    // Store current week's progress in history
+    await _storeWeeklyProgressInHistory();
+
+    // Reset goals for the new week
+    DateTime newWeekStartDate = DateTime.now();
+    for (Goal goal in _goals) {
+      goal.weekStartDate = newWeekStartDate;
+      goal.currentWeekCompletions = {}; // Reset completions
+    }
+
+    await _updateGoalsInFirestore();
+    _setLoading(false);
+    notifyListeners();
+  }
+
+  Future<void> _storeWeeklyProgressInHistory() async {
+    String currentUserId = FirebaseAuth.instance.currentUser?.uid ?? "";
+    List<Map<String, dynamic>> goalsData =
+        _goals.map((goal) => goal.toMap()).toList();
+    await FirebaseFirestore.instance
+        .collection('userGoalsHistory')
+        .doc(currentUserId)
+        .collection('weeks')
+        .doc(DateTime.now().toIso8601String())
+        .set({'goals': goalsData});
   }
 
   Future<void> _updateGoalsInFirestore() async {

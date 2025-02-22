@@ -1,21 +1,23 @@
 import 'goal_model.dart';
 
 class WeeklyGoal extends Goal {
-  final Map<String, bool> completions;
-
   WeeklyGoal({
     required String id,
     required String ownerId,
     required String goalName,
     required String goalCriteria,
-    required this.completions,
+    required DateTime weekStartDate,
+    required Map<String, bool> currentWeekCompletions,
   }) : super(
-            id: id,
-            ownerId: ownerId,
-            goalName: goalName,
-            goalType: 'weekly',
-            goalCriteria: goalCriteria,
-            goalFrequency: 7); // Set to 7 for weekly goals
+          id: id,
+          ownerId: ownerId,
+          goalName: goalName,
+          goalType: 'weekly',
+          goalCriteria: goalCriteria,
+          goalFrequency: 7, // Set to 7 for weekly goals
+          weekStartDate: weekStartDate,
+          currentWeekCompletions: currentWeekCompletions,
+        );
 
   @override
   Map<String, dynamic> toMap() {
@@ -26,7 +28,8 @@ class WeeklyGoal extends Goal {
       'goalType': goalType,
       'goalCriteria': goalCriteria,
       'goalFrequency': goalFrequency,
-      'completions': completions,
+      'weekStartDate': weekStartDate.toIso8601String(),
+      'currentWeekCompletions': currentWeekCompletions,
     };
   }
 
@@ -36,7 +39,9 @@ class WeeklyGoal extends Goal {
       ownerId: data['ownerId'],
       goalName: data['goalName'],
       goalCriteria: data['goalCriteria'],
-      completions: Map<String, bool>.from(data['completions']),
+      weekStartDate: DateTime.parse(data['weekStartDate']),
+      currentWeekCompletions:
+          Map<String, bool>.from(data['currentWeekCompletions']),
     );
   }
 }

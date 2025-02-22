@@ -1,4 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import 'goal_model.dart';
+import 'total_goal.dart';
+import 'weekly_goal.dart';
+import 'total_progress_tracker.dart';
+import 'weekly_progress_tracker.dart';
+import 'goals_provider.dart';
 
 class GoalCard extends StatelessWidget {
   final String goalId;
@@ -6,8 +13,8 @@ class GoalCard extends StatelessWidget {
   final int goalFrequency;
   final String goalCriteria;
   final String goalType;
-  final VoidCallback? onDelete;
-  final VoidCallback? onEdit;
+  final VoidCallback onDelete;
+  final VoidCallback onEdit;
 
   const GoalCard({
     required this.goalId,
@@ -15,33 +22,67 @@ class GoalCard extends StatelessWidget {
     required this.goalFrequency,
     required this.goalCriteria,
     required this.goalType,
-    this.onDelete,
-    this.onEdit,
-    super.key,
-  });
+    required this.onDelete,
+    required this.onEdit,
+    Key? key,
+  }) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
     return Card(
-      child: ListTile(
-        title: Text(goalName),
-        subtitle: Text(
-            'Frequency: $goalFrequency\nCriteria: $goalCriteria\nType: $goalType'),
-        trailing: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            if (onEdit != null)
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('Goal: $goalName'),
+          Text('Type: $goalType'),
+          Text('Frequency: $goalFrequency'),
+          Text('Criteria: $goalCriteria'),
+          if (goalType == 'total')
+            Consumer<GoalsProvider>(
+              builder: (context, goalsProvider, child) {
+                final goal = goalsProvider.goals
+                    .firstWhere((g) => g.id == goalId) as TotalGoal;
+                return Column(
+                  children: [
+                    TotalProgressTracker(
+                      currentWeekCompletions: goal.currentWeekCompletions,
+                      totalCompletions: goal.goalFrequency,
+                    ),
+                    ElevatedButton(
+                      onPressed: () async {
+                        await goalsProvider.incrementCompletions(goal.id);
+                      },
+                      child: Text('Increment Completion'),
+                    ),
+                  ],
+                );
+              },
+            ),
+          if (goalType == 'weekly')
+            Consumer<GoalsProvider>(
+              builder: (context, goalsProvider, child) {
+                final goal = goalsProvider.goals
+                    .firstWhere((g) => g.id == goalId) as WeeklyGoal;
+                return WeeklyProgressTracker(
+                  goalId: goal.id,
+                  completions: goal.currentWeekCompletions.cast<String, bool>(),
+                );
+              },
+            ),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.end,
+            children: [
               IconButton(
                 icon: Icon(Icons.edit),
                 onPressed: onEdit,
               ),
-            if (onDelete != null)
               IconButton(
                 icon: Icon(Icons.delete),
                 onPressed: onDelete,
               ),
-          ],
-        ),
+            ],
+          ),
+        ],
       ),
     );
   }

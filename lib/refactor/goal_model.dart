@@ -1,6 +1,5 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'total_goal.dart';
-import 'weekly_goal.dart';
+import 'package:auth_test/refactor/total_goal.dart';
+import 'package:auth_test/refactor/weekly_goal.dart';
 
 abstract class Goal {
   final String id;
@@ -8,7 +7,9 @@ abstract class Goal {
   final String goalName;
   final String goalType;
   final String goalCriteria;
-  final int goalFrequency; // Common property
+  final int goalFrequency;
+  DateTime weekStartDate;
+  Map<String, dynamic> currentWeekCompletions;
 
   Goal({
     required this.id,
@@ -17,6 +18,8 @@ abstract class Goal {
     required this.goalType,
     required this.goalCriteria,
     required this.goalFrequency,
+    required this.weekStartDate,
+    required this.currentWeekCompletions,
   });
 
   Map<String, dynamic> toMap();
@@ -30,10 +33,5 @@ abstract class Goal {
       default:
         throw Exception('Unknown goal type');
     }
-  }
-
-  factory Goal.fromFirestore(DocumentSnapshot doc) {
-    Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
-    return Goal.fromMap(data);
   }
 }

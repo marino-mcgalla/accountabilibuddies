@@ -2,6 +2,9 @@ import 'dart:async';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'goal_model.dart';
+import 'total_goal.dart';
+import 'weekly_goal.dart';
 
 class PartyProvider with ChangeNotifier {
   final FirebaseAuth _auth = FirebaseAuth.instance;
@@ -10,31 +13,44 @@ class PartyProvider with ChangeNotifier {
   String? _partyId;
   String? _partyName;
   List<String> _members = [];
+  Map<String, Map<String, dynamic>> _memberDetails = {};
   bool _isLoading = true;
   final TextEditingController partyNameController = TextEditingController();
   final TextEditingController inviteController = TextEditingController();
-  late StreamSubscription<DocumentSnapshot> _partySubscription;
+  StreamSubscription<DocumentSnapshot>? _partySubscription;
 
   String? get partyId => _partyId;
   String? get partyName => _partyName;
   List<String> get members => _members;
+  Map<String, Map<String, dynamic>> get memberDetails => _memberDetails;
   bool get isLoading => _isLoading;
 
   PartyProvider() {
-    _initializePartyState();
+    initializePartyState();
   }
 
-  void _initializePartyState() {
+  void initializePartyState() {
     _isLoading = true;
     notifyListeners();
 
-    String currentUserId = _auth.currentUser?.uid ?? "";
-    _firestore.collection('users').doc(currentUserId).get().then((userDoc) {
+    String? currentUserId = _auth.currentUser?.uid;
+    if (currentUserId == null || currentUserId.isEmpty) {
+      _isLoading = false;
+      notifyListeners();
+      return; // Exit if there is no valid user ID
+    }
+
+    _partySubscription?.cancel(); // Cancel any existing subscription
+    _partySubscription = _firestore
+        .collection('users')
+        .doc(currentUserId)
+        .snapshots()
+        .listen((userDoc) {
       if (userDoc.exists &&
           userDoc.data() != null &&
           (userDoc.data() as Map<String, dynamic>).containsKey('partyId')) {
         String partyId = (userDoc.data() as Map<String, dynamic>)['partyId'];
-        _partySubscription = _firestore
+        _firestore
             .collection('parties')
             .doc(partyId)
             .snapshots()
@@ -44,19 +60,36 @@ class PartyProvider with ChangeNotifier {
             _partyId = partyId;
             _partyName = partyDoc['partyName'];
             _members = List<String>.from(partyDoc['members']);
+            _fetchMemberDetails();
           } else {
             _partyId = null;
             _partyName = null;
             _members = [];
+            _memberDetails = {};
           }
           _isLoading = false;
           notifyListeners();
         });
       } else {
+        _partyId = null;
+        _partyName = null;
+        _members = [];
+        _memberDetails = {};
         _isLoading = false;
         notifyListeners();
       }
     });
+  }
+
+  Future<void> _fetchMemberDetails() async {
+    for (String memberId in _members) {
+      DocumentSnapshot userDoc =
+          await _firestore.collection('users').doc(memberId).get();
+      if (userDoc.exists) {
+        _memberDetails[memberId] = userDoc.data() as Map<String, dynamic>;
+      }
+    }
+    notifyListeners();
   }
 
   Future<void> createParty(String partyName) async {
@@ -85,6 +118,7 @@ class PartyProvider with ChangeNotifier {
       'partyId': partyId,
     });
 
+    _fetchMemberDetails();
     notifyListeners();
   }
 
@@ -105,6 +139,7 @@ class PartyProvider with ChangeNotifier {
       _partyId = null;
       _partyName = null;
       _members = [];
+      _memberDetails = {};
       notifyListeners();
     }
   }
@@ -122,6 +157,7 @@ class PartyProvider with ChangeNotifier {
       _partyId = null;
       _partyName = null;
       _members = [];
+      _memberDetails = {};
       notifyListeners();
     }
   }
@@ -171,6 +207,7 @@ class PartyProvider with ChangeNotifier {
     });
 
     _partyId = partyId;
+    _fetchMemberDetails();
     notifyListeners();
   }
 
@@ -210,9 +247,32 @@ class PartyProvider with ChangeNotifier {
     notifyListeners();
   }
 
+  Future<List<Goal>> fetchGoalsForUser(String userId) async {
+    DocumentSnapshot userGoalsDoc =
+        await _firestore.collection('userGoals').doc(userId).get();
+
+    if (userGoalsDoc.exists) {
+      final data = userGoalsDoc.data();
+      if (data != null && data is Map<String, dynamic>) {
+        List<dynamic> goalsData = data['goals'] ?? [];
+        return goalsData.map((goalData) => Goal.fromMap(goalData)).toList();
+      }
+    }
+    return [];
+  }
+
+  void resetState() {
+    _partyId = null;
+    _partyName = null;
+    _members = [];
+    _memberDetails = {};
+    _isLoading = false;
+    notifyListeners();
+  }
+
   @override
   void dispose() {
-    _partySubscription.cancel();
+    _partySubscription?.cancel();
     super.dispose();
   }
 }

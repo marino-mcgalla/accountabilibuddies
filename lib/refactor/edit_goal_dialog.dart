@@ -21,6 +21,7 @@ class EditGoalDialogState extends State<EditGoalDialog> {
   late String _goalCriteria;
   late String _goalType;
   late Map<String, dynamic> _currentWeekCompletions;
+  List<bool> _selectedGoalType = [false, false];
 
   @override
   void initState() {
@@ -30,6 +31,7 @@ class EditGoalDialogState extends State<EditGoalDialog> {
     _goalType = widget.goal.goalType;
     _goalFrequency = widget.goal.goalFrequency;
     _currentWeekCompletions = widget.goal.currentWeekCompletions;
+    _selectedGoalType = [_goalType == 'total', _goalType == 'weekly'];
   }
 
   @override
@@ -54,39 +56,14 @@ class EditGoalDialogState extends State<EditGoalDialog> {
                 _goalName = value!;
               },
             ),
-            TextFormField(
-              initialValue: _goalFrequency.toString(),
-              decoration: InputDecoration(labelText: 'Goal Frequency'),
-              keyboardType: TextInputType.number,
-              validator: (value) {
-                if (value == null || value.isEmpty) {
-                  return 'Please enter a goal frequency';
-                }
-                return null;
-              },
-              onSaved: (value) {
-                _goalFrequency = int.parse(value!);
-              },
-            ),
-            TextFormField(
-              initialValue: _goalCriteria,
-              decoration: InputDecoration(labelText: 'Goal Criteria'),
-              onSaved: (value) {
-                _goalCriteria = value!;
-              },
-            ),
-            DropdownButtonFormField<String>(
-              value: _goalType,
-              decoration: InputDecoration(labelText: 'Goal Type'),
-              items: ['total', 'weekly']
-                  .map((type) => DropdownMenuItem(
-                        value: type,
-                        child: Text(type),
-                      ))
-                  .toList(),
-              onChanged: (value) {
+            ToggleButtons(
+              isSelected: _selectedGoalType,
+              onPressed: (index) {
                 setState(() {
-                  _goalType = value!;
+                  for (int i = 0; i < _selectedGoalType.length; i++) {
+                    _selectedGoalType[i] = i == index;
+                  }
+                  _goalType = index == 0 ? 'total' : 'weekly';
                   if (_goalType == 'total') {
                     _goalFrequency = 0;
                   } else if (_goalType == 'weekly') {
@@ -95,8 +72,55 @@ class EditGoalDialogState extends State<EditGoalDialog> {
                   }
                 });
               },
+              children: [
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                  child: Text('Total'),
+                ),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                  child: Text('Weekly'),
+                ),
+              ],
+            ),
+            if (_goalType == 'total')
+              TextFormField(
+                initialValue: _goalFrequency.toString(),
+                decoration: InputDecoration(labelText: 'Goal Frequency'),
+                keyboardType: TextInputType.number,
+                validator: (value) {
+                  if (value == null || value.isEmpty) {
+                    return 'Please enter a goal frequency';
+                  }
+                  return null;
+                },
+                onSaved: (value) {
+                  _goalFrequency = int.parse(value!);
+                },
+              ),
+            if (_goalType == 'weekly')
+              Column(
+                children: [
+                  Text('Goal Frequency: $_goalFrequency days/week'),
+                  Slider(
+                    value: _goalFrequency.toDouble(),
+                    min: 1,
+                    max: 7,
+                    divisions: 6,
+                    label: _goalFrequency.toString(),
+                    onChanged: (value) {
+                      setState(() {
+                        _goalFrequency = value.toInt();
+                      });
+                    },
+                  ),
+                ],
+              ),
+            TextFormField(
+              initialValue: _goalCriteria,
+              decoration: InputDecoration(labelText: 'Goal Criteria'),
               onSaved: (value) {
-                _goalType = value!;
+                _goalCriteria = value!;
               },
             ),
           ],

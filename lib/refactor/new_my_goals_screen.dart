@@ -6,10 +6,6 @@ import 'goals_provider.dart';
 import 'goal_model.dart';
 import 'add_goal_dialog.dart';
 import 'edit_goal_dialog.dart';
-import 'total_progress_tracker.dart';
-import 'weekly_progress_tracker.dart';
-import 'weekly_goal.dart';
-import 'total_goal.dart';
 
 class MyGoalsScreen extends StatefulWidget {
   const MyGoalsScreen({super.key});
@@ -45,6 +41,11 @@ class MyGoalsScreenState extends State<MyGoalsScreen> {
     );
   }
 
+  void _endWeek() {
+    final goalsProvider = Provider.of<GoalsProvider>(context, listen: false);
+    goalsProvider.endWeek();
+  }
+
   @override
   Widget build(BuildContext context) {
     User? user = FirebaseAuth.instance.currentUser;
@@ -61,46 +62,32 @@ class MyGoalsScreenState extends State<MyGoalsScreen> {
             return const Center(child: CircularProgressIndicator());
           }
 
-          return ListView.builder(
-            itemCount: goalsProvider.goals.length,
-            itemBuilder: (context, index) {
-              final goal = goalsProvider.goals[index];
-              return Column(
-                children: [
-                  GoalCard(
-                    goalId: goal.id,
-                    goalName: goal.goalName,
-                    goalFrequency: goal.goalFrequency,
-                    goalCriteria: goal.goalCriteria,
-                    goalType: goal.goalType,
-                    onDelete: () async {
-                      await goalsProvider.removeGoal(context, goal.id);
-                    },
-                    onEdit: () => _showEditGoalDialog(context, goal),
-                  ),
-                  if (goal is TotalGoal)
-                    Column(
-                      children: [
-                        TotalProgressTracker(
-                          completions: goal.completions,
-                          totalCompletions: goal.goalFrequency,
-                        ),
-                        ElevatedButton(
-                          onPressed: () async {
-                            await goalsProvider.incrementCompletions(goal.id);
-                          },
-                          child: Text('Increment Completion'),
-                        ),
-                      ],
-                    ),
-                  if (goal is WeeklyGoal)
-                    WeeklyProgressTracker(
+          return Column(
+            children: [
+              ElevatedButton(
+                onPressed: _endWeek,
+                child: Text('End Week'),
+              ),
+              Expanded(
+                child: ListView.builder(
+                  itemCount: goalsProvider.goals.length,
+                  itemBuilder: (context, index) {
+                    final goal = goalsProvider.goals[index];
+                    return GoalCard(
                       goalId: goal.id,
-                      completions: goal.completions,
-                    ),
-                ],
-              );
-            },
+                      goalName: goal.goalName,
+                      goalFrequency: goal.goalFrequency,
+                      goalCriteria: goal.goalCriteria,
+                      goalType: goal.goalType,
+                      onDelete: () async {
+                        await goalsProvider.removeGoal(context, goal.id);
+                      },
+                      onEdit: () => _showEditGoalDialog(context, goal),
+                    );
+                  },
+                ),
+              ),
+            ],
           );
         },
       ),

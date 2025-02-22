@@ -67,7 +67,8 @@ class GoalCard extends StatelessWidget {
                     .firstWhere((g) => g.id == goalId) as WeeklyGoal;
                 return WeeklyProgressTracker(
                   goalId: goal.id,
-                  completions: goal.currentWeekCompletions.cast<String, bool>(),
+                  completions:
+                      goal.currentWeekCompletions.cast<String, String>(),
                 );
               },
             ),

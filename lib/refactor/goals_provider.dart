@@ -74,7 +74,8 @@ class GoalsProvider with ChangeNotifier {
   }
 
   // updates the completion status for weekly goals
-  Future<void> toggleCompletion(String goalId, String day, status) async {
+  Future<void> toggleCompletion(
+      String goalId, String day, String status) async {
     int index = _goals.indexWhere((goal) => goal.id == goalId);
     if (index != -1 && _goals[index] is WeeklyGoal) {
       final goal = _goals[index] as WeeklyGoal;
@@ -85,6 +86,7 @@ class GoalsProvider with ChangeNotifier {
   }
 
   Future<void> endWeek() async {
+    print('howdy');
     _setLoading(true);
 
     // Store current week's progress in history

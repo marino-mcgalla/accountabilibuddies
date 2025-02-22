@@ -137,7 +137,7 @@ class EditGoalDialogState extends State<EditGoalDialog> {
                   goalFrequency: _goalFrequency,
                   weekStartDate: now,
                   currentWeekCompletions:
-                      Map<String, bool>.from(_currentWeekCompletions),
+                      Map<String, String>.from(_currentWeekCompletions),
                 );
               }
               Provider.of<GoalsProvider>(context, listen: false)

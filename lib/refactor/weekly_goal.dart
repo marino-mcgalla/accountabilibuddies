@@ -9,7 +9,7 @@ class WeeklyGoal extends Goal {
     required bool active,
     required int goalFrequency,
     required DateTime weekStartDate,
-    required Map<String, bool> currentWeekCompletions,
+    required Map<String, String> currentWeekCompletions,
   }) : super(
           id: id,
           ownerId: ownerId,
@@ -47,7 +47,7 @@ class WeeklyGoal extends Goal {
       goalFrequency: data['goalFrequency'],
       weekStartDate: DateTime.parse(data['weekStartDate']),
       currentWeekCompletions:
-          Map<String, bool>.from(data['currentWeekCompletions']),
+          Map<String, String>.from(data['currentWeekCompletions']),
     );
   }
 }

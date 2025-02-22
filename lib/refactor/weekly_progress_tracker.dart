@@ -4,7 +4,7 @@ import 'goals_provider.dart';
 
 class WeeklyProgressTracker extends StatelessWidget {
   final String goalId;
-  final Map<String, bool> completions;
+  final Map<String, String> completions;
 
   const WeeklyProgressTracker({
     required this.goalId,
@@ -13,8 +13,26 @@ class WeeklyProgressTracker extends StatelessWidget {
   }) : super(key: key);
 
   void _toggleCompletion(BuildContext context, String day) {
-    final currentStatus = completions[day] ?? false;
-    bool newStatus = !currentStatus;
+    final currentStatus = completions[day] ?? 'default';
+    String newStatus;
+    switch (currentStatus) {
+      case 'default':
+        newStatus = 'submitted';
+        break;
+      case 'submitted':
+        newStatus = 'completed';
+        break;
+      case 'completed':
+        newStatus = 'skipped';
+        break;
+      case 'skipped':
+        newStatus = 'planned';
+        break;
+      case 'planned':
+      default:
+        newStatus = 'default';
+        break;
+    }
     Provider.of<GoalsProvider>(context, listen: false)
         .toggleCompletion(goalId, day, newStatus);
   }
@@ -26,8 +44,26 @@ class WeeklyProgressTracker extends StatelessWidget {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceEvenly,
       children: daysOfWeek.map((day) {
-        final status = completions[day] ?? false;
-        Color color = status ? Colors.green : Colors.grey;
+        final status = completions[day] ?? 'default';
+        Color color;
+        switch (status) {
+          case 'submitted':
+            color = Colors.yellow;
+            break;
+          case 'completed':
+            color = Colors.green;
+            break;
+          case 'skipped':
+            color = Colors.red;
+            break;
+          case 'planned':
+            color = Colors.blue;
+            break;
+          case 'blank':
+          default:
+            color = Colors.grey;
+            break;
+        }
         return GestureDetector(
           onTap: () => _toggleCompletion(context, day),
           child: Container(

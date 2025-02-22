@@ -121,6 +121,7 @@ class EditGoalDialogState extends State<EditGoalDialog> {
                   ownerId: widget.goal.ownerId,
                   goalName: _goalName,
                   goalCriteria: _goalCriteria,
+                  active: widget.goal.active,
                   goalFrequency: _goalFrequency,
                   weekStartDate: now,
                   currentWeekCompletions:
@@ -132,6 +133,8 @@ class EditGoalDialogState extends State<EditGoalDialog> {
                   ownerId: widget.goal.ownerId,
                   goalName: _goalName,
                   goalCriteria: _goalCriteria,
+                  active: widget.goal.active,
+                  goalFrequency: _goalFrequency,
                   weekStartDate: now,
                   currentWeekCompletions:
                       Map<String, bool>.from(_currentWeekCompletions),

@@ -6,6 +6,7 @@ class TotalGoal extends Goal {
     required String ownerId,
     required String goalName,
     required String goalCriteria,
+    required bool active,
     required int goalFrequency,
     required DateTime weekStartDate,
     required Map<String, int> currentWeekCompletions,
@@ -16,6 +17,7 @@ class TotalGoal extends Goal {
           goalType: 'total',
           goalCriteria: goalCriteria,
           goalFrequency: goalFrequency,
+          active: active,
           weekStartDate: weekStartDate,
           currentWeekCompletions: currentWeekCompletions,
         );
@@ -28,6 +30,7 @@ class TotalGoal extends Goal {
       'goalName': goalName,
       'goalType': goalType,
       'goalCriteria': goalCriteria,
+      'active': active,
       'goalFrequency': goalFrequency,
       'weekStartDate': weekStartDate.toIso8601String(),
       'currentWeekCompletions': currentWeekCompletions,
@@ -40,6 +43,7 @@ class TotalGoal extends Goal {
       ownerId: data['ownerId'],
       goalName: data['goalName'],
       goalCriteria: data['goalCriteria'],
+      active: data['active'],
       goalFrequency: data['goalFrequency'],
       weekStartDate: DateTime.parse(data['weekStartDate']),
       currentWeekCompletions:

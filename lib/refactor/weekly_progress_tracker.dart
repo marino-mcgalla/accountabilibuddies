@@ -13,9 +13,10 @@ class WeeklyProgressTracker extends StatelessWidget {
   }) : super(key: key);
 
   void _toggleCompletion(BuildContext context, String day) {
-    final isCompleted = completions[day] ?? false;
+    final currentStatus = completions[day] ?? false;
+    bool newStatus = !currentStatus;
     Provider.of<GoalsProvider>(context, listen: false)
-        .toggleCompletion(goalId, day, !isCompleted);
+        .toggleCompletion(goalId, day, newStatus);
   }
 
   @override
@@ -25,13 +26,14 @@ class WeeklyProgressTracker extends StatelessWidget {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceEvenly,
       children: daysOfWeek.map((day) {
-        final isCompleted = completions[day] ?? false;
+        final status = completions[day] ?? false;
+        Color color = status ? Colors.green : Colors.grey;
         return GestureDetector(
           onTap: () => _toggleCompletion(context, day),
           child: Container(
             padding: EdgeInsets.all(8.0),
             decoration: BoxDecoration(
-              color: isCompleted ? Colors.green : Colors.grey,
+              color: color,
               borderRadius: BorderRadius.circular(8.0),
             ),
             child: Text(

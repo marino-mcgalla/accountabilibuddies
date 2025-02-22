@@ -7,6 +7,7 @@ abstract class Goal {
   final String goalName;
   final String goalType;
   final String goalCriteria;
+  final bool active;
   final int goalFrequency;
   DateTime weekStartDate;
   Map<String, dynamic> currentWeekCompletions;
@@ -17,6 +18,7 @@ abstract class Goal {
     required this.goalName,
     required this.goalType,
     required this.goalCriteria,
+    required this.active,
     required this.goalFrequency,
     required this.weekStartDate,
     required this.currentWeekCompletions,

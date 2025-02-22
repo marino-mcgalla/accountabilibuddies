@@ -17,10 +17,11 @@ class AddGoalDialog extends StatefulWidget {
 class AddGoalDialogState extends State<AddGoalDialog> {
   final _formKey = GlobalKey<FormState>();
   String _goalName = '';
-  int _goalFrequency = 0;
+  int _goalFrequency = 1; // Default to 1
   String _goalCriteria = '';
   String _goalType = 'total';
   final Map<String, bool> _completions = {};
+  List<bool> _selectedGoalType = [true, false]; // Default to 'total'
 
   @override
   Widget build(BuildContext context) {
@@ -31,6 +32,33 @@ class AddGoalDialogState extends State<AddGoalDialog> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
+            ToggleButtons(
+              isSelected: _selectedGoalType,
+              onPressed: (index) {
+                setState(() {
+                  for (int i = 0; i < _selectedGoalType.length; i++) {
+                    _selectedGoalType[i] = i == index;
+                  }
+                  _goalType = index == 0 ? 'total' : 'weekly';
+                  if (_goalType == 'total') {
+                    _goalFrequency = 0;
+                  } else if (_goalType == 'weekly') {
+                    _goalFrequency =
+                        4; // Set to 4 as default since it's in the middle
+                  }
+                });
+              },
+              children: [
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                  child: Text('Total'),
+                ),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                  child: Text('Weekly'),
+                ),
+              ],
+            ),
             TextFormField(
               decoration: InputDecoration(labelText: 'Goal Name'),
               validator: (value) {
@@ -43,47 +71,28 @@ class AddGoalDialogState extends State<AddGoalDialog> {
                 _goalName = value!;
               },
             ),
-            TextFormField(
-              decoration: InputDecoration(labelText: 'Goal Frequency'),
-              keyboardType: TextInputType.number,
-              validator: (value) {
-                if (value == null || value.isEmpty) {
-                  return 'Please enter a goal frequency';
-                }
-                return null;
-              },
-              onSaved: (value) {
-                _goalFrequency = int.parse(value!);
-              },
-            ),
+            if (_goalType == 'weekly')
+              Column(
+                children: [
+                  Text('Goal Frequency: $_goalFrequency days/week'),
+                  Slider(
+                    value: _goalFrequency.toDouble(),
+                    min: 1,
+                    max: 7,
+                    divisions: 6,
+                    label: _goalFrequency.toString(),
+                    onChanged: (value) {
+                      setState(() {
+                        _goalFrequency = value.toInt();
+                      });
+                    },
+                  ),
+                ],
+              ),
             TextFormField(
               decoration: InputDecoration(labelText: 'Goal Criteria'),
               onSaved: (value) {
                 _goalCriteria = value!;
-              },
-            ),
-            DropdownButtonFormField<String>(
-              value: _goalType,
-              decoration: InputDecoration(labelText: 'Goal Type'),
-              items: ['total', 'weekly']
-                  .map((type) => DropdownMenuItem(
-                        value: type,
-                        child: Text(type),
-                      ))
-                  .toList(),
-              onChanged: (value) {
-                setState(() {
-                  _goalType = value!;
-                  if (_goalType == 'total') {
-                    _goalFrequency = 0;
-                  } else if (_goalType == 'weekly') {
-                    _goalFrequency =
-                        4; // Set to 4 as default since it's in the middle
-                  }
-                });
-              },
-              onSaved: (value) {
-                _goalType = value!;
               },
             ),
           ],
@@ -101,15 +110,16 @@ class AddGoalDialogState extends State<AddGoalDialog> {
             if (_formKey.currentState!.validate()) {
               _formKey.currentState!.save();
               Goal newGoal;
-              DateTime now = DateTime.now();
+              DateTime placeholderDate = DateTime(1970, 1, 1);
               if (_goalType == 'total') {
                 newGoal = TotalGoal(
                   id: FirebaseFirestore.instance.collection('goals').doc().id,
                   ownerId: FirebaseAuth.instance.currentUser?.uid ?? '',
                   goalName: _goalName,
                   goalCriteria: _goalCriteria,
+                  active: false,
                   goalFrequency: _goalFrequency,
-                  weekStartDate: now,
+                  weekStartDate: placeholderDate,
                   currentWeekCompletions: {},
                 );
               } else {
@@ -118,7 +128,9 @@ class AddGoalDialogState extends State<AddGoalDialog> {
                   ownerId: FirebaseAuth.instance.currentUser?.uid ?? '',
                   goalName: _goalName,
                   goalCriteria: _goalCriteria,
-                  weekStartDate: now,
+                  active: false,
+                  goalFrequency: _goalFrequency,
+                  weekStartDate: placeholderDate,
                   currentWeekCompletions: {},
                 );
               }

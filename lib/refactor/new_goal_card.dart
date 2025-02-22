@@ -42,6 +42,8 @@ class GoalCard extends StatelessWidget {
               builder: (context, goalsProvider, child) {
                 final goal = goalsProvider.goals
                     .firstWhere((g) => g.id == goalId) as TotalGoal;
+                int totalCompletions = goal.currentWeekCompletions.values
+                    .fold(0, (sum, value) => sum + value as int);
                 return Column(
                   children: [
                     TotalProgressTracker(

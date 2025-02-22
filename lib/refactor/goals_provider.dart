@@ -73,13 +73,12 @@ class GoalsProvider with ChangeNotifier {
     }
   }
 
-  // marks day as complete for weekly goals
-  Future<void> toggleCompletion(
-      String goalId, String day, bool isCompleted) async {
+  // updates the completion status for weekly goals
+  Future<void> toggleCompletion(String goalId, String day, status) async {
     int index = _goals.indexWhere((goal) => goal.id == goalId);
     if (index != -1 && _goals[index] is WeeklyGoal) {
       final goal = _goals[index] as WeeklyGoal;
-      goal.currentWeekCompletions[day] = isCompleted;
+      goal.currentWeekCompletions[day] = status;
       await _updateGoalsInFirestore();
       notifyListeners();
     }

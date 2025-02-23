@@ -6,6 +6,7 @@ import '../screens/home/home_screen.dart';
 import '../screens/party/party_screen.dart';
 import '../screens/user/user_info_screen.dart';
 import '../refactor/new_my_goals_screen.dart';
+import '../refactor/time_machine.dart';
 import '../widgets/app_scaffold.dart';
 
 final GoRouter appRouter = GoRouter(
@@ -41,6 +42,11 @@ final GoRouter appRouter = GoRouter(
     GoRoute(
       path: '/goals',
       builder: (context, state) => const AppScaffold(child: MyGoalsScreen()),
+    ),
+    GoRoute(
+      path: '/time-machine',
+      builder: (context, state) =>
+          const AppScaffold(child: TimeMachineScreen()),
     ),
     // GoRoute(
     //   path: '/sandbox',

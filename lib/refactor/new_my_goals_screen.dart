@@ -41,11 +41,6 @@ class MyGoalsScreenState extends State<MyGoalsScreen> {
     );
   }
 
-  void _endWeek() {
-    final goalsProvider = Provider.of<GoalsProvider>(context, listen: false);
-    goalsProvider.endWeek();
-  }
-
   @override
   Widget build(BuildContext context) {
     User? user = FirebaseAuth.instance.currentUser;
@@ -64,10 +59,6 @@ class MyGoalsScreenState extends State<MyGoalsScreen> {
 
           return Column(
             children: [
-              ElevatedButton(
-                onPressed: _endWeek,
-                child: Text('End Week'),
-              ),
               Expanded(
                 child: ListView.builder(
                   itemCount: goalsProvider.goals.length,

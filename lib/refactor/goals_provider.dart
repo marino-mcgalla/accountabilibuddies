@@ -9,22 +9,28 @@ import 'weekly_goal.dart';
 class GoalsProvider with ChangeNotifier {
   List<Goal> _goals = [];
   bool _isLoading = false;
-  late StreamSubscription<DocumentSnapshot> _goalsSubscription;
+  StreamSubscription<DocumentSnapshot>? _goalsSubscription;
 
   List<Goal> get goals => _goals;
   bool get isLoading => _isLoading;
 
   GoalsProvider() {
-    _initializeGoalsListener();
+    initializeGoalsListener();
   }
 
-  void _initializeGoalsListener() {
-    String currentUserId = FirebaseAuth.instance.currentUser?.uid ?? "";
+  void initializeGoalsListener() {
+    String? currentUserId = FirebaseAuth.instance.currentUser?.uid;
+    if (currentUserId == null || currentUserId.isEmpty) {
+      return; // Exit if there is no valid user ID
+    }
+
+    _goalsSubscription?.cancel(); // Cancel any existing subscription
     _goalsSubscription = FirebaseFirestore.instance
         .collection('userGoals')
         .doc(currentUserId)
         .snapshots()
         .listen((doc) {
+      print("firestore read: goals updated");
       if (doc.exists) {
         List<dynamic> goalsData = doc.data()?['goals'] ?? [];
         _goals = goalsData.map((data) => Goal.fromMap(data)).toList();
@@ -126,9 +132,15 @@ class GoalsProvider with ChangeNotifier {
         .set({'goals': goalsData});
   }
 
+  void resetState() {
+    _goals = [];
+    _isLoading = false;
+    notifyListeners();
+  }
+
   @override
   void dispose() {
-    _goalsSubscription.cancel();
+    _goalsSubscription?.cancel();
     super.dispose();
   }
 

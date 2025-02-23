@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-class DateTimeProvider with ChangeNotifier {
+class TimeMachineProvider with ChangeNotifier {
   DateTime? _customDateTime;
   bool _useCustomDateTime = false;
 
@@ -12,7 +12,7 @@ class DateTimeProvider with ChangeNotifier {
   }
 
   void setCustomDateTime(DateTime dateTime) {
-    print(dateTime);
+    print('time set to: ${dateTime}');
     _customDateTime = dateTime;
     _useCustomDateTime = true;
     notifyListeners();
@@ -21,7 +21,7 @@ class DateTimeProvider with ChangeNotifier {
   void resetToRealTime() {
     _customDateTime = null;
     _useCustomDateTime = false;
-    print(DateTime.now());
+    print('time set to: ${DateTime.now()}');
     notifyListeners();
   }
 
@@ -29,12 +29,12 @@ class DateTimeProvider with ChangeNotifier {
     _useCustomDateTime = true;
     if (_useCustomDateTime && _customDateTime != null) {
       _customDateTime = _customDateTime!.add(duration);
-      print(_customDateTime);
+      print('time set to ${_customDateTime}');
       notifyListeners();
     } else {
       _customDateTime = DateTime.now();
       _customDateTime = _customDateTime!.add(duration);
-      print(_customDateTime);
+      print('time set to ${_customDateTime}');
       notifyListeners();
     }
   }

@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart'; // Import intl package for date formatting
-import 'datetime_provider.dart';
+import 'time_machine_provider.dart'; // Import TimeMachineProvider
 
 class TimeMachineScreen extends StatefulWidget {
   const TimeMachineScreen({super.key});
@@ -16,7 +16,7 @@ class _TimeMachineScreenState extends State<TimeMachineScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final dateTimeProvider = Provider.of<DateTimeProvider>(context);
+    final timeMachineProvider = Provider.of<TimeMachineProvider>(context);
     final DateFormat dateFormat = DateFormat('MM-dd-yyyy hh:mm a');
 
     return Scaffold(
@@ -29,7 +29,7 @@ class _TimeMachineScreenState extends State<TimeMachineScreen> {
           children: [
             ListTile(
               title: Text('Current Date and Time'),
-              subtitle: Text(dateFormat.format(dateTimeProvider.now)),
+              subtitle: Text(dateFormat.format(timeMachineProvider.now)),
             ),
             SizedBox(height: 16),
             ListTile(
@@ -66,7 +66,7 @@ class _TimeMachineScreenState extends State<TimeMachineScreen> {
             ),
             ElevatedButton(
               onPressed: () {
-                dateTimeProvider.setCustomDateTime(_selectedDateTime);
+                timeMachineProvider.setCustomDateTime(_selectedDateTime);
               },
               child: Text('Set Custom Date and Time'),
             ),
@@ -91,14 +91,16 @@ class _TimeMachineScreenState extends State<TimeMachineScreen> {
             ),
             ElevatedButton(
               onPressed: () {
-                dateTimeProvider.advanceTime(_advanceDuration);
+                timeMachineProvider.advanceTime(_advanceDuration);
+                setState(() {}); // Ensure the UI updates
               },
               child: Text('Advance Time'),
             ),
             SizedBox(height: 16),
             ElevatedButton(
               onPressed: () {
-                dateTimeProvider.resetToRealTime();
+                timeMachineProvider.resetToRealTime();
+                setState(() {}); // Ensure the UI updates
               },
               child: Text('Reset to Real Time'),
             ),

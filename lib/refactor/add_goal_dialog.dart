@@ -6,7 +6,7 @@ import 'goals_provider.dart';
 import 'goal_model.dart';
 import 'total_goal.dart';
 import 'weekly_goal.dart';
-import 'datetime_provider.dart'; // Import DateTimeProvider
+import 'time_machine_provider.dart'; // Import DateTimeProvider
 
 class AddGoalDialog extends StatefulWidget {
   const AddGoalDialog({super.key});
@@ -27,7 +27,7 @@ class AddGoalDialogState extends State<AddGoalDialog> {
   @override
   Widget build(BuildContext context) {
     final dateTimeProvider =
-        Provider.of<DateTimeProvider>(context, listen: false);
+        Provider.of<TimeMachineProvider>(context, listen: false);
 
     return AlertDialog(
       title: Row(

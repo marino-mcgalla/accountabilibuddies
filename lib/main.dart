@@ -5,6 +5,7 @@ import 'routing/app_router.dart';
 import 'package:provider/provider.dart';
 import 'refactor/goals_provider.dart';
 import 'refactor/party_provider.dart';
+import 'refactor/datetime_provider.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -23,6 +24,7 @@ class MyApp extends StatelessWidget {
       providers: [
         ChangeNotifierProvider(create: (context) => GoalsProvider()),
         ChangeNotifierProvider(create: (context) => PartyProvider()),
+        ChangeNotifierProvider(create: (context) => DateTimeProvider()),
       ],
       child: MaterialApp.router(
         title: 'Flutter Demo',

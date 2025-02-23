@@ -6,6 +6,7 @@ import 'goals_provider.dart';
 import 'goal_model.dart';
 import 'total_goal.dart';
 import 'weekly_goal.dart';
+import 'datetime_provider.dart'; // Import DateTimeProvider
 
 class AddGoalDialog extends StatefulWidget {
   const AddGoalDialog({super.key});
@@ -25,8 +26,21 @@ class AddGoalDialogState extends State<AddGoalDialog> {
 
   @override
   Widget build(BuildContext context) {
+    final dateTimeProvider =
+        Provider.of<DateTimeProvider>(context, listen: false);
+
     return AlertDialog(
-      title: Text('Add Goal'),
+      title: Row(
+        children: [
+          Text('Add Goal'),
+          SizedBox(width: 8),
+          Tooltip(
+            message:
+                'Total: Can earn multiple completions per day\nWeekly: Maximum 1 completion per day',
+            child: Icon(Icons.info_outline, color: Colors.grey),
+          ),
+        ],
+      ),
       content: Form(
         key: _formKey,
         child: Column(
@@ -41,10 +55,9 @@ class AddGoalDialogState extends State<AddGoalDialog> {
                   }
                   _goalType = index == 0 ? 'total' : 'weekly';
                   if (_goalType == 'total') {
-                    _goalFrequency = 0;
+                    _goalFrequency = 1; // Reset to 1 for total goals
                   } else if (_goalType == 'weekly') {
-                    _goalFrequency =
-                        4; // Set to 4 as default since it's in the middle
+                    _goalFrequency = 4; // Set to 4 as default for weekly goals
                   }
                 });
               },
@@ -71,6 +84,24 @@ class AddGoalDialogState extends State<AddGoalDialog> {
                 _goalName = value!;
               },
             ),
+            if (_goalType == 'total')
+              TextFormField(
+                decoration: InputDecoration(labelText: 'Goal Frequency'),
+                keyboardType: TextInputType.number,
+                initialValue: _goalFrequency.toString(),
+                validator: (value) {
+                  if (value == null || value.isEmpty) {
+                    return 'Please enter a goal frequency';
+                  }
+                  if (int.tryParse(value) == null || int.parse(value) <= 0) {
+                    return 'Please enter a valid number';
+                  }
+                  return null;
+                },
+                onSaved: (value) {
+                  _goalFrequency = int.parse(value!);
+                },
+              ),
             if (_goalType == 'weekly')
               Column(
                 children: [
@@ -110,7 +141,8 @@ class AddGoalDialogState extends State<AddGoalDialog> {
             if (_formKey.currentState!.validate()) {
               _formKey.currentState!.save();
               Goal newGoal;
-              DateTime placeholderDate = DateTime(1970, 1, 1);
+              DateTime currentDateTime =
+                  dateTimeProvider.now; // Use DateTimeProvider
               if (_goalType == 'total') {
                 newGoal = TotalGoal(
                   id: FirebaseFirestore.instance.collection('goals').doc().id,
@@ -119,7 +151,7 @@ class AddGoalDialogState extends State<AddGoalDialog> {
                   goalCriteria: _goalCriteria,
                   active: false,
                   goalFrequency: _goalFrequency,
-                  weekStartDate: placeholderDate,
+                  weekStartDate: currentDateTime,
                   currentWeekCompletions: {},
                 );
               } else {
@@ -130,7 +162,7 @@ class AddGoalDialogState extends State<AddGoalDialog> {
                   goalCriteria: _goalCriteria,
                   active: false,
                   goalFrequency: _goalFrequency,
-                  weekStartDate: placeholderDate,
+                  weekStartDate: currentDateTime,
                   currentWeekCompletions: {},
                 );
               }

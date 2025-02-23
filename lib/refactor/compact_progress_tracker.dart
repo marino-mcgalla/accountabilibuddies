@@ -20,10 +20,13 @@ class CompactProgressTracker extends StatelessWidget {
       double progress = totalGoal.goalFrequency > 0
           ? completions / totalGoal.goalFrequency
           : 0;
-      return LinearProgressIndicator(
-        value: progress,
-        backgroundColor: Colors.grey[300],
-        color: Colors.blue,
+      return Container(
+        height: 12, // Set the desired height here
+        child: LinearProgressIndicator(
+          value: progress,
+          backgroundColor: Colors.grey[300],
+          color: Colors.blue,
+        ),
       );
     } else if (goal is WeeklyGoal) {
       final weeklyGoal = goal as WeeklyGoal;

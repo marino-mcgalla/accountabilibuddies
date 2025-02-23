@@ -62,6 +62,11 @@ class PartyScreen extends StatelessWidget {
                     child: const Text("Send Invite"),
                   ),
                   const SizedBox(height: 20),
+                  ElevatedButton(
+                    onPressed: () => partyProvider.endWeekForAll(context),
+                    child: const Text("End Week for All"),
+                  ),
+                  const SizedBox(height: 20),
                   InviteList(
                     inviteStream: partyProvider.fetchOutgoingPendingInvites(),
                     title: "Outgoing Pending Invites",

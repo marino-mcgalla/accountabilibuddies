@@ -2,9 +2,11 @@ import 'dart:async';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:provider/provider.dart';
 import 'goal_model.dart';
 import 'total_goal.dart';
 import 'weekly_goal.dart';
+import 'time_machine_provider.dart'; // Import TimeMachineProvider
 
 class PartyProvider with ChangeNotifier {
   final FirebaseAuth _auth = FirebaseAuth.instance;
@@ -259,6 +261,47 @@ class PartyProvider with ChangeNotifier {
       }
     }
     return [];
+  }
+
+  Future<void> endWeekForAll(BuildContext context) async {
+    final timeMachineProvider =
+        Provider.of<TimeMachineProvider>(context, listen: false);
+    DateTime newWeekStartDate = timeMachineProvider.now;
+
+    for (String memberId in _members) {
+      DocumentSnapshot userGoalsDoc =
+          await _firestore.collection('userGoals').doc(memberId).get();
+
+      if (userGoalsDoc.exists) {
+        List<dynamic> goalsData = userGoalsDoc['goals'] ?? [];
+        List<Goal> goals =
+            goalsData.map((goalData) => Goal.fromMap(goalData)).toList();
+
+        // Store current week's progress in history
+        await _firestore
+            .collection('userGoalsHistory')
+            .doc(memberId)
+            .collection('weeks')
+            .doc(timeMachineProvider.now
+                .toString()) //TODO: change this to the history goal's week start date instead
+            .set({'goals': goalsData});
+
+        // Reset goals for the new week
+        for (Goal goal in goals) {
+          goal.weekStartDate = newWeekStartDate;
+          goal.currentWeekCompletions = {}; // Reset completions
+        }
+
+        // Update goals in Firestore
+        List<Map<String, dynamic>> updatedGoalsData =
+            goals.map((goal) => goal.toMap()).toList();
+        await _firestore
+            .collection('userGoals')
+            .doc(memberId)
+            .set({'goals': updatedGoalsData});
+      }
+    }
+    notifyListeners(); // Notify listeners after updating goals
   }
 
   void resetState() {

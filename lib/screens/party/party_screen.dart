@@ -1,9 +1,11 @@
+import 'package:auth_test/screens/party/create_party_screen.dart';
+import 'package:auth_test/screens/party/party_info_screen.dart';
+import 'package:auth_test/widgets/invite_list.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'create_party_screen.dart';
-import 'party_info_screen.dart';
-import '../../widgets/invite_list.dart';
 import '../../refactor/party_provider.dart';
+import '../../refactor/goals_provider.dart';
+import '../../refactor/goal_model.dart';
 
 class PartyScreen extends StatelessWidget {
   const PartyScreen({super.key});
@@ -11,6 +13,7 @@ class PartyScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final partyProvider = Provider.of<PartyProvider>(context);
+
     if (partyProvider.isLoading) {
       return Scaffold(
         appBar: AppBar(title: const Text("Party")),
@@ -19,7 +22,7 @@ class PartyScreen extends StatelessWidget {
     }
 
     return Scaffold(
-      appBar: AppBar(title: const Text("Party")),
+      appBar: AppBar(title: const Text("Party 2.0")),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
         child: partyProvider.partyId == null
@@ -74,9 +77,87 @@ class PartyScreen extends StatelessWidget {
                         partyProvider.cancelInvite(inviteId),
                     isOutgoing: true,
                   ),
+                  const SizedBox(height: 20),
+                  Text(
+                    "Submitted Proofs",
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                  ),
+                  Expanded(
+                    child: FutureBuilder<List<Map<String, dynamic>>>(
+                      future: partyProvider.fetchSubmittedGoalsForParty(),
+                      builder: (context, snapshot) {
+                        if (snapshot.connectionState ==
+                            ConnectionState.waiting) {
+                          return Center(child: CircularProgressIndicator());
+                        }
+                        if (snapshot.hasError) {
+                          return Center(
+                              child: Text("Error: ${snapshot.error}"));
+                        }
+                        if (!snapshot.hasData || snapshot.data!.isEmpty) {
+                          return Center(child: Text("No submitted proofs"));
+                        }
+                        final submittedGoals = snapshot.data!;
+                        return ListView.builder(
+                          itemCount: submittedGoals.length,
+                          itemBuilder: (context, index) {
+                            final goalData = submittedGoals[index];
+                            final Goal goal = goalData['goal'];
+                            final String? date = goalData['date'];
+                            return ListTile(
+                              title: Text(goal.goalName),
+                              subtitle: Text(
+                                  "Submitted by: ${goal.ownerId}\nDate: ${date ?? 'N/A'}"),
+                              onTap: () {
+                                _showProofDialog(context, goal, date);
+                              },
+                            );
+                          },
+                        );
+                      },
+                    ),
+                  ),
                 ],
               ),
       ),
+    );
+  }
+
+  void _showProofDialog(BuildContext context, Goal goal, String? proofDate) {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: Text("Proof for ${goal.goalName}"),
+          content: Text(goal.proofText ?? "No proof provided."),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text("Cancel"),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                if (proofDate != null) {
+                  Provider.of<GoalsProvider>(context, listen: false)
+                      .approveProof(goal.id, goal.ownerId, proofDate);
+                }
+                Navigator.of(context).pop();
+              },
+              child: const Text("Approve"),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                if (proofDate != null) {
+                  Provider.of<GoalsProvider>(context, listen: false)
+                      .denyProof(goal.id, goal.ownerId, proofDate);
+                }
+                Navigator.of(context).pop();
+              },
+              child: const Text("Deny"),
+            ),
+          ],
+        );
+      },
     );
   }
 }

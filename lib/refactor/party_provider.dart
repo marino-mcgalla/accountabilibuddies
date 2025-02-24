@@ -263,6 +263,38 @@ class PartyProvider with ChangeNotifier {
     return [];
   }
 
+  Future<List<Map<String, dynamic>>> fetchSubmittedGoalsForParty() async {
+    List<Map<String, dynamic>> submittedGoals = [];
+    for (String memberId in _members) {
+      DocumentSnapshot userGoalsDoc =
+          await _firestore.collection('userGoals').doc(memberId).get();
+
+      if (userGoalsDoc.exists) {
+        List<dynamic> goalsData = userGoalsDoc['goals'] ?? [];
+        for (var goalData in goalsData) {
+          Goal goal = Goal.fromMap(goalData);
+          if (goal is WeeklyGoal) {
+            goal.currentWeekCompletions.forEach((day, status) {
+              if (status == 'submitted') {
+                submittedGoals.add({
+                  'goal': goal,
+                  'date': day,
+                });
+              }
+            });
+          } else if (goal.proofStatus == 'submitted') {
+            submittedGoals.add({
+              'goal': goal,
+              'date': null,
+            });
+          }
+        }
+      }
+    }
+    print(submittedGoals);
+    return submittedGoals;
+  }
+
   Future<void> endWeekForAll(BuildContext context) async {
     final timeMachineProvider =
         Provider.of<TimeMachineProvider>(context, listen: false);

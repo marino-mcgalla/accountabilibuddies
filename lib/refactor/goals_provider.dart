@@ -88,8 +88,7 @@ class GoalsProvider with ChangeNotifier {
   }
 
   // updates the completion status for weekly goals
-  Future<void> toggleCompletion(
-      String goalId, String day, String status) async {
+  Future<void> toggleSkipPlan(String goalId, String day, String status) async {
     int index = _goals.indexWhere((goal) => goal.id == goalId);
     if (index != -1 && _goals[index] is WeeklyGoal) {
       final goal = _goals[index] as WeeklyGoal;
@@ -100,7 +99,6 @@ class GoalsProvider with ChangeNotifier {
   }
 
   Future<void> endWeek() async {
-    print('howdy');
     _setLoading(true);
 
     // Store current week's progress in history
@@ -177,6 +175,85 @@ class GoalsProvider with ChangeNotifier {
         goal.proofText = proofText;
         goal.proofStatus = 'submitted';
         goal.proofSubmissionDate = _timeMachineProvider.now;
+      }
+
+      notifyListeners();
+    } else {
+      throw Exception("User goals document does not exist");
+    }
+  }
+
+  Future<void> approveProof(
+      String goalId, String userId, String proofDate) async {
+    DocumentSnapshot userGoalsDoc =
+        await _firestore.collection('userGoals').doc(userId).get();
+
+    if (userGoalsDoc.exists) {
+      List<dynamic> goalsData = userGoalsDoc['goals'] ?? [];
+      for (var goalData in goalsData) {
+        if (goalData['id'] == goalId) {
+          if (goalData['goalType'] == 'weekly') {
+            goalData['currentWeekCompletions'][proofDate] = 'completed';
+          } else {
+            goalData['proofStatus'] = 'completed';
+          }
+          break;
+        }
+      }
+      await _firestore
+          .collection('userGoals')
+          .doc(userId)
+          .update({'goals': goalsData});
+
+      // Update local goals list
+      try {
+        Goal goal = _goals.firstWhere((goal) => goal.id == goalId);
+        if (goal is WeeklyGoal) {
+          goal.currentWeekCompletions[proofDate] = 'completed';
+        } else {
+          goal.proofStatus = 'completed';
+        }
+      } catch (e) {
+        // Goal not found, do nothing
+      }
+
+      notifyListeners();
+    } else {
+      throw Exception("User goals document does not exist");
+    }
+  }
+
+  Future<void> denyProof(String goalId, String userId, String proofDate) async {
+    DocumentSnapshot userGoalsDoc =
+        await _firestore.collection('userGoals').doc(userId).get();
+
+    if (userGoalsDoc.exists) {
+      List<dynamic> goalsData = userGoalsDoc['goals'] ?? [];
+      for (var goalData in goalsData) {
+        if (goalData['id'] == goalId) {
+          if (goalData['goalType'] == 'weekly') {
+            goalData['currentWeekCompletions'][proofDate] = 'denied';
+          } else {
+            goalData['proofStatus'] = 'denied';
+          }
+          break;
+        }
+      }
+      await _firestore
+          .collection('userGoals')
+          .doc(userId)
+          .update({'goals': goalsData});
+
+      // Update local goals list
+      try {
+        Goal goal = _goals.firstWhere((goal) => goal.id == goalId);
+        if (goal is WeeklyGoal) {
+          goal.currentWeekCompletions[proofDate] = 'denied';
+        } else {
+          goal.proofStatus = 'denied';
+        }
+      } catch (e) {
+        // Goal not found, do nothing
       }
 
       notifyListeners();

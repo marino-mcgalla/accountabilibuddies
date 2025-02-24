@@ -1,9 +1,9 @@
 import 'package:auth_test/widgets/week_view_grid.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../refactor/goals_provider.dart';
-import '../refactor/goal_model.dart';
 
 class GoalCard extends StatelessWidget {
   final String goalId;
@@ -64,6 +64,8 @@ class GoalCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final currentUserId = FirebaseAuth.instance.currentUser?.uid;
+
     return Card(
       margin: const EdgeInsets.symmetric(vertical: 10),
       child: Padding(
@@ -83,7 +85,13 @@ class GoalCard extends StatelessWidget {
             WeekViewGrid(
                 goalId: goalId,
                 weekStatus: weekStatus,
-                toggleStatus: toggleStatus),
+                toggleStatus: (context, goalId, date, status) {
+                  if (currentUserId != goalId) {
+                    toggleStatus(context, goalId, date, status);
+                  } else if (status != 'completed' && status != 'denied') {
+                    toggleStatus(context, goalId, date, status);
+                  }
+                }),
             const SizedBox(height: 20),
             Row(
               mainAxisAlignment: MainAxisAlignment.end,

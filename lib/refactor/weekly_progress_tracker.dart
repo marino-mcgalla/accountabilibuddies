@@ -14,17 +14,11 @@ class WeeklyProgressTracker extends StatelessWidget {
     Key? key,
   }) : super(key: key);
 
-  void _toggleCompletion(BuildContext context, String day) {
+  void _toggleSkipPlan(BuildContext context, String day) {
     final currentStatus = completions[day] ?? 'default';
     String newStatus;
     switch (currentStatus) {
       case 'default':
-        newStatus = 'submitted';
-        break;
-      case 'submitted':
-        newStatus = 'completed';
-        break;
-      case 'completed':
         newStatus = 'skipped';
         break;
       case 'skipped':
@@ -36,7 +30,7 @@ class WeeklyProgressTracker extends StatelessWidget {
         break;
     }
     Provider.of<GoalsProvider>(context, listen: false)
-        .toggleCompletion(goalId, day, newStatus);
+        .toggleSkipPlan(goalId, day, newStatus);
   }
 
   @override
@@ -76,7 +70,7 @@ class WeeklyProgressTracker extends StatelessWidget {
         final dayOfWeek = DateFormat('EEE').format(
             DateTime.parse(day)); // Format as day of the week abbreviation
         return GestureDetector(
-          onTap: () => _toggleCompletion(context, day),
+          onTap: () => _toggleSkipPlan(context, day),
           child: Container(
             padding: EdgeInsets.all(8.0),
             decoration: BoxDecoration(

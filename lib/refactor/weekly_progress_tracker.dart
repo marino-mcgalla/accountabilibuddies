@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:intl/intl.dart'; // Import DateFormat
 import 'goals_provider.dart';
+import 'time_machine_provider.dart';
 
 class WeeklyProgressTracker extends StatelessWidget {
   final String goalId;
@@ -39,7 +41,14 @@ class WeeklyProgressTracker extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final daysOfWeek = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+    final timeMachineProvider = Provider.of<TimeMachineProvider>(context);
+    final now = timeMachineProvider.now;
+    final startOfWeek =
+        now.subtract(Duration(days: now.weekday - 1)); // Start from Monday
+    final daysOfWeek = List.generate(7, (index) {
+      final date = startOfWeek.add(Duration(days: index));
+      return date.toIso8601String().split('T').first;
+    });
 
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceEvenly,
@@ -64,6 +73,8 @@ class WeeklyProgressTracker extends StatelessWidget {
             color = Colors.grey;
             break;
         }
+        final dayOfWeek = DateFormat('EEE').format(
+            DateTime.parse(day)); // Format as day of the week abbreviation
         return GestureDetector(
           onTap: () => _toggleCompletion(context, day),
           child: Container(
@@ -73,7 +84,7 @@ class WeeklyProgressTracker extends StatelessWidget {
               borderRadius: BorderRadius.circular(8.0),
             ),
             child: Text(
-              day,
+              dayOfWeek,
               style: TextStyle(color: Colors.white),
             ),
           ),

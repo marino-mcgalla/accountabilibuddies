@@ -1,8 +1,9 @@
-import 'package:flutter/material.dart';
+import 'package:auth_test/widgets/week_view_grid.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
-import 'package:intl/intl.dart';
-import 'week_view_grid.dart';
+import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import '../refactor/goals_provider.dart';
+import '../refactor/goal_model.dart';
 
 class GoalCard extends StatelessWidget {
   final String goalId;
@@ -55,6 +56,12 @@ class GoalCard extends StatelessWidget {
     }
   }
 
+  Future<void> _submitProof(BuildContext context, String goalId) async {
+    final goalsProvider = Provider.of<GoalsProvider>(context, listen: false);
+    String proofText = "I did it"; // For now, use a static text
+    await goalsProvider.submitProof(goalId, proofText);
+  }
+
   @override
   Widget build(BuildContext context) {
     return Card(
@@ -81,6 +88,12 @@ class GoalCard extends StatelessWidget {
             Row(
               mainAxisAlignment: MainAxisAlignment.end,
               children: [
+                ElevatedButton(
+                  onPressed: () {
+                    _submitProof(context, goalId);
+                  },
+                  child: Text('Submit Proof'),
+                ),
                 if (onDelete != null)
                   IconButton(
                     icon: const Icon(Icons.delete, color: Colors.red),

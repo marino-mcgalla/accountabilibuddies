@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'goal_model.dart';
 import 'total_goal.dart';
 import 'weekly_goal.dart';
+import 'package:provider/provider.dart';
+import 'time_machine_provider.dart';
 
 class CompactProgressTracker extends StatelessWidget {
   final Goal goal;
@@ -13,6 +15,15 @@ class CompactProgressTracker extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final timeMachineProvider = Provider.of<TimeMachineProvider>(context);
+    final now = timeMachineProvider.now;
+    final startOfWeek =
+        now.subtract(Duration(days: now.weekday - 1)); // Start from Monday
+    final daysOfWeek = List.generate(7, (index) {
+      final date = startOfWeek.add(Duration(days: index));
+      return date.toIso8601String().split('T').first;
+    });
+
     if (goal is TotalGoal) {
       final totalGoal = goal as TotalGoal;
       int completions = totalGoal.currentWeekCompletions.values
@@ -30,7 +41,6 @@ class CompactProgressTracker extends StatelessWidget {
       );
     } else if (goal is WeeklyGoal) {
       final weeklyGoal = goal as WeeklyGoal;
-      final daysOfWeek = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
       return Row(
         children: daysOfWeek.map((day) {

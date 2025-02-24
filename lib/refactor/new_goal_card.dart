@@ -27,6 +27,12 @@ class GoalCard extends StatelessWidget {
     Key? key,
   }) : super(key: key);
 
+  Future<void> _submitProof(BuildContext context, String goalId) async {
+    final goalsProvider = Provider.of<GoalsProvider>(context, listen: false);
+    String proofText = "I did it"; // For now, use a static text
+    await goalsProvider.submitProof(goalId, proofText);
+  }
+
   @override
   Widget build(BuildContext context) {
     return Card(
@@ -75,6 +81,12 @@ class GoalCard extends StatelessWidget {
           Row(
             mainAxisAlignment: MainAxisAlignment.end,
             children: [
+              ElevatedButton(
+                onPressed: () {
+                  _submitProof(context, goalId);
+                },
+                child: Text('Submit Proof'),
+              ),
               IconButton(
                 icon: Icon(Icons.edit),
                 onPressed: onEdit,

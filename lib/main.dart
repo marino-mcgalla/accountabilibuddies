@@ -22,11 +22,15 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MultiProvider(
       providers: [
-        ChangeNotifierProvider(create: (context) => GoalsProvider()),
+        ChangeNotifierProvider(create: (context) => TimeMachineProvider()),
+        ChangeNotifierProxyProvider<TimeMachineProvider, GoalsProvider>(
+          create: (context) => GoalsProvider(
+            Provider.of<TimeMachineProvider>(context, listen: false),
+          ),
+          update: (context, timeMachineProvider, goalsProvider) =>
+              goalsProvider!..updateTimeMachineProvider(timeMachineProvider),
+        ),
         ChangeNotifierProvider(create: (context) => PartyProvider()),
-        ChangeNotifierProvider(
-            create: (context) =>
-                TimeMachineProvider()), // Use TimeMachineProvider
       ],
       child: MaterialApp.router(
         title: 'Flutter Demo',

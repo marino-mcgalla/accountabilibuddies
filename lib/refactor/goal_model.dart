@@ -11,6 +11,9 @@ abstract class Goal {
   final int goalFrequency;
   DateTime weekStartDate;
   Map<String, dynamic> currentWeekCompletions;
+  String? proofText; // New field for proof text
+  String? proofStatus; // New field for proof status
+  DateTime? proofSubmissionDate; // New field for proof submission date
 
   Goal({
     required this.id,
@@ -22,6 +25,9 @@ abstract class Goal {
     required this.goalFrequency,
     required this.weekStartDate,
     required this.currentWeekCompletions,
+    this.proofText,
+    this.proofStatus,
+    this.proofSubmissionDate,
   });
 
   Map<String, dynamic> toMap();

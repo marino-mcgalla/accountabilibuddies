@@ -10,6 +10,9 @@ class TotalGoal extends Goal {
     required int goalFrequency,
     required DateTime weekStartDate,
     required Map<String, int> currentWeekCompletions,
+    String? proofText,
+    String? proofStatus,
+    DateTime? proofSubmissionDate,
   }) : super(
           id: id,
           ownerId: ownerId,
@@ -20,6 +23,9 @@ class TotalGoal extends Goal {
           active: active,
           weekStartDate: weekStartDate,
           currentWeekCompletions: currentWeekCompletions,
+          proofText: proofText,
+          proofStatus: proofStatus,
+          proofSubmissionDate: proofSubmissionDate,
         );
 
   @override
@@ -34,6 +40,9 @@ class TotalGoal extends Goal {
       'goalFrequency': goalFrequency,
       'weekStartDate': weekStartDate.toIso8601String(),
       'currentWeekCompletions': currentWeekCompletions,
+      'proofText': proofText,
+      'proofStatus': proofStatus,
+      'proofSubmissionDate': proofSubmissionDate?.toIso8601String(),
     };
   }
 
@@ -48,6 +57,11 @@ class TotalGoal extends Goal {
       weekStartDate: DateTime.parse(data['weekStartDate']),
       currentWeekCompletions:
           Map<String, int>.from(data['currentWeekCompletions']),
+      proofText: data['proofText'],
+      proofStatus: data['proofStatus'],
+      proofSubmissionDate: data['proofSubmissionDate'] != null
+          ? DateTime.parse(data['proofSubmissionDate'])
+          : null,
     );
   }
 }

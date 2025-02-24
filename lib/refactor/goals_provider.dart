@@ -5,18 +5,26 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'goal_model.dart';
 import 'total_goal.dart';
 import 'weekly_goal.dart';
+import 'time_machine_provider.dart';
 
 class GoalsProvider with ChangeNotifier {
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  TimeMachineProvider _timeMachineProvider;
+
+  GoalsProvider(this._timeMachineProvider) {
+    initializeGoalsListener();
+  }
+
+  void updateTimeMachineProvider(TimeMachineProvider timeMachineProvider) {
+    _timeMachineProvider = timeMachineProvider;
+  }
+
   List<Goal> _goals = [];
   bool _isLoading = false;
   StreamSubscription<DocumentSnapshot>? _goalsSubscription;
 
   List<Goal> get goals => _goals;
   bool get isLoading => _isLoading;
-
-  GoalsProvider() {
-    initializeGoalsListener();
-  }
 
   void initializeGoalsListener() {
     String? currentUserId = FirebaseAuth.instance.currentUser?.uid;
@@ -71,7 +79,7 @@ class GoalsProvider with ChangeNotifier {
     int index = _goals.indexWhere((goal) => goal.id == goalId);
     if (index != -1 && _goals[index] is TotalGoal) {
       final goal = _goals[index] as TotalGoal;
-      final day = DateTime.now().toIso8601String().split('T').first;
+      final day = _timeMachineProvider.now.toIso8601String().split('T').first;
       goal.currentWeekCompletions[day] =
           (goal.currentWeekCompletions[day] ?? 0) + 1;
       await _updateGoalsInFirestore();
@@ -99,7 +107,7 @@ class GoalsProvider with ChangeNotifier {
     await _storeWeeklyProgressInHistory();
 
     // Reset goals for the new week
-    DateTime newWeekStartDate = DateTime.now();
+    DateTime newWeekStartDate = _timeMachineProvider.now;
     for (Goal goal in _goals) {
       goal.weekStartDate = newWeekStartDate;
       goal.currentWeekCompletions = {}; // Reset completions
@@ -118,7 +126,7 @@ class GoalsProvider with ChangeNotifier {
         .collection('userGoalsHistory')
         .doc(currentUserId)
         .collection('weeks')
-        .doc(DateTime.now().toIso8601String())
+        .doc(_timeMachineProvider.now.toIso8601String())
         .set({'goals': goalsData});
   }
 
@@ -130,6 +138,51 @@ class GoalsProvider with ChangeNotifier {
         .collection('userGoals')
         .doc(currentUserId)
         .set({'goals': goalsData});
+  }
+
+  Future<void> submitProof(String goalId, String proofText) async {
+    String currentUserId = FirebaseAuth.instance.currentUser?.uid ?? "";
+    DocumentSnapshot userGoalsDoc =
+        await _firestore.collection('userGoals').doc(currentUserId).get();
+
+    if (userGoalsDoc.exists) {
+      List<dynamic> goalsData = userGoalsDoc['goals'] ?? [];
+      for (var goalData in goalsData) {
+        if (goalData['id'] == goalId) {
+          if (goalData['goalType'] == 'weekly') {
+            String currentDay =
+                _timeMachineProvider.now.toIso8601String().split('T').first;
+            goalData['currentWeekCompletions'][currentDay] = 'submitted';
+          } else {
+            goalData['proofText'] = proofText;
+            goalData['proofStatus'] = 'submitted';
+            goalData['proofSubmissionDate'] =
+                _timeMachineProvider.now.toIso8601String();
+          }
+          break;
+        }
+      }
+      await _firestore
+          .collection('userGoals')
+          .doc(currentUserId)
+          .update({'goals': goalsData});
+
+      // Update local goals list
+      Goal goal = _goals.firstWhere((goal) => goal.id == goalId);
+      if (goal is WeeklyGoal) {
+        String currentDay =
+            _timeMachineProvider.now.toIso8601String().split('T').first;
+        goal.currentWeekCompletions[currentDay] = 'submitted';
+      } else {
+        goal.proofText = proofText;
+        goal.proofStatus = 'submitted';
+        goal.proofSubmissionDate = _timeMachineProvider.now;
+      }
+
+      notifyListeners();
+    } else {
+      throw Exception("User goals document does not exist");
+    }
   }
 
   void resetState() {

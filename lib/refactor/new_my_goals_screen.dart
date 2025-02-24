@@ -6,6 +6,7 @@ import 'goals_provider.dart';
 import 'goal_model.dart';
 import 'add_goal_dialog.dart';
 import 'edit_goal_dialog.dart';
+import 'time_machine_provider.dart';
 
 class MyGoalsScreen extends StatefulWidget {
   const MyGoalsScreen({super.key});

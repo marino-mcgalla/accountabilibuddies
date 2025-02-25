@@ -82,6 +82,7 @@ class GoalsProvider with ChangeNotifier {
       final day = _timeMachineProvider.now.toIso8601String().split('T').first;
       goal.currentWeekCompletions[day] =
           (goal.currentWeekCompletions[day] ?? 0) + 1;
+      goal.totalCompletions += 1;
       await _updateGoalsInFirestore();
       notifyListeners();
     }
@@ -184,7 +185,7 @@ class GoalsProvider with ChangeNotifier {
   }
 
   Future<void> approveProof(
-      String goalId, String userId, String proofDate) async {
+      String goalId, String userId, String? proofDate) async {
     DocumentSnapshot userGoalsDoc =
         await _firestore.collection('userGoals').doc(userId).get();
 
@@ -193,9 +194,27 @@ class GoalsProvider with ChangeNotifier {
       for (var goalData in goalsData) {
         if (goalData['id'] == goalId) {
           if (goalData['goalType'] == 'weekly') {
-            goalData['currentWeekCompletions'][proofDate] = 'completed';
-          } else {
+            if (proofDate != null) {
+              goalData['currentWeekCompletions'][proofDate] = 'completed';
+            }
+          } else if (goalData['goalType'] == 'total') {
             goalData['proofStatus'] = 'completed';
+            print("Before increment:");
+            print("goalData: $goalData");
+            print(
+                "currentWeekCompletions: ${goalData['currentWeekCompletions']}");
+            print("totalCompletions: ${goalData['totalCompletions']}");
+            final day =
+                _timeMachineProvider.now.toIso8601String().split('T').first;
+            goalData['currentWeekCompletions'][day] =
+                (goalData['currentWeekCompletions'][day] ?? 0) + 1;
+            goalData['totalCompletions'] =
+                (goalData['totalCompletions'] ?? 0) + 1;
+            print("After increment:");
+            print("goalData: $goalData");
+            print(
+                "currentWeekCompletions: ${goalData['currentWeekCompletions']}");
+            print("totalCompletions: ${goalData['totalCompletions']}");
           }
           break;
         }
@@ -209,9 +228,16 @@ class GoalsProvider with ChangeNotifier {
       try {
         Goal goal = _goals.firstWhere((goal) => goal.id == goalId);
         if (goal is WeeklyGoal) {
-          goal.currentWeekCompletions[proofDate] = 'completed';
-        } else {
-          goal.proofStatus = 'completed';
+          if (proofDate != null) {
+            goal.currentWeekCompletions[proofDate] = 'completed';
+          }
+        } else if (goal is TotalGoal) {
+          goal.proofStatus = 'completed'; //not necessary
+          final day =
+              _timeMachineProvider.now.toIso8601String().split('T').first;
+          goal.currentWeekCompletions[day] =
+              (goal.currentWeekCompletions[day] ?? 0) + 1;
+          goal.totalCompletions += 1;
         }
       } catch (e) {
         // Goal not found, do nothing
@@ -223,7 +249,8 @@ class GoalsProvider with ChangeNotifier {
     }
   }
 
-  Future<void> denyProof(String goalId, String userId, String proofDate) async {
+  Future<void> denyProof(
+      String goalId, String userId, String? proofDate) async {
     DocumentSnapshot userGoalsDoc =
         await _firestore.collection('userGoals').doc(userId).get();
 
@@ -232,8 +259,10 @@ class GoalsProvider with ChangeNotifier {
       for (var goalData in goalsData) {
         if (goalData['id'] == goalId) {
           if (goalData['goalType'] == 'weekly') {
-            goalData['currentWeekCompletions'][proofDate] = 'denied';
-          } else {
+            if (proofDate != null) {
+              goalData['currentWeekCompletions'][proofDate] = 'denied';
+            }
+          } else if (goalData['goalType'] == 'total') {
             goalData['proofStatus'] = 'denied';
           }
           break;
@@ -248,8 +277,10 @@ class GoalsProvider with ChangeNotifier {
       try {
         Goal goal = _goals.firstWhere((goal) => goal.id == goalId);
         if (goal is WeeklyGoal) {
-          goal.currentWeekCompletions[proofDate] = 'denied';
-        } else {
+          if (proofDate != null) {
+            goal.currentWeekCompletions[proofDate] = 'denied';
+          }
+        } else if (goal is TotalGoal) {
           goal.proofStatus = 'denied';
         }
       } catch (e) {

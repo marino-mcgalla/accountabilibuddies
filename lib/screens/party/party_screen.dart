@@ -137,20 +137,16 @@ class PartyScreen extends StatelessWidget {
             ),
             ElevatedButton(
               onPressed: () {
-                if (proofDate != null) {
-                  Provider.of<GoalsProvider>(context, listen: false)
-                      .approveProof(goal.id, goal.ownerId, proofDate);
-                }
+                Provider.of<GoalsProvider>(context, listen: false)
+                    .approveProof(goal.id, goal.ownerId, proofDate);
                 Navigator.of(context).pop();
               },
               child: const Text("Approve"),
             ),
             ElevatedButton(
               onPressed: () {
-                if (proofDate != null) {
-                  Provider.of<GoalsProvider>(context, listen: false)
-                      .denyProof(goal.id, goal.ownerId, proofDate);
-                }
+                Provider.of<GoalsProvider>(context, listen: false)
+                    .denyProof(goal.id, goal.ownerId, proofDate);
                 Navigator.of(context).pop();
               },
               child: const Text("Deny"),

@@ -1,6 +1,8 @@
 import 'goal_model.dart';
 
 class TotalGoal extends Goal {
+  int totalCompletions;
+
   TotalGoal({
     required String id,
     required String ownerId,
@@ -9,7 +11,8 @@ class TotalGoal extends Goal {
     required bool active,
     required int goalFrequency,
     required DateTime weekStartDate,
-    required Map<String, int> currentWeekCompletions,
+    Map<String, int>? currentWeekCompletions,
+    this.totalCompletions = 0,
     String? proofText,
     String? proofStatus,
     DateTime? proofSubmissionDate,
@@ -22,7 +25,7 @@ class TotalGoal extends Goal {
           goalFrequency: goalFrequency,
           active: active,
           weekStartDate: weekStartDate,
-          currentWeekCompletions: currentWeekCompletions,
+          currentWeekCompletions: currentWeekCompletions ?? {},
           proofText: proofText,
           proofStatus: proofStatus,
           proofSubmissionDate: proofSubmissionDate,
@@ -30,20 +33,9 @@ class TotalGoal extends Goal {
 
   @override
   Map<String, dynamic> toMap() {
-    return {
-      'id': id,
-      'ownerId': ownerId,
-      'goalName': goalName,
-      'goalType': goalType,
-      'goalCriteria': goalCriteria,
-      'active': active,
-      'goalFrequency': goalFrequency,
-      'weekStartDate': weekStartDate.toIso8601String(),
-      'currentWeekCompletions': currentWeekCompletions,
-      'proofText': proofText,
-      'proofStatus': proofStatus,
-      'proofSubmissionDate': proofSubmissionDate?.toIso8601String(),
-    };
+    final map = super.toMap();
+    map['totalCompletions'] = totalCompletions;
+    return map;
   }
 
   factory TotalGoal.fromMap(Map<String, dynamic> data) {
@@ -56,7 +48,8 @@ class TotalGoal extends Goal {
       goalFrequency: data['goalFrequency'],
       weekStartDate: DateTime.parse(data['weekStartDate']),
       currentWeekCompletions:
-          Map<String, int>.from(data['currentWeekCompletions']),
+          Map<String, int>.from(data['currentWeekCompletions'] ?? {}),
+      totalCompletions: data['totalCompletions'] ?? 0,
       proofText: data['proofText'],
       proofStatus: data['proofStatus'],
       proofSubmissionDate: data['proofSubmissionDate'] != null

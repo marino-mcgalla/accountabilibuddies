@@ -45,7 +45,7 @@ class InviteList extends StatelessWidget {
               children: snapshot.data!.docs.map((doc) {
                 var invite = doc.data() as Map<String, dynamic>;
                 String userId =
-                    isOutgoing ? invite['receiverId'] : invite['senderId'];
+                    isOutgoing ? invite['inviteeId'] : invite['inviterId'];
                 return FutureBuilder<Map<String, dynamic>?>(
                   future: _fetchUserDetails(userId),
                   builder: (context, userSnapshot) {
@@ -72,7 +72,8 @@ class InviteList extends StatelessWidget {
                           ? "Sent to $displayName"
                           : "Invite from $displayName"),
                       trailing: ElevatedButton(
-                        onPressed: () => onAction(doc.id, invite['partyId']),
+                        onPressed: () =>
+                            onAction(doc.id, invite['partyId'] ?? ''),
                         child: Text(isOutgoing ? "Cancel" : "Accept"),
                       ),
                     );

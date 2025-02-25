@@ -233,7 +233,7 @@ class PartyProvider with ChangeNotifier {
       await _firestore.collection('invites').add({
         'inviterId': currentUserId,
         'inviteeId': inviteeId,
-        'partyId': _partyId,
+        'partyId': _partyId ?? '',
         'status': 'pending',
         'createdAt': FieldValue.serverTimestamp(),
       });

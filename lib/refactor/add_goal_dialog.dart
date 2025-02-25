@@ -21,8 +21,7 @@ class AddGoalDialogState extends State<AddGoalDialog> {
   int _goalFrequency = 1; // Default to 1
   String _goalCriteria = '';
   String _goalType = 'total';
-  final Map<String, bool> _completions = {};
-  List<bool> _selectedGoalType = [true, false]; // Default to 'total'
+  final List<bool> _selectedGoalType = [true, false]; // Default to 'total'
 
   @override
   Widget build(BuildContext context) {
@@ -141,8 +140,8 @@ class AddGoalDialogState extends State<AddGoalDialog> {
             if (_formKey.currentState!.validate()) {
               _formKey.currentState!.save();
               Goal newGoal;
-              DateTime currentDateTime =
-                  dateTimeProvider.now; // Use DateTimeProvider
+              DateTime startOfWeek = dateTimeProvider
+                  .startOfWeek; // Use startOfWeek from DateTimeProvider
               if (_goalType == 'total') {
                 newGoal = TotalGoal(
                   id: FirebaseFirestore.instance.collection('goals').doc().id,
@@ -151,7 +150,7 @@ class AddGoalDialogState extends State<AddGoalDialog> {
                   goalCriteria: _goalCriteria,
                   active: false,
                   goalFrequency: _goalFrequency,
-                  weekStartDate: currentDateTime,
+                  weekStartDate: startOfWeek,
                   currentWeekCompletions: {},
                 );
               } else {
@@ -162,7 +161,7 @@ class AddGoalDialogState extends State<AddGoalDialog> {
                   goalCriteria: _goalCriteria,
                   active: false,
                   goalFrequency: _goalFrequency,
-                  weekStartDate: currentDateTime,
+                  weekStartDate: startOfWeek,
                   currentWeekCompletions: {},
                 );
               }

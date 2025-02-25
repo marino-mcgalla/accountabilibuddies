@@ -15,7 +15,6 @@ class TotalGoal extends Goal {
     Map<String, int>? currentWeekCompletions,
     this.totalCompletions = 0,
     this.proofs = const [], // Initialize proofs list
-    String? proofText,
     String? proofStatus,
     DateTime? proofSubmissionDate,
   }) : super(
@@ -28,7 +27,6 @@ class TotalGoal extends Goal {
           active: active,
           weekStartDate: weekStartDate,
           currentWeekCompletions: currentWeekCompletions ?? {},
-          proofText: proofText,
           proofStatus: proofStatus,
           proofSubmissionDate: proofSubmissionDate,
         );
@@ -55,7 +53,6 @@ class TotalGoal extends Goal {
       totalCompletions: data['totalCompletions'] ?? 0,
       proofs: List<Map<String, dynamic>>.from(
           data['proofs'] ?? []), // Initialize proofs from map
-      proofText: data['proofText'],
       proofStatus: data['proofStatus'],
       proofSubmissionDate: data['proofSubmissionDate'] != null
           ? DateTime.parse(data['proofSubmissionDate'])

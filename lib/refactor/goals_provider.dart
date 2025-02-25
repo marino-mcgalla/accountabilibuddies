@@ -152,11 +152,17 @@ class GoalsProvider with ChangeNotifier {
             String currentDay =
                 _timeMachineProvider.now.toIso8601String().split('T').first;
             goalData['currentWeekCompletions'][currentDay] = 'submitted';
-          } else {
+          } else if (goalData['goalType'] == 'total') {
             goalData['proofText'] = proofText;
             goalData['proofStatus'] = 'submitted';
             goalData['proofSubmissionDate'] =
                 _timeMachineProvider.now.toIso8601String();
+            goalData['proofs'] = goalData['proofs'] ?? [];
+            goalData['proofs'].add({
+              'proofText': proofText,
+              'submissionDate': _timeMachineProvider.now.toIso8601String(),
+              'status': 'pending',
+            });
           }
           break;
         }
@@ -172,10 +178,15 @@ class GoalsProvider with ChangeNotifier {
         String currentDay =
             _timeMachineProvider.now.toIso8601String().split('T').first;
         goal.currentWeekCompletions[currentDay] = 'submitted';
-      } else {
-        goal.proofText = proofText;
-        goal.proofStatus = 'submitted';
-        goal.proofSubmissionDate = _timeMachineProvider.now;
+      } else if (goal is TotalGoal) {
+        // goal.proofText = proofText;
+        // goal.proofStatus = 'submitted';
+        // goal.proofSubmissionDate = _timeMachineProvider.now;
+        // goal.proofs.add({
+        //   'proofText': proofText,
+        //   'submissionDate': _timeMachineProvider.now.toIso8601String(),
+        //   'status': 'pending',
+        // });
       }
 
       notifyListeners();
@@ -198,23 +209,15 @@ class GoalsProvider with ChangeNotifier {
               goalData['currentWeekCompletions'][proofDate] = 'completed';
             }
           } else if (goalData['goalType'] == 'total') {
-            goalData['proofStatus'] = 'completed';
-            print("Before increment:");
-            print("goalData: $goalData");
-            print(
-                "currentWeekCompletions: ${goalData['currentWeekCompletions']}");
-            print("totalCompletions: ${goalData['totalCompletions']}");
             final day =
                 _timeMachineProvider.now.toIso8601String().split('T').first;
             goalData['currentWeekCompletions'][day] =
                 (goalData['currentWeekCompletions'][day] ?? 0) + 1;
             goalData['totalCompletions'] =
                 (goalData['totalCompletions'] ?? 0) + 1;
-            print("After increment:");
-            print("goalData: $goalData");
-            print(
-                "currentWeekCompletions: ${goalData['currentWeekCompletions']}");
-            print("totalCompletions: ${goalData['totalCompletions']}");
+            if (goalData['proofs'] != null && goalData['proofs'].isNotEmpty) {
+              goalData['proofs'].removeAt(0); // Remove the first proof
+            }
           }
           break;
         }
@@ -232,12 +235,14 @@ class GoalsProvider with ChangeNotifier {
             goal.currentWeekCompletions[proofDate] = 'completed';
           }
         } else if (goal is TotalGoal) {
-          goal.proofStatus = 'completed'; //not necessary
           final day =
               _timeMachineProvider.now.toIso8601String().split('T').first;
           goal.currentWeekCompletions[day] =
               (goal.currentWeekCompletions[day] ?? 0) + 1;
           goal.totalCompletions += 1;
+          if (goal.proofs.isNotEmpty) {
+            goal.proofs.removeAt(0); // Remove the first proof
+          }
         }
       } catch (e) {
         // Goal not found, do nothing
@@ -263,7 +268,9 @@ class GoalsProvider with ChangeNotifier {
               goalData['currentWeekCompletions'][proofDate] = 'denied';
             }
           } else if (goalData['goalType'] == 'total') {
-            goalData['proofStatus'] = 'denied';
+            if (goalData['proofs'] != null && goalData['proofs'].isNotEmpty) {
+              goalData['proofs'].removeAt(0); // Remove the first proof
+            }
           }
           break;
         }
@@ -281,7 +288,9 @@ class GoalsProvider with ChangeNotifier {
             goal.currentWeekCompletions[proofDate] = 'denied';
           }
         } else if (goal is TotalGoal) {
-          goal.proofStatus = 'denied';
+          if (goal.proofs.isNotEmpty) {
+            goal.proofs.removeAt(0); // Remove the first proof
+          }
         }
       } catch (e) {
         // Goal not found, do nothing

@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:auth_test/refactor/time_machine_provider.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -6,7 +7,6 @@ import 'package:provider/provider.dart';
 import 'goal_model.dart';
 import 'total_goal.dart';
 import 'weekly_goal.dart';
-import 'time_machine_provider.dart'; // Import TimeMachineProvider
 
 class PartyProvider with ChangeNotifier {
   final FirebaseAuth _auth = FirebaseAuth.instance;
@@ -282,16 +282,20 @@ class PartyProvider with ChangeNotifier {
                 });
               }
             });
-          } else if (goal.proofStatus == 'submitted') {
-            submittedGoals.add({
-              'goal': goal,
-              'date': null,
-            });
+          } else if (goal is TotalGoal) {
+            List<Map<String, dynamic>> proofs = goal.proofs;
+            for (var proof in proofs) {
+              // if (proof['proofStatus'] == 'submitted') {
+              submittedGoals.add({
+                'goal': goal,
+                'proof': proof,
+              });
+              // }
+            }
           }
         }
       }
     }
-    print(submittedGoals);
     return submittedGoals;
   }
 

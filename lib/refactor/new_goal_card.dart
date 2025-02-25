@@ -44,21 +44,22 @@ class GoalCard extends StatelessWidget {
           Text('Frequency: $goalFrequency'),
           Text('Criteria: $goalCriteria'),
           if (goalType == 'total')
-            Consumer<GoalsProvider>(
-              builder: (context, goalsProvider, child) {
-                final goal = goalsProvider.goals
-                    .firstWhere((g) => g.id == goalId) as TotalGoal;
-                int totalCompletions = goal.currentWeekCompletions.values
-                    .fold(0, (sum, value) => sum + value as int);
+            Selector<GoalsProvider, TotalGoal>(
+              selector: (context, goalsProvider) => goalsProvider.goals
+                  .firstWhere((g) => g.id == goalId) as TotalGoal,
+              builder: (context, goal, child) {
+                print('Goal proofs length: ${goal.proofs.length}');
                 return Column(
                   children: [
                     TotalProgressTracker(
                       currentWeekCompletions: goal.currentWeekCompletions,
                       totalCompletions: goal.goalFrequency,
+                      proofs: goal.proofs, // Pass the proofs list
                     ),
                     ElevatedButton(
                       onPressed: () async {
-                        await goalsProvider.incrementCompletions(goal.id);
+                        await Provider.of<GoalsProvider>(context, listen: false)
+                            .incrementCompletions(goal.id);
                       },
                       child: Text('Increment Completion'),
                     ),
@@ -67,10 +68,10 @@ class GoalCard extends StatelessWidget {
               },
             ),
           if (goalType == 'weekly')
-            Consumer<GoalsProvider>(
-              builder: (context, goalsProvider, child) {
-                final goal = goalsProvider.goals
-                    .firstWhere((g) => g.id == goalId) as WeeklyGoal;
+            Selector<GoalsProvider, WeeklyGoal>(
+              selector: (context, goalsProvider) => goalsProvider.goals
+                  .firstWhere((g) => g.id == goalId) as WeeklyGoal,
+              builder: (context, goal, child) {
                 return WeeklyProgressTracker(
                   goalId: goal.id,
                   completions:

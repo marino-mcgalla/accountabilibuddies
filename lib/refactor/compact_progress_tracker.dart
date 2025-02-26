@@ -27,8 +27,7 @@ class CompactProgressTracker extends StatelessWidget {
     if (goal is TotalGoal) {
       final totalGoal = goal as TotalGoal;
       int approvedCompletions = totalGoal.currentWeekCompletions.values
-          .where((value) => value == 'completed')
-          .length;
+          .fold(0, (sum, value) => sum + value as int);
       int pendingCompletions = totalGoal.proofs.length;
       double approvedProgress = totalGoal.goalFrequency > 0
           ? approvedCompletions / totalGoal.goalFrequency

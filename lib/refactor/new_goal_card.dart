@@ -48,11 +48,11 @@ class GoalCard extends StatelessWidget {
               selector: (context, goalsProvider) => goalsProvider.goals
                   .firstWhere((g) => g.id == goalId) as TotalGoal,
               builder: (context, goal, child) {
-                print('Goal proofs length: ${goal.proofs.length}');
                 return Column(
                   children: [
                     TotalProgressTracker(
-                      currentWeekCompletions: goal.currentWeekCompletions,
+                      currentWeekCompletions:
+                          goal.currentWeekCompletions.cast<String, int>(),
                       totalCompletions: goal.goalFrequency,
                       proofs: goal.proofs, // Pass the proofs list
                     ),

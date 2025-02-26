@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 class TotalProgressTracker extends StatelessWidget {
-  final Map<String, dynamic> currentWeekCompletions;
+  final Map<String, int> currentWeekCompletions;
   final int totalCompletions;
   final List<Map<String, dynamic>> proofs;
 
@@ -14,9 +14,9 @@ class TotalProgressTracker extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    int approvedCompletions = currentWeekCompletions.values
-        .where((value) => value == 'completed')
-        .length;
+    // Sum the values in currentWeekCompletions to get the total number of approved completions
+    int approvedCompletions =
+        currentWeekCompletions.values.fold(0, (sum, value) => sum + value);
     int pendingCompletions = proofs.length;
     double approvedProgress =
         totalCompletions > 0 ? approvedCompletions / totalCompletions : 0;

@@ -14,21 +14,15 @@ class TotalProgressTracker extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    print('progress tracker boop');
     int approvedCompletions = currentWeekCompletions.values
         .where((value) => value == 'completed')
         .length;
     int pendingCompletions = proofs.length;
-    // print('proofs length: ${proofs.length}');
     double approvedProgress =
         totalCompletions > 0 ? approvedCompletions / totalCompletions : 0;
     double pendingProgress = totalCompletions > 0
         ? (approvedCompletions + pendingCompletions) / totalCompletions
         : 0;
-    // print('approvedProgress: $approvedProgress');
-    // print('pendingProgress: $pendingProgress');
-    // print('approvedCompletions: $approvedCompletions');
-    // print('pendingCompletions: $pendingCompletions');
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,

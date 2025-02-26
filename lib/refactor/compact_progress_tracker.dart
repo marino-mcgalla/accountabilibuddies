@@ -26,18 +26,30 @@ class CompactProgressTracker extends StatelessWidget {
 
     if (goal is TotalGoal) {
       final totalGoal = goal as TotalGoal;
-      int completions = totalGoal.currentWeekCompletions.values
-          .fold(0, (sum, value) => sum + (value as int));
-      double progress = totalGoal.goalFrequency > 0
-          ? completions / totalGoal.goalFrequency
+      int approvedCompletions = totalGoal.currentWeekCompletions.values
+          .where((value) => value == 'completed')
+          .length;
+      int pendingCompletions = totalGoal.proofs.length;
+      double approvedProgress = totalGoal.goalFrequency > 0
+          ? approvedCompletions / totalGoal.goalFrequency
           : 0;
-      return Container(
-        height: 12, // Set the desired height here
-        child: LinearProgressIndicator(
-          value: progress,
-          backgroundColor: Colors.grey[300],
-          color: Colors.blue,
-        ),
+      double pendingProgress = totalGoal.goalFrequency > 0
+          ? (approvedCompletions + pendingCompletions) / totalGoal.goalFrequency
+          : 0;
+
+      return Stack(
+        children: [
+          LinearProgressIndicator(
+            value: pendingProgress,
+            backgroundColor: Colors.grey[300],
+            valueColor: AlwaysStoppedAnimation<Color>(Colors.yellow),
+          ),
+          LinearProgressIndicator(
+            value: approvedProgress,
+            backgroundColor: Colors.transparent,
+            valueColor: AlwaysStoppedAnimation<Color>(Colors.green),
+          ),
+        ],
       );
     } else if (goal is WeeklyGoal) {
       final weeklyGoal = goal as WeeklyGoal;

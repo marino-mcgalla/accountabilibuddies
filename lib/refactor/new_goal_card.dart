@@ -6,7 +6,7 @@ import 'weekly_goal.dart';
 import 'progress_tracker.dart';
 import 'goals_provider.dart';
 
-class GoalCard extends StatelessWidget {
+class GoalCard extends StatefulWidget {
   final Goal goal;
   final VoidCallback onEdit;
   final VoidCallback onDelete;
@@ -19,6 +19,11 @@ class GoalCard extends StatelessWidget {
   }) : super(key: key);
 
   @override
+  _GoalCardState createState() => _GoalCardState();
+}
+
+class _GoalCardState extends State<GoalCard> {
+  @override
   Widget build(BuildContext context) {
     return Card(
       margin: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
@@ -30,7 +35,7 @@ class GoalCard extends StatelessWidget {
             _buildHeader(),
             const Divider(),
             ProgressTracker(
-              goal: goal,
+              goal: widget.goal,
               onDayTap: _handleDayTap,
             ),
             const SizedBox(height: 12),
@@ -47,7 +52,7 @@ class GoalCard extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          goal.goalName,
+          widget.goal.goalName,
           style: const TextStyle(
             fontSize: 18,
             fontWeight: FontWeight.bold,
@@ -55,16 +60,16 @@ class GoalCard extends StatelessWidget {
         ),
         const SizedBox(height: 4),
         Text(
-          '${goal.goalType.capitalize()} goal · ${goal.goalFrequency} ${goal.goalType == 'weekly' ? 'days/week' : 'total'}',
+          '${widget.goal.goalType.capitalize()} goal · ${widget.goal.goalFrequency} ${widget.goal.goalType == 'weekly' ? 'days/week' : 'total'}',
           style: TextStyle(
             fontSize: 14,
             color: Colors.grey[700],
           ),
         ),
-        if (goal.goalCriteria.isNotEmpty) ...[
+        if (widget.goal.goalCriteria.isNotEmpty) ...[
           const SizedBox(height: 8),
           Text(
-            goal.goalCriteria,
+            widget.goal.goalCriteria,
             style: TextStyle(
               fontSize: 14,
               fontStyle: FontStyle.italic,
@@ -83,11 +88,11 @@ class GoalCard extends StatelessWidget {
     return Row(
       mainAxisAlignment: MainAxisAlignment.end,
       children: [
-        if (goal is TotalGoal)
+        if (widget.goal is TotalGoal)
           TextButton.icon(
             icon: const Icon(Icons.add),
             label: const Text('Increment'),
-            onPressed: () => goalsProvider.incrementCompletions(goal.id),
+            onPressed: () => goalsProvider.incrementCompletions(widget.goal.id),
           )
         else
           const SizedBox.shrink(),
@@ -99,12 +104,12 @@ class GoalCard extends StatelessWidget {
         ),
         IconButton(
           icon: const Icon(Icons.edit),
-          onPressed: onEdit,
+          onPressed: widget.onEdit,
           tooltip: 'Edit',
         ),
         IconButton(
           icon: const Icon(Icons.delete),
-          onPressed: onDelete,
+          onPressed: widget.onDelete,
           tooltip: 'Delete',
           color: Colors.red,
         ),
@@ -114,7 +119,7 @@ class GoalCard extends StatelessWidget {
 
   /// Handles tapping on a day for weekly goals
   void _handleDayTap(String goalId, String day, String status) {
-    if (goal is! WeeklyGoal) return;
+    if (widget.goal is! WeeklyGoal) return;
 
     // Cycle through statuses
     String newStatus;
@@ -131,8 +136,9 @@ class GoalCard extends StatelessWidget {
         break;
     }
 
-    // Use the BuildContext from the callback
-    // This is usually handled in the parent widget
+    // Use the stored context to update the status
+    Provider.of<GoalsProvider>(context, listen: false)
+        .toggleSkipPlan(goalId, day, newStatus);
   }
 
   /// Opens a dialog to submit proof
@@ -147,7 +153,7 @@ class GoalCard extends StatelessWidget {
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Text('Goal: ${goal.goalName}'),
+            Text('Goal: ${widget.goal.goalName}'),
             const SizedBox(height: 16),
             TextField(
               controller: proofController,
@@ -174,7 +180,7 @@ class GoalCard extends StatelessWidget {
     );
 
     if (result == true && proofController.text.isNotEmpty) {
-      await goalsProvider.submitProof(goal.id, proofController.text);
+      await goalsProvider.submitProof(widget.goal.id, proofController.text);
     }
   }
 }

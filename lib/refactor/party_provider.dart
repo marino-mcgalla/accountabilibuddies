@@ -26,6 +26,7 @@ class PartyProvider with ChangeNotifier {
   Map<String, Map<String, dynamic>> _memberDetails = {};
   Map<String, List<Goal>> _partyMemberGoals = {};
   bool _isLoading = true;
+  bool _isDisposed = false; // Track if provider has been disposed
 
   // Subscription management
   StreamSubscription<DocumentSnapshot>? _partySubscription;
@@ -57,6 +58,8 @@ class PartyProvider with ChangeNotifier {
 
   // Initialize party state
   void initializePartyState() {
+    if (_isDisposed) return; // Skip if already disposed
+
     setLoading(true);
 
     String? currentUserId = _auth.currentUser?.uid;
@@ -71,6 +74,8 @@ class PartyProvider with ChangeNotifier {
         .doc(currentUserId)
         .snapshots()
         .listen((userDoc) {
+      if (_isDisposed) return; // Skip processing if disposed
+
       if (userDoc.exists &&
           userDoc.data() != null &&
           (userDoc.data() as Map<String, dynamic>).containsKey('partyId')) {
@@ -80,6 +85,8 @@ class PartyProvider with ChangeNotifier {
             .doc(partyId)
             .snapshots()
             .listen((partyDoc) {
+          if (_isDisposed) return; // Skip processing if disposed
+
           if (partyDoc.exists) {
             batchUpdates(() {
               _partyId = partyId;
@@ -111,6 +118,7 @@ class PartyProvider with ChangeNotifier {
 
   // Create a new party
   Future<void> createParty(String partyName) async {
+    if (_isDisposed) return; // Skip if already disposed
     if (partyName.isEmpty) return;
 
     setLoading(true);
@@ -132,22 +140,27 @@ class PartyProvider with ChangeNotifier {
         'partyId': partyId,
       });
 
-      batchUpdates(() {
-        _partyId = partyId;
-        _partyName = partyName;
-        _members = [currentUserId];
-        fetchMemberDetails();
-      });
+      if (!_isDisposed) {
+        batchUpdates(() {
+          _partyId = partyId;
+          _partyName = partyName;
+          _members = [currentUserId];
+          fetchMemberDetails();
+        });
+      }
     } catch (e) {
       // Handle error
       print('Error creating party: $e');
     } finally {
-      setLoading(false);
+      if (!_isDisposed) {
+        setLoading(false);
+      }
     }
   }
 
   // Leave a party
   Future<void> leaveParty() async {
+    if (_isDisposed) return; // Skip if already disposed
     if (_partyId == null) return;
 
     setLoading(true);
@@ -162,12 +175,15 @@ class PartyProvider with ChangeNotifier {
     } catch (e) {
       print('Error leaving party: $e');
     } finally {
-      setLoading(false);
+      if (!_isDisposed) {
+        setLoading(false);
+      }
     }
   }
 
   // Close an entire party
   Future<void> closeParty() async {
+    if (_isDisposed) return; // Skip if already disposed
     if (_partyId == null) return;
 
     setLoading(true);
@@ -178,18 +194,21 @@ class PartyProvider with ChangeNotifier {
     } catch (e) {
       print('Error closing party: $e');
     } finally {
-      setLoading(false);
+      if (!_isDisposed) {
+        setLoading(false);
+      }
     }
   }
 
   // Send an invite to join the party
   Future<void> sendInvite() async {
+    if (_isDisposed) return; // Skip if already disposed
     if (_partyId == null || inviteController.text.isEmpty) return;
 
     try {
       bool success =
           await _membersService.sendInvite(inviteController.text, _partyId!);
-      if (success) {
+      if (success && !_isDisposed) {
         inviteController.clear();
         notifyListeners();
       }
@@ -200,6 +219,8 @@ class PartyProvider with ChangeNotifier {
 
   // Accept an invite to join a party
   Future<void> acceptInvite(String inviteId, String partyId) async {
+    if (_isDisposed) return; // Skip if already disposed
+
     try {
       await _membersService.acceptInvite(inviteId, partyId);
       // The party subscription will handle state updates
@@ -210,9 +231,13 @@ class PartyProvider with ChangeNotifier {
 
   // Cancel a pending invite
   Future<void> cancelInvite(String inviteId) async {
+    if (_isDisposed) return; // Skip if already disposed
+
     try {
       await _membersService.cancelInvite(inviteId);
-      notifyListeners();
+      if (!_isDisposed) {
+        notifyListeners();
+      }
     } catch (e) {
       print('Error canceling invite: $e');
     }
@@ -220,11 +245,14 @@ class PartyProvider with ChangeNotifier {
 
   // Fetch member details
   Future<void> fetchMemberDetails() async {
+    if (_isDisposed) return; // Skip if already disposed
+
     try {
       Map<String, Map<String, dynamic>> newMemberDetails =
           await _membersService.fetchMemberDetails(_members);
 
-      if (!_areMemberDetailsEqual(_memberDetails, newMemberDetails)) {
+      if (!_isDisposed &&
+          !_areMemberDetailsEqual(_memberDetails, newMemberDetails)) {
         _memberDetails = newMemberDetails;
         notifyListeners();
       }
@@ -252,6 +280,8 @@ class PartyProvider with ChangeNotifier {
   // Fetch submitted goals for party
   Future<List<Map<String, dynamic>>> fetchSubmittedGoalsForParty(
       [BuildContext? context]) async {
+    if (_isDisposed) return []; // Skip if already disposed
+
     try {
       return await _goalsService.fetchSubmittedGoalsForParty(_members);
     } catch (e) {
@@ -288,6 +318,8 @@ class PartyProvider with ChangeNotifier {
 
   // Approve proof
   Future<void> approveProof(String goalId, String? proofDate) async {
+    if (_isDisposed) return; // Skip if already disposed
+
     String? userId = findGoalOwner(goalId);
     if (userId == null) {
       throw Exception("Goal owner not found");
@@ -303,6 +335,8 @@ class PartyProvider with ChangeNotifier {
 
   // Deny proof
   Future<void> denyProof(String goalId, String? proofDate) async {
+    if (_isDisposed) return; // Skip if already disposed
+
     String? userId = findGoalOwner(goalId);
     if (userId == null) {
       throw Exception("Goal owner not found");
@@ -318,6 +352,7 @@ class PartyProvider with ChangeNotifier {
 
   // End week for all members
   Future<void> endWeekForAll(BuildContext context) async {
+    if (_isDisposed) return; // Skip if already disposed
     if (_members.isEmpty) return;
 
     try {
@@ -363,12 +398,16 @@ class PartyProvider with ChangeNotifier {
 
   // Subscribe to party member goals
   void _subscribeToPartyMemberGoals() {
+    if (_isDisposed) return; // Skip if already disposed
+
     for (String memberId in _members) {
       var subscription = _firestore
           .collection('userGoals')
           .doc(memberId)
           .snapshots()
           .listen((doc) {
+        if (_isDisposed) return; // Skip processing if disposed
+
         if (doc.exists) {
           List<dynamic> goalsData = doc.data()?['goals'] ?? [];
           final List<Goal> newGoals =
@@ -426,6 +465,8 @@ class PartyProvider with ChangeNotifier {
 
   // Reset state
   void _resetState() {
+    if (_isDisposed) return; // Skip if already disposed
+
     batchUpdates(() {
       _partyId = null;
       _partyName = null;
@@ -439,18 +480,24 @@ class PartyProvider with ChangeNotifier {
 
   // Public method to reset state (for auth changes)
   void resetState() {
+    if (_isDisposed) return; // Skip if already disposed
+
     _partySubscription?.cancel();
     _resetState();
   }
 
   // Set loading state
   void setLoading(bool value) {
+    if (_isDisposed) return; // Skip if already disposed
+
     _isLoading = value;
     notifyListeners();
   }
 
   // Batch updates to reduce UI rebuilds
   void batchUpdates(Function callback) {
+    if (_isDisposed) return; // Skip if already disposed
+
     _isBatchingUpdates = true;
     callback();
     _isBatchingUpdates = false;
@@ -461,9 +508,14 @@ class PartyProvider with ChangeNotifier {
     }
   }
 
-  // Override notifyListeners to support batching
+  // Override notifyListeners to support batching and check for disposed state
   @override
   void notifyListeners() {
+    if (_isDisposed) {
+      // Skip notification if already disposed
+      return;
+    }
+
     if (_isBatchingUpdates) {
       _pendingNotification = true;
     } else {
@@ -473,10 +525,15 @@ class PartyProvider with ChangeNotifier {
 
   @override
   void dispose() {
+    // Set the disposed flag before canceling subscriptions
+    _isDisposed = true;
+
+    // Cancel all subscriptions
     _partySubscription?.cancel();
     _cancelGoalSubscriptions();
     partyNameController.dispose();
     inviteController.dispose();
+
     super.dispose();
   }
 }

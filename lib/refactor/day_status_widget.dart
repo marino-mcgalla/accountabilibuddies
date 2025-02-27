@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../refactor/utils.dart';
+import 'utils.dart';
 
 /// A widget that displays the status of a day with customizable appearance
 class DayStatus extends StatelessWidget {

@@ -26,7 +26,7 @@ class GoalsProvider with ChangeNotifier {
   List<Goal> get goals => _goals;
   bool get isLoading => _isLoading;
 
-  void initializeGoalsListener() {
+  initializeGoalsListener() {
     String? currentUserId = FirebaseAuth.instance.currentUser?.uid;
     if (currentUserId == null || currentUserId.isEmpty) {
       return; // Exit if there is no valid user ID

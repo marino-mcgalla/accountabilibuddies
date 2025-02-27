@@ -6,8 +6,8 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../refactor/party_provider.dart';
 import '../../refactor/goals_provider.dart';
-import '../../refactor/goal_model.dart';
-import '../../refactor/time_machine_provider.dart'; // Assuming this is where TimeMachineProvider is defined
+import '../../refactor/time_machine_provider.dart';
+import '../../refactor/proof_approval_widget.dart';
 
 class PartyScreen extends StatelessWidget {
   const PartyScreen({super.key});
@@ -18,160 +18,214 @@ class PartyScreen extends StatelessWidget {
       providers: [
         ChangeNotifierProvider<PartyProvider>(create: (_) => PartyProvider()),
         ChangeNotifierProvider<GoalsProvider>(
-          create: (_) => GoalsProvider(
-              TimeMachineProvider()), // Pass the required argument here
+          create: (_) => GoalsProvider(TimeMachineProvider()),
         ),
       ],
-      child: Consumer2<PartyProvider, GoalsProvider>(
-        builder: (context, partyProvider, goalsProvider, child) {
-          if (partyProvider.isLoading) {
-            return Scaffold(
-              appBar: AppBar(title: const Text("Party")),
-              body: const Center(child: CircularProgressIndicator()),
-            );
-          }
-
-          return Scaffold(
-            appBar: AppBar(title: const Text("Party 2.0")),
-            body: Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: partyProvider.partyId == null
-                  ? Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        CreatePartyScreen(),
-                        const SizedBox(height: 20),
-                        InviteList(
-                          inviteStream:
-                              partyProvider.fetchIncomingPendingInvites(),
-                          title: "Incoming Pending Invites",
-                          onAction: (inviteId, partyId) =>
-                              partyProvider.acceptInvite(inviteId, partyId),
-                          isOutgoing: false,
-                        ),
-                      ],
-                    )
-                  : Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        PartyInfoScreen(
-                          partyId: partyProvider.partyId!,
-                          partyName: partyProvider.partyName!,
-                          members: partyProvider.members,
-                          leaveParty: partyProvider.leaveParty,
-                          closeParty: partyProvider.closeParty,
-                        ),
-                        const SizedBox(height: 20),
-                        TextField(
-                          controller: partyProvider.inviteController,
-                          decoration: const InputDecoration(
-                            labelText: "Invite Member by Email",
-                            border: OutlineInputBorder(),
-                          ),
-                        ),
-                        const SizedBox(height: 20),
-                        ElevatedButton(
-                          onPressed: partyProvider.sendInvite,
-                          child: const Text("Send Invite"),
-                        ),
-                        const SizedBox(height: 20),
-                        ElevatedButton(
-                          onPressed: () => partyProvider.endWeekForAll(context),
-                          child: const Text("End Week for All"),
-                        ),
-                        const SizedBox(height: 20),
-                        InviteList(
-                          inviteStream:
-                              partyProvider.fetchOutgoingPendingInvites(),
-                          title: "Outgoing Pending Invites",
-                          onAction: (inviteId, _) =>
-                              partyProvider.cancelInvite(inviteId),
-                          isOutgoing: true,
-                        ),
-                        const SizedBox(height: 20),
-                        Text(
-                          "Submitted Proofs",
-                          style: TextStyle(
-                              fontSize: 18, fontWeight: FontWeight.bold),
-                        ),
-                        Expanded(
-                          child: FutureBuilder<List<Map<String, dynamic>>>(
-                            future: partyProvider
-                                .fetchSubmittedGoalsForParty(context),
-                            builder: (context, snapshot) {
-                              if (snapshot.connectionState ==
-                                  ConnectionState.waiting) {
-                                return Center(
-                                    child: CircularProgressIndicator());
-                              }
-                              if (snapshot.hasError) {
-                                return Center(
-                                    child: Text("Error: ${snapshot.error}"));
-                              }
-                              if (!snapshot.hasData || snapshot.data!.isEmpty) {
-                                return Center(
-                                    child: Text("No submitted proofs"));
-                              }
-                              final submittedGoals = snapshot.data!;
-                              return ListView.builder(
-                                itemCount: submittedGoals.length,
-                                itemBuilder: (context, index) {
-                                  final goalData = submittedGoals[index];
-                                  final Goal goal = goalData['goal'];
-                                  final String? date = goalData['date'];
-                                  return ListTile(
-                                    title: Text(goal.goalName),
-                                    subtitle: Text(
-                                        "Submitted by: ${goal.ownerId}\nDate: ${date ?? 'N/A'}"),
-                                    onTap: () {
-                                      _showProofDialog(context, goal, date);
-                                    },
-                                  );
-                                },
-                              );
-                            },
-                          ),
-                        ),
-                      ],
-                    ),
-            ),
-          );
-        },
-      ),
+      child: const PartyScreenContent(),
     );
   }
+}
 
-  void _showProofDialog(BuildContext context, Goal goal, String? proofDate) {
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          title: Text("Proof for ${goal.goalName}"),
-          content: Text(goal.proofText ?? "No proof provided."),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(),
-              child: const Text("Cancel"),
+class PartyScreenContent extends StatefulWidget {
+  const PartyScreenContent({Key? key}) : super(key: key);
+
+  @override
+  _PartyScreenContentState createState() => _PartyScreenContentState();
+}
+
+class _PartyScreenContentState extends State<PartyScreenContent>
+    with SingleTickerProviderStateMixin {
+  late TabController _tabController;
+
+  @override
+  void initState() {
+    super.initState();
+    _tabController = TabController(length: 2, vsync: this);
+  }
+
+  @override
+  void dispose() {
+    _tabController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Selector2<PartyProvider, GoalsProvider, Tuple2<bool, String?>>(
+      selector: (_, partyProvider, goalsProvider) =>
+          Tuple2(partyProvider.isLoading, partyProvider.partyId),
+      builder: (context, data, child) {
+        final isLoading = data.item1;
+        final partyId = data.item2;
+
+        if (isLoading) {
+          return Scaffold(
+            appBar: AppBar(title: const Text("Party")),
+            body: const Center(child: CircularProgressIndicator()),
+          );
+        }
+
+        if (partyId == null) {
+          // No party view
+          return Scaffold(
+            appBar: AppBar(title: const Text("Party 2.0")),
+            body: const Padding(
+              padding: EdgeInsets.all(16.0),
+              child: CreatePartyView(),
             ),
-            ElevatedButton(
-              onPressed: () {
-                Provider.of<GoalsProvider>(context, listen: false)
-                    .approveProof(goal.id, goal.ownerId, proofDate);
-                Navigator.of(context).pop();
-              },
-              child: const Text("Approve"),
+          );
+        }
+
+        // Party exists view with tabs
+        return Scaffold(
+          appBar: AppBar(
+            title: Text(
+                Provider.of<PartyProvider>(context).partyName ?? "Party 2.0"),
+            bottom: TabBar(
+              controller: _tabController,
+              tabs: const [
+                Tab(text: "Party Info"),
+                Tab(text: "Pending Approvals"),
+              ],
             ),
-            ElevatedButton(
-              onPressed: () {
-                Provider.of<GoalsProvider>(context, listen: false)
-                    .denyProof(goal.id, goal.ownerId, proofDate);
-                Navigator.of(context).pop();
-              },
-              child: const Text("Deny"),
-            ),
-          ],
+          ),
+          body: TabBarView(
+            controller: _tabController,
+            children: const [
+              PartyInfoTab(),
+              PendingApprovalsTab(),
+            ],
+          ),
         );
       },
     );
   }
+}
+
+// Separate widget for create party view
+class CreatePartyView extends StatelessWidget {
+  const CreatePartyView({Key? key}) : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    final partyProvider = Provider.of<PartyProvider>(context, listen: false);
+
+    return SingleChildScrollView(
+      child: Column(
+        key: const ValueKey<String>('create-party'),
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          CreatePartyScreen(),
+          const SizedBox(height: 20),
+          InviteList(
+            inviteStream: partyProvider.fetchIncomingPendingInvites(),
+            title: "Incoming Pending Invites",
+            onAction: (inviteId, partyId) =>
+                partyProvider.acceptInvite(inviteId, partyId),
+            isOutgoing: false,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// Party Info Tab - scrollable
+class PartyInfoTab extends StatelessWidget {
+  const PartyInfoTab({Key? key}) : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    final partyProvider = Provider.of<PartyProvider>(context);
+
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(16.0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          PartyInfoScreen(
+            partyId: partyProvider.partyId!,
+            partyName: partyProvider.partyName!,
+            members: partyProvider.members,
+            leaveParty: partyProvider.leaveParty,
+            closeParty: partyProvider.closeParty,
+          ),
+          const SizedBox(height: 20),
+          TextField(
+            controller: partyProvider.inviteController,
+            decoration: const InputDecoration(
+              labelText: "Invite Member by Email",
+              border: OutlineInputBorder(),
+            ),
+          ),
+          const SizedBox(height: 20),
+          Row(
+            children: [
+              Expanded(
+                child: ElevatedButton(
+                  onPressed: partyProvider.sendInvite,
+                  child: const Text("Send Invite"),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: ElevatedButton(
+                  onPressed: () => partyProvider.endWeekForAll(context),
+                  child: const Text("End Week for All"),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 20),
+          InviteList(
+            inviteStream: partyProvider.fetchOutgoingPendingInvites(),
+            title: "Outgoing Pending Invites",
+            onAction: (inviteId, _) => partyProvider.cancelInvite(inviteId),
+            isOutgoing: true,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// Pending Approvals Tab - dedicated to showing and handling proofs
+class PendingApprovalsTab extends StatelessWidget {
+  const PendingApprovalsTab({Key? key}) : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Text(
+            "Submitted Proofs",
+            style: Theme.of(context).textTheme.titleLarge,
+          ),
+        ),
+        const Expanded(
+          child: PendingProofsWidget(),
+        ),
+      ],
+    );
+  }
+}
+
+// Helper class for multiple return values
+class Tuple2<T1, T2> {
+  final T1 item1;
+  final T2 item2;
+
+  Tuple2(this.item1, this.item2);
+
+  @override
+  bool operator ==(Object other) {
+    if (identical(this, other)) return true;
+    return other is Tuple2 && other.item1 == item1 && other.item2 == item2;
+  }
+
+  @override
+  int get hashCode => item1.hashCode ^ item2.hashCode;
 }

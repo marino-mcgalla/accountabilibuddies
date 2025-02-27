@@ -15,7 +15,8 @@ class CompactProgressTracker extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final timeMachineProvider = Provider.of<TimeMachineProvider>(context);
+    final timeMachineProvider =
+        Provider.of<TimeMachineProvider>(context, listen: false);
     final now = timeMachineProvider.now;
     final startOfWeek =
         now.subtract(Duration(days: now.weekday - 1)); // Start from Monday
@@ -23,6 +24,11 @@ class CompactProgressTracker extends StatelessWidget {
       final date = startOfWeek.add(Duration(days: index));
       return date.toIso8601String().split('T').first;
     });
+
+    // Create a unique key based on the goal ID and current completions state
+    // This ensures the widget rebuilds when completions change
+    final keyString = '${goal.id}-${goal.currentWeekCompletions.hashCode}';
+    final valueKey = ValueKey(keyString);
 
     if (goal is TotalGoal) {
       final totalGoal = goal as TotalGoal;
@@ -36,56 +42,111 @@ class CompactProgressTracker extends StatelessWidget {
           ? (approvedCompletions + pendingCompletions) / totalGoal.goalFrequency
           : 0;
 
-      return Stack(
-        children: [
-          LinearProgressIndicator(
-            value: pendingProgress,
-            backgroundColor: Colors.grey[300],
-            valueColor: AlwaysStoppedAnimation<Color>(Colors.yellow),
-          ),
-          LinearProgressIndicator(
-            value: approvedProgress,
-            backgroundColor: Colors.transparent,
-            valueColor: AlwaysStoppedAnimation<Color>(Colors.green),
-          ),
-        ],
+      return Container(
+        key: valueKey,
+        margin: const EdgeInsets.symmetric(vertical: 4),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              goal.goalName,
+              style: const TextStyle(fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 4),
+            Stack(
+              children: [
+                LinearProgressIndicator(
+                  value: pendingProgress > 1.0 ? 1.0 : pendingProgress,
+                  backgroundColor: Colors.grey[300],
+                  valueColor: AlwaysStoppedAnimation<Color>(Colors.yellow),
+                ),
+                LinearProgressIndicator(
+                  value: approvedProgress > 1.0 ? 1.0 : approvedProgress,
+                  backgroundColor: Colors.transparent,
+                  valueColor: AlwaysStoppedAnimation<Color>(Colors.green),
+                ),
+              ],
+            ),
+            Text(
+              'Progress: $approvedCompletions / ${totalGoal.goalFrequency}',
+              style: const TextStyle(fontSize: 12),
+            ),
+          ],
+        ),
       );
     } else if (goal is WeeklyGoal) {
       final weeklyGoal = goal as WeeklyGoal;
 
-      return Row(
-        children: daysOfWeek.map((day) {
-          final status = weeklyGoal.currentWeekCompletions[day] ?? 'default';
-          Color color;
-          switch (status) {
-            case 'submitted':
-              color = Colors.yellow;
-              break;
-            case 'completed':
-              color = Colors.green;
-              break;
-            case 'skipped':
-              color = Colors.red;
-              break;
-            case 'planned':
-              color = Colors.blue;
-              break;
-            case 'default':
-            default:
-              color = Colors.grey[300]!;
-              break;
-          }
-          return Expanded(
-            child: Container(
-              margin: EdgeInsets.symmetric(horizontal: 1.0),
-              height: 10,
-              color: color,
+      return Container(
+        key: valueKey,
+        margin: const EdgeInsets.symmetric(vertical: 4),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              goal.goalName,
+              style: const TextStyle(fontWeight: FontWeight.bold),
             ),
-          );
-        }).toList(),
+            const SizedBox(height: 4),
+            Row(
+              children: daysOfWeek.map((day) {
+                final status =
+                    weeklyGoal.currentWeekCompletions[day] ?? 'default';
+                Color color;
+                switch (status) {
+                  case 'submitted':
+                    color = Colors.yellow;
+                    break;
+                  case 'completed':
+                    color = Colors.green;
+                    break;
+                  case 'skipped':
+                    color = Colors.red;
+                    break;
+                  case 'planned':
+                    color = Colors.blue;
+                    break;
+                  case 'default':
+                  default:
+                    color = Colors.grey[300]!;
+                    break;
+                }
+
+                // Get day abbreviation
+                final dayOfWeek = DateTime.parse(day).weekday;
+                final dayAbbr =
+                    ['', 'M', 'T', 'W', 'T', 'F', 'S', 'S'][dayOfWeek];
+
+                return Expanded(
+                  child: Container(
+                    height: 24,
+                    margin: const EdgeInsets.symmetric(horizontal: 1.0),
+                    decoration: BoxDecoration(
+                      color: color,
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                    alignment: Alignment.center,
+                    child: Text(
+                      dayAbbr,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 10,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                );
+              }).toList(),
+            ),
+            Text(
+              'Target: ${weeklyGoal.goalFrequency} days/week',
+              style: const TextStyle(fontSize: 12),
+            ),
+          ],
+        ),
       );
     } else {
-      return Container();
+      return Container(key: valueKey);
     }
   }
 }

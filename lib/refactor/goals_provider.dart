@@ -38,7 +38,6 @@ class GoalsProvider with ChangeNotifier {
         .doc(currentUserId)
         .snapshots()
         .listen((doc) {
-      print("firestore read: goals updated");
       if (doc.exists) {
         List<dynamic> goalsData = doc.data()?['goals'] ?? [];
         _goals = goalsData.map((data) => Goal.fromMap(data)).toList();

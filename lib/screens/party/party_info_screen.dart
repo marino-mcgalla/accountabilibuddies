@@ -8,7 +8,6 @@ class PartyInfoScreen extends StatelessWidget {
   final String partyId;
   final String partyName;
   final List<String> members;
-  final Function(String, int) updateCounter;
   final Function() leaveParty;
   final Function() closeParty;
 
@@ -16,7 +15,6 @@ class PartyInfoScreen extends StatelessWidget {
     required this.partyId,
     required this.partyName,
     required this.members,
-    required this.updateCounter,
     required this.leaveParty,
     required this.closeParty,
     Key? key,

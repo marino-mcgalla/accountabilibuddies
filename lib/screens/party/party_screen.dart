@@ -1,3 +1,4 @@
+import 'package:auth_test/refactor/party_actions.dart';
 import 'package:auth_test/screens/party/create_party_screen.dart';
 import 'package:auth_test/screens/party/party_info_screen.dart';
 import 'package:auth_test/widgets/invite_list.dart';
@@ -57,7 +58,6 @@ class PartyScreen extends StatelessWidget {
                           partyId: partyProvider.partyId!,
                           partyName: partyProvider.partyName!,
                           members: partyProvider.members,
-                          updateCounter: partyProvider.updateCounter,
                           leaveParty: partyProvider.leaveParty,
                           closeParty: partyProvider.closeParty,
                         ),
@@ -96,7 +96,8 @@ class PartyScreen extends StatelessWidget {
                         ),
                         Expanded(
                           child: FutureBuilder<List<Map<String, dynamic>>>(
-                            future: partyProvider.fetchSubmittedGoalsForParty(),
+                            future: partyProvider
+                                .fetchSubmittedGoalsForParty(context),
                             builder: (context, snapshot) {
                               if (snapshot.connectionState ==
                                   ConnectionState.waiting) {

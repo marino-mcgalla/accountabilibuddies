@@ -5,15 +5,12 @@ class Goal {
   final String id;
   final String ownerId;
   final String goalName;
-  final String goalType;
+  final String goalType; // 'weekly' or 'total'
   final String goalCriteria;
   final int goalFrequency;
-  final bool active;
-  DateTime weekStartDate; // Make this non-final
-  Map<String, dynamic> currentWeekCompletions;
-  String? proofText;
-  String? proofStatus;
-  DateTime? proofSubmissionDate;
+  final bool active; // Whether the goal is active for the current week
+  DateTime weekStartDate; // When current week tracking started
+  Map<String, dynamic> currentWeekCompletions; // Adding this back
 
   Goal({
     required this.id,
@@ -25,9 +22,6 @@ class Goal {
     required this.active,
     required this.weekStartDate,
     required this.currentWeekCompletions,
-    this.proofText,
-    this.proofStatus,
-    this.proofSubmissionDate,
   });
 
   factory Goal.fromMap(Map<String, dynamic> data) {
@@ -51,9 +45,6 @@ class Goal {
       'active': active,
       'weekStartDate': weekStartDate.toIso8601String(),
       'currentWeekCompletions': currentWeekCompletions,
-      'proofText': proofText,
-      'proofStatus': proofStatus,
-      'proofSubmissionDate': proofSubmissionDate?.toIso8601String(),
     };
   }
 }

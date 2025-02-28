@@ -10,9 +10,6 @@ class WeeklyGoal extends Goal {
     required int goalFrequency,
     required DateTime weekStartDate,
     required Map<String, String> currentWeekCompletions,
-    String? proofText,
-    String? proofStatus,
-    DateTime? proofSubmissionDate,
   }) : super(
           id: id,
           ownerId: ownerId,
@@ -23,27 +20,15 @@ class WeeklyGoal extends Goal {
           goalFrequency: goalFrequency,
           weekStartDate: weekStartDate,
           currentWeekCompletions: currentWeekCompletions,
-          proofText: proofText,
-          proofStatus: proofStatus,
-          proofSubmissionDate: proofSubmissionDate,
         );
+
+  // Type-safe getter for currentWeekCompletions
+  Map<String, String> get weeklyCompletions =>
+      Map<String, String>.from(currentWeekCompletions);
 
   @override
   Map<String, dynamic> toMap() {
-    return {
-      'id': id,
-      'ownerId': ownerId,
-      'goalName': goalName,
-      'goalType': goalType,
-      'goalCriteria': goalCriteria,
-      'active': active,
-      'goalFrequency': goalFrequency,
-      'weekStartDate': weekStartDate.toIso8601String(),
-      'currentWeekCompletions': currentWeekCompletions,
-      'proofText': proofText,
-      'proofStatus': proofStatus,
-      'proofSubmissionDate': proofSubmissionDate?.toIso8601String(),
-    };
+    return super.toMap();
   }
 
   factory WeeklyGoal.fromMap(Map<String, dynamic> data) {
@@ -56,12 +41,7 @@ class WeeklyGoal extends Goal {
       goalFrequency: data['goalFrequency'],
       weekStartDate: DateTime.parse(data['weekStartDate']),
       currentWeekCompletions:
-          Map<String, String>.from(data['currentWeekCompletions']),
-      proofText: data['proofText'],
-      proofStatus: data['proofStatus'],
-      proofSubmissionDate: data['proofSubmissionDate'] != null
-          ? DateTime.parse(data['proofSubmissionDate'])
-          : null,
+          Map<String, String>.from(data['currentWeekCompletions'] ?? {}),
     );
   }
 }

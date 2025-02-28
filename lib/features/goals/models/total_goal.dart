@@ -1,8 +1,9 @@
 import 'goal_model.dart';
+import 'proof_model.dart';
 
 class TotalGoal extends Goal {
-  int totalCompletions;
-  List<Map<String, dynamic>> proofs; // List to store proofs
+  int totalCompletions; // Running total of all completions
+  List<Proof> proofs; // List of pending proof submissions
 
   TotalGoal({
     required String id,
@@ -12,30 +13,30 @@ class TotalGoal extends Goal {
     required bool active,
     required int goalFrequency,
     required DateTime weekStartDate,
-    Map<String, int>? currentWeekCompletions,
+    required Map<String, int> currentWeekCompletions,
     this.totalCompletions = 0,
-    this.proofs = const [], // Initialize proofs list
-    String? proofStatus,
-    DateTime? proofSubmissionDate,
+    this.proofs = const [],
   }) : super(
           id: id,
           ownerId: ownerId,
           goalName: goalName,
           goalType: 'total',
           goalCriteria: goalCriteria,
-          goalFrequency: goalFrequency,
           active: active,
+          goalFrequency: goalFrequency,
           weekStartDate: weekStartDate,
-          currentWeekCompletions: currentWeekCompletions ?? {},
-          proofStatus: proofStatus,
-          proofSubmissionDate: proofSubmissionDate,
+          currentWeekCompletions: currentWeekCompletions,
         );
+
+  // Type-safe getter for currentWeekCompletions
+  Map<String, int> get totalCompletionsMap =>
+      Map<String, int>.from(currentWeekCompletions);
 
   @override
   Map<String, dynamic> toMap() {
     final map = super.toMap();
     map['totalCompletions'] = totalCompletions;
-    map['proofs'] = proofs; // Add proofs to map
+    map['proofs'] = proofs.map((proof) => proof.toMap()).toList();
     return map;
   }
 
@@ -51,12 +52,10 @@ class TotalGoal extends Goal {
       currentWeekCompletions:
           Map<String, int>.from(data['currentWeekCompletions'] ?? {}),
       totalCompletions: data['totalCompletions'] ?? 0,
-      proofs: List<Map<String, dynamic>>.from(
-          data['proofs'] ?? []), // Initialize proofs from map
-      proofStatus: data['proofStatus'],
-      proofSubmissionDate: data['proofSubmissionDate'] != null
-          ? DateTime.parse(data['proofSubmissionDate'])
-          : null,
+      proofs: (data['proofs'] as List<dynamic>?)
+              ?.map((proofData) => Proof.fromMap(proofData))
+              .toList() ??
+          [],
     );
   }
 }

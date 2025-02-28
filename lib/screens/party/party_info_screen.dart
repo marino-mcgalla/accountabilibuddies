@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
-import '../../refactor/compact_progress_tracker.dart';
-import '../../refactor/party_provider.dart';
+import '../../features/common/widgets/compact_progress_tracker.dart';
+import '../../features/party/providers/party_provider.dart';
 import 'package:provider/provider.dart';
-import '../../refactor/goal_model.dart';
+import '../../features/goals/models/goal_model.dart';
 
 class PartyInfoScreen extends StatelessWidget {
   final String partyId;

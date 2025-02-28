@@ -5,8 +5,20 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'goal_model.dart';
 import 'total_goal.dart';
 import 'weekly_goal.dart';
+import 'time_machine_provider.dart';
 
 class GoalsProvider with ChangeNotifier {
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  TimeMachineProvider _timeMachineProvider;
+
+  GoalsProvider(this._timeMachineProvider) {
+    initializeGoalsListener();
+  }
+
+  void updateTimeMachineProvider(TimeMachineProvider timeMachineProvider) {
+    _timeMachineProvider = timeMachineProvider;
+  }
+
   List<Goal> _goals = [];
   bool _isLoading = false;
   StreamSubscription<DocumentSnapshot>? _goalsSubscription;
@@ -14,11 +26,7 @@ class GoalsProvider with ChangeNotifier {
   List<Goal> get goals => _goals;
   bool get isLoading => _isLoading;
 
-  GoalsProvider() {
-    initializeGoalsListener();
-  }
-
-  void initializeGoalsListener() {
+  initializeGoalsListener() {
     String? currentUserId = FirebaseAuth.instance.currentUser?.uid;
     if (currentUserId == null || currentUserId.isEmpty) {
       return; // Exit if there is no valid user ID
@@ -30,7 +38,6 @@ class GoalsProvider with ChangeNotifier {
         .doc(currentUserId)
         .snapshots()
         .listen((doc) {
-      print("firestore read: goals updated");
       if (doc.exists) {
         List<dynamic> goalsData = doc.data()?['goals'] ?? [];
         _goals = goalsData.map((data) => Goal.fromMap(data)).toList();
@@ -71,17 +78,17 @@ class GoalsProvider with ChangeNotifier {
     int index = _goals.indexWhere((goal) => goal.id == goalId);
     if (index != -1 && _goals[index] is TotalGoal) {
       final goal = _goals[index] as TotalGoal;
-      final day = DateTime.now().toIso8601String().split('T').first;
+      final day = _timeMachineProvider.now.toIso8601String().split('T').first;
       goal.currentWeekCompletions[day] =
           (goal.currentWeekCompletions[day] ?? 0) + 1;
+      goal.totalCompletions += 1;
       await _updateGoalsInFirestore();
       notifyListeners();
     }
   }
 
   // updates the completion status for weekly goals
-  Future<void> toggleCompletion(
-      String goalId, String day, String status) async {
+  Future<void> toggleSkipPlan(String goalId, String day, String status) async {
     int index = _goals.indexWhere((goal) => goal.id == goalId);
     if (index != -1 && _goals[index] is WeeklyGoal) {
       final goal = _goals[index] as WeeklyGoal;
@@ -92,14 +99,13 @@ class GoalsProvider with ChangeNotifier {
   }
 
   Future<void> endWeek() async {
-    print('howdy');
     _setLoading(true);
 
     // Store current week's progress in history
     await _storeWeeklyProgressInHistory();
 
     // Reset goals for the new week
-    DateTime newWeekStartDate = DateTime.now();
+    DateTime newWeekStartDate = _timeMachineProvider.now;
     for (Goal goal in _goals) {
       goal.weekStartDate = newWeekStartDate;
       goal.currentWeekCompletions = {}; // Reset completions
@@ -118,7 +124,7 @@ class GoalsProvider with ChangeNotifier {
         .collection('userGoalsHistory')
         .doc(currentUserId)
         .collection('weeks')
-        .doc(DateTime.now().toIso8601String())
+        .doc(_timeMachineProvider.now.toIso8601String())
         .set({'goals': goalsData});
   }
 
@@ -130,6 +136,144 @@ class GoalsProvider with ChangeNotifier {
         .collection('userGoals')
         .doc(currentUserId)
         .set({'goals': goalsData});
+  }
+
+  Future<void> submitProof(String goalId, String proofText) async {
+    String currentUserId = FirebaseAuth.instance.currentUser?.uid ?? "";
+    DocumentSnapshot userGoalsDoc =
+        await _firestore.collection('userGoals').doc(currentUserId).get();
+
+    if (userGoalsDoc.exists) {
+      List<dynamic> goalsData = userGoalsDoc['goals'] ?? [];
+      for (var goalData in goalsData) {
+        if (goalData['id'] == goalId) {
+          if (goalData['goalType'] == 'weekly') {
+            String currentDay =
+                _timeMachineProvider.now.toIso8601String().split('T').first;
+            goalData['currentWeekCompletions'][currentDay] = 'submitted';
+          } else if (goalData['goalType'] == 'total') {
+            goalData['proofText'] = proofText;
+            goalData['proofStatus'] = 'submitted';
+            goalData['proofSubmissionDate'] =
+                _timeMachineProvider.now.toIso8601String();
+            goalData['proofs'] = goalData['proofs'] ?? [];
+            goalData['proofs'].add({
+              'proofText': proofText,
+              'submissionDate': _timeMachineProvider.now.toIso8601String(),
+              'status': 'pending',
+            });
+          }
+          break;
+        }
+      }
+      await _firestore
+          .collection('userGoals')
+          .doc(currentUserId)
+          .update({'goals': goalsData});
+
+      // Update local goals list
+      Goal goal = _goals.firstWhere((goal) => goal.id == goalId);
+      if (goal is WeeklyGoal) {
+        String currentDay =
+            _timeMachineProvider.now.toIso8601String().split('T').first;
+        goal.currentWeekCompletions[currentDay] = 'submitted';
+      } else if (goal is TotalGoal) {
+        // goal.proofText = proofText;
+        // goal.proofStatus = 'submitted';
+        // goal.proofSubmissionDate = _timeMachineProvider.now;
+        // goal.proofs.add({
+        //   'proofText': proofText,
+        //   'submissionDate': _timeMachineProvider.now.toIso8601String(),
+        //   'status': 'pending',
+        // });
+      }
+
+      notifyListeners();
+    } else {
+      throw Exception("User goals document does not exist");
+    }
+  }
+
+  Future<void> approveProof(
+      String goalId, String userId, String? proofDate) async {
+    // Get user goals from state
+    List<Goal> userGoals = _goals;
+
+    // Find the specific goal data referenced by the goalId
+    Goal goal = userGoals.firstWhere((goal) => goal.id == goalId,
+        orElse: () => throw Exception("Goal not found"));
+
+    // Update the goal data based on the goal type
+    if (goal is WeeklyGoal && proofDate != null) {
+      goal.currentWeekCompletions[proofDate] = 'completed';
+    } else if (goal is TotalGoal) {
+      final day = _timeMachineProvider.now.toIso8601String().split('T').first;
+      goal.currentWeekCompletions[day] =
+          (goal.currentWeekCompletions[day] ?? 0) + 1;
+      goal.totalCompletions += 1;
+      if (goal.proofs.isNotEmpty) {
+        goal.proofs.removeAt(0); // Remove the first proof
+      }
+    }
+
+    // Update Firestore with the modified goals data
+    List<Map<String, dynamic>> goalsData =
+        userGoals.map((goal) => goal.toMap()).toList();
+    await _firestore
+        .collection('userGoals')
+        .doc(userId)
+        .update({'goals': goalsData});
+
+    // Notify listeners to update the UI
+    notifyListeners();
+  }
+
+  Future<void> denyProof(
+      String goalId, String userId, String? proofDate) async {
+    DocumentSnapshot userGoalsDoc =
+        await _firestore.collection('userGoals').doc(userId).get();
+
+    if (userGoalsDoc.exists) {
+      List<dynamic> goalsData = userGoalsDoc['goals'] ?? [];
+      for (var goalData in goalsData) {
+        if (goalData['id'] == goalId) {
+          if (goalData['goalType'] == 'weekly') {
+            if (proofDate != null) {
+              goalData['currentWeekCompletions'][proofDate] = 'denied';
+            }
+          } else if (goalData['goalType'] == 'total') {
+            if (goalData['proofs'] != null && goalData['proofs'].isNotEmpty) {
+              goalData['proofs'].removeAt(0); // Remove the first proof
+            }
+          }
+          break;
+        }
+      }
+      await _firestore
+          .collection('userGoals')
+          .doc(userId)
+          .update({'goals': goalsData});
+
+      // Update local goals list
+      try {
+        Goal goal = _goals.firstWhere((goal) => goal.id == goalId);
+        if (goal is WeeklyGoal) {
+          if (proofDate != null) {
+            goal.currentWeekCompletions[proofDate] = 'denied';
+          }
+        } else if (goal is TotalGoal) {
+          if (goal.proofs.isNotEmpty) {
+            goal.proofs.removeAt(0); // Remove the first proof
+          }
+        }
+      } catch (e) {
+        // Goal not found, do nothing
+      }
+
+      notifyListeners();
+    } else {
+      throw Exception("User goals document does not exist");
+    }
   }
 
   void resetState() {

@@ -4,50 +4,78 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:provider/provider.dart';
 import 'goal_model.dart';
-import 'total_goal.dart';
-import 'weekly_goal.dart';
-import 'time_machine_provider.dart'; // Import TimeMachineProvider
+import 'party_members_service.dart';
+import 'party_goals_service.dart';
+import 'time_machine_provider.dart';
 
 class PartyProvider with ChangeNotifier {
-  final FirebaseAuth _auth = FirebaseAuth.instance;
-  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  // Services
+  final PartyMembersService _membersService;
+  final PartyGoalsService _goalsService;
+  final FirebaseAuth _auth;
+  final FirebaseFirestore _firestore;
 
+  // Controllers
+  final TextEditingController partyNameController = TextEditingController();
+  final TextEditingController inviteController = TextEditingController();
+
+  // State variables
   String? _partyId;
   String? _partyName;
   List<String> _members = [];
   Map<String, Map<String, dynamic>> _memberDetails = {};
+  Map<String, List<Goal>> _partyMemberGoals = {};
   bool _isLoading = true;
-  final TextEditingController partyNameController = TextEditingController();
-  final TextEditingController inviteController = TextEditingController();
-  StreamSubscription<DocumentSnapshot>? _partySubscription;
+  bool _isDisposed = false; // Track if provider has been disposed
 
+  // Subscription management
+  StreamSubscription<DocumentSnapshot>? _partySubscription;
+  List<StreamSubscription<DocumentSnapshot>?> _goalSubscriptions = [];
+
+  // Batching updates
+  bool _isBatchingUpdates = false;
+  bool _pendingNotification = false;
+
+  // Getters
   String? get partyId => _partyId;
   String? get partyName => _partyName;
   List<String> get members => _members;
   Map<String, Map<String, dynamic>> get memberDetails => _memberDetails;
+  Map<String, List<Goal>> get partyMemberGoals => _partyMemberGoals;
   bool get isLoading => _isLoading;
 
-  PartyProvider() {
+  PartyProvider({
+    PartyMembersService? membersService,
+    PartyGoalsService? goalsService,
+    FirebaseAuth? auth,
+    FirebaseFirestore? firestore,
+  })  : _membersService = membersService ?? PartyMembersService(),
+        _goalsService = goalsService ?? PartyGoalsService(),
+        _auth = auth ?? FirebaseAuth.instance,
+        _firestore = firestore ?? FirebaseFirestore.instance {
     initializePartyState();
   }
 
+  // Initialize party state
   void initializePartyState() {
-    _isLoading = true;
-    notifyListeners();
+    if (_isDisposed) return; // Skip if already disposed
+
+    setLoading(true);
 
     String? currentUserId = _auth.currentUser?.uid;
     if (currentUserId == null || currentUserId.isEmpty) {
-      _isLoading = false;
-      notifyListeners();
-      return; // Exit if there is no valid user ID
+      setLoading(false);
+      return;
     }
 
-    _partySubscription?.cancel(); // Cancel any existing subscription
+    _partySubscription?.cancel();
     _partySubscription = _firestore
         .collection('users')
         .doc(currentUserId)
         .snapshots()
         .listen((userDoc) {
+      if (_isDisposed) return; // Skip processing if disposed
+
       if (userDoc.exists &&
           userDoc.data() != null &&
           (userDoc.data() as Map<String, dynamic>).containsKey('partyId')) {
@@ -57,265 +85,455 @@ class PartyProvider with ChangeNotifier {
             .doc(partyId)
             .snapshots()
             .listen((partyDoc) {
-          print("Firestore read: Party document updated");
+          if (_isDisposed) return; // Skip processing if disposed
+
           if (partyDoc.exists) {
-            _partyId = partyId;
-            _partyName = partyDoc['partyName'];
-            _members = List<String>.from(partyDoc['members']);
-            _fetchMemberDetails();
+            batchUpdates(() {
+              _partyId = partyId;
+              _partyName = partyDoc['partyName'];
+
+              final List<String> newMembers =
+                  List<String>.from(partyDoc['members']);
+              final bool membersChanged = !_areListsEqual(_members, newMembers);
+              _members = newMembers;
+
+              if (membersChanged) {
+                _cancelGoalSubscriptions();
+                _partyMemberGoals = {};
+                fetchMemberDetails();
+                _subscribeToPartyMemberGoals();
+              }
+
+              setLoading(false);
+            });
           } else {
-            _partyId = null;
-            _partyName = null;
-            _members = [];
-            _memberDetails = {};
+            _resetState();
           }
-          _isLoading = false;
-          notifyListeners();
         });
       } else {
-        _partyId = null;
-        _partyName = null;
-        _members = [];
-        _memberDetails = {};
-        _isLoading = false;
-        notifyListeners();
+        _resetState();
       }
     });
   }
 
-  Future<void> _fetchMemberDetails() async {
-    for (String memberId in _members) {
-      DocumentSnapshot userDoc =
-          await _firestore.collection('users').doc(memberId).get();
-      if (userDoc.exists) {
-        _memberDetails[memberId] = userDoc.data() as Map<String, dynamic>;
-      }
-    }
-    notifyListeners();
-  }
-
+  // Create a new party
   Future<void> createParty(String partyName) async {
-    String currentUserId = _auth.currentUser?.uid ?? "";
+    if (_isDisposed) return; // Skip if already disposed
+    if (partyName.isEmpty) return;
 
-    if (partyName.isEmpty) {
-      return;
-    }
+    setLoading(true);
 
-    DocumentReference partyRef = await _firestore.collection('parties').add({
-      'createdBy': currentUserId,
-      'partyOwner': currentUserId,
-      'members': [currentUserId],
-      'createdAt': FieldValue.serverTimestamp(),
-    });
+    try {
+      String currentUserId = _auth.currentUser?.uid ?? "";
 
-    String partyId = partyRef.id;
-
-    await partyRef.update({'partyName': partyName});
-
-    _partyId = partyId;
-    _partyName = partyName;
-    _members = [currentUserId];
-
-    await _firestore.collection('users').doc(currentUserId).update({
-      'partyId': partyId,
-    });
-
-    _fetchMemberDetails();
-    notifyListeners();
-  }
-
-  Future<void> leaveParty() async {
-    String currentUserId = _auth.currentUser?.uid ?? "";
-
-    if (_members.length == 1) {
-      await closeParty();
-    } else {
-      await _firestore.collection('users').doc(currentUserId).update({
-        'partyId': FieldValue.delete(),
-      });
-
-      await _firestore.collection('parties').doc(_partyId).update({
-        'members': FieldValue.arrayRemove([currentUserId]),
-      });
-
-      _partyId = null;
-      _partyName = null;
-      _members = [];
-      _memberDetails = {};
-      notifyListeners();
-    }
-  }
-
-  Future<void> closeParty() async {
-    if (_partyId != null) {
-      await _firestore.collection('parties').doc(_partyId).delete();
-
-      for (String memberId in _members) {
-        await _firestore.collection('users').doc(memberId).update({
-          'partyId': FieldValue.delete(),
-        });
-      }
-
-      _partyId = null;
-      _partyName = null;
-      _members = [];
-      _memberDetails = {};
-      notifyListeners();
-    }
-  }
-
-  Future<void> updateCounter(String memberId, int value) async {
-    DocumentReference userRef = _firestore.collection('users').doc(memberId);
-    DocumentSnapshot userDoc = await userRef.get();
-
-    if (userDoc.exists) {
-      int currentCounter = userDoc['counter'] ?? 0;
-      await userRef.update({'counter': currentCounter + value});
-      notifyListeners();
-    }
-  }
-
-  Stream<QuerySnapshot> fetchIncomingPendingInvites() {
-    String currentUserId = _auth.currentUser?.uid ?? "";
-    return _firestore
-        .collection('invites')
-        .where('inviteeId', isEqualTo: currentUserId)
-        .where('status', isEqualTo: 'pending')
-        .snapshots();
-  }
-
-  Stream<QuerySnapshot> fetchOutgoingPendingInvites() {
-    String currentUserId = _auth.currentUser?.uid ?? "";
-    return _firestore
-        .collection('invites')
-        .where('inviterId', isEqualTo: currentUserId)
-        .where('status', isEqualTo: 'pending')
-        .snapshots();
-  }
-
-  Future<void> acceptInvite(String inviteId, String partyId) async {
-    String currentUserId = _auth.currentUser?.uid ?? "";
-
-    await _firestore.collection('invites').doc(inviteId).update({
-      'status': 'accepted',
-    });
-
-    await _firestore.collection('users').doc(currentUserId).update({
-      'partyId': partyId,
-    });
-
-    await _firestore.collection('parties').doc(partyId).update({
-      'members': FieldValue.arrayUnion([currentUserId]),
-    });
-
-    _partyId = partyId;
-    _fetchMemberDetails();
-    notifyListeners();
-  }
-
-  Future<void> sendInvite() async {
-    String currentUserId = _auth.currentUser?.uid ?? "";
-    String inviteeEmail = inviteController.text;
-
-    if (inviteeEmail.isEmpty) {
-      return;
-    }
-
-    print("Firestore read: Checking if user exists with email $inviteeEmail");
-    QuerySnapshot userQuery = await _firestore
-        .collection('users')
-        .where('email', isEqualTo: inviteeEmail)
-        .get();
-
-    if (userQuery.docs.isNotEmpty) {
-      String inviteeId = userQuery.docs.first.id;
-
-      await _firestore.collection('invites').add({
-        'inviterId': currentUserId,
-        'inviteeId': inviteeId,
-        'partyId': _partyId,
-        'status': 'pending',
+      DocumentReference partyRef = await _firestore.collection('parties').add({
+        'createdBy': currentUserId,
+        'partyOwner': currentUserId,
+        'members': [currentUserId],
+        'partyName': partyName,
         'createdAt': FieldValue.serverTimestamp(),
       });
 
-      inviteController.clear();
+      String partyId = partyRef.id;
+
+      await _firestore.collection('users').doc(currentUserId).update({
+        'partyId': partyId,
+      });
+
+      if (!_isDisposed) {
+        batchUpdates(() {
+          _partyId = partyId;
+          _partyName = partyName;
+          _members = [currentUserId];
+          fetchMemberDetails();
+        });
+      }
+    } catch (e) {
+      // Handle error
+      print('Error creating party: $e');
+    } finally {
+      if (!_isDisposed) {
+        setLoading(false);
+      }
+    }
+  }
+
+  // Leave a party
+  Future<void> leaveParty() async {
+    if (_isDisposed) return; // Skip if already disposed
+    if (_partyId == null) return;
+
+    setLoading(true);
+
+    try {
+      if (_members.length <= 1) {
+        await closeParty();
+      } else {
+        await _membersService.leaveParty(_partyId!);
+        _resetState();
+      }
+    } catch (e) {
+      print('Error leaving party: $e');
+    } finally {
+      if (!_isDisposed) {
+        setLoading(false);
+      }
+    }
+  }
+
+  // Close an entire party
+  Future<void> closeParty() async {
+    if (_isDisposed) return; // Skip if already disposed
+    if (_partyId == null) return;
+
+    setLoading(true);
+
+    try {
+      await _membersService.closeParty(_partyId!, _members);
+      _resetState();
+    } catch (e) {
+      print('Error closing party: $e');
+    } finally {
+      if (!_isDisposed) {
+        setLoading(false);
+      }
+    }
+  }
+
+  // Send an invite to join the party
+  Future<void> sendInvite() async {
+    if (_isDisposed) return; // Skip if already disposed
+    if (_partyId == null || inviteController.text.isEmpty) return;
+
+    try {
+      bool success =
+          await _membersService.sendInvite(inviteController.text, _partyId!);
+      if (success && !_isDisposed) {
+        inviteController.clear();
+        notifyListeners();
+      }
+    } catch (e) {
+      print('Error sending invite: $e');
+    }
+  }
+
+  // Accept an invite to join a party
+  Future<void> acceptInvite(String inviteId, String partyId) async {
+    if (_isDisposed) return; // Skip if already disposed
+
+    try {
+      await _membersService.acceptInvite(inviteId, partyId);
+      // The party subscription will handle state updates
+    } catch (e) {
+      print('Error accepting invite: $e');
+    }
+  }
+
+  // Cancel a pending invite
+  Future<void> cancelInvite(String inviteId) async {
+    if (_isDisposed) return; // Skip if already disposed
+
+    try {
+      await _membersService.cancelInvite(inviteId);
+      if (!_isDisposed) {
+        notifyListeners();
+      }
+    } catch (e) {
+      print('Error canceling invite: $e');
+    }
+  }
+
+  // Fetch member details
+  Future<void> fetchMemberDetails() async {
+    if (_isDisposed) return; // Skip if already disposed
+
+    try {
+      Map<String, Map<String, dynamic>> newMemberDetails =
+          await _membersService.fetchMemberDetails(_members);
+
+      if (!_isDisposed &&
+          !_areMemberDetailsEqual(_memberDetails, newMemberDetails)) {
+        _memberDetails = newMemberDetails;
+        notifyListeners();
+      }
+    } catch (e) {
+      print('Error fetching member details: $e');
+    }
+  }
+
+  // Get streams for invites
+  Stream<QuerySnapshot> fetchIncomingPendingInvites() {
+    return _membersService.fetchIncomingPendingInvites();
+  }
+
+  Stream<QuerySnapshot> fetchOutgoingPendingInvites() {
+    if (_partyId == null) {
+      // Create a StreamController to return an empty stream
+      final controller = StreamController<QuerySnapshot>.broadcast();
+      // Close the controller immediately to avoid memory leaks
+      controller.close();
+      return controller.stream;
+    }
+    return _membersService.fetchOutgoingPendingInvites(_partyId!);
+  }
+
+  // Fetch submitted goals for party
+  Future<List<Map<String, dynamic>>> fetchSubmittedGoalsForParty(
+      [BuildContext? context]) async {
+    if (_isDisposed) return []; // Skip if already disposed
+
+    try {
+      return await _goalsService.fetchSubmittedGoalsForParty(_members);
+    } catch (e) {
+      print('Error fetching submitted goals: $e');
+      return [];
+    }
+  }
+
+  // Find a goal by ID
+  Goal? findGoalById(String goalId) {
+    for (var userId in _partyMemberGoals.keys) {
+      final userGoals = _partyMemberGoals[userId] ?? [];
+      for (var goal in userGoals) {
+        if (goal.id == goalId) {
+          return goal;
+        }
+      }
+    }
+    return null;
+  }
+
+  // Find the owner of a goal
+  String? findGoalOwner(String goalId) {
+    for (var userId in _partyMemberGoals.keys) {
+      final userGoals = _partyMemberGoals[userId] ?? [];
+      for (var goal in userGoals) {
+        if (goal.id == goalId) {
+          return userId;
+        }
+      }
+    }
+    return null;
+  }
+
+  // Approve proof
+  Future<void> approveProof(String goalId, String? proofDate) async {
+    if (_isDisposed) return; // Skip if already disposed
+
+    String? userId = findGoalOwner(goalId);
+    if (userId == null) {
+      throw Exception("Goal owner not found");
+    }
+
+    try {
+      await _goalsService.approveProof(goalId, userId, proofDate);
+    } catch (e) {
+      print('Error approving proof: $e');
+      rethrow;
+    }
+  }
+
+  // Deny proof
+  Future<void> denyProof(String goalId, String? proofDate) async {
+    if (_isDisposed) return; // Skip if already disposed
+
+    String? userId = findGoalOwner(goalId);
+    if (userId == null) {
+      throw Exception("Goal owner not found");
+    }
+
+    try {
+      await _goalsService.denyProof(goalId, userId, proofDate);
+    } catch (e) {
+      print('Error denying proof: $e');
+      rethrow;
+    }
+  }
+
+  // End week for all members
+  Future<void> endWeekForAll(BuildContext context) async {
+    if (_isDisposed) return; // Skip if already disposed
+    if (_members.isEmpty) return;
+
+    try {
+      final timeMachineProvider =
+          Provider.of<TimeMachineProvider>(context, listen: false);
+      await _goalsService.endWeekForParty(_members, timeMachineProvider.now);
+    } catch (e) {
+      print('Error ending week: $e');
+    }
+  }
+
+  // Helper methods
+  bool _areListsEqual(List<String> list1, List<String> list2) {
+    if (list1.length != list2.length) return false;
+    for (int i = 0; i < list1.length; i++) {
+      if (list1[i] != list2[i]) return false;
+    }
+    return true;
+  }
+
+  bool _areMemberDetailsEqual(Map<String, Map<String, dynamic>> oldDetails,
+      Map<String, Map<String, dynamic>> newDetails) {
+    if (oldDetails.length != newDetails.length) return false;
+
+    for (final key in oldDetails.keys) {
+      if (!newDetails.containsKey(key)) return false;
+
+      final oldDetail = oldDetails[key]!;
+      final newDetail = newDetails[key]!;
+
+      if (oldDetail.length != newDetail.length) return false;
+
+      for (final detailKey in oldDetail.keys) {
+        if (!newDetail.containsKey(detailKey) ||
+            oldDetail[detailKey].toString() !=
+                newDetail[detailKey].toString()) {
+          return false;
+        }
+      }
+    }
+    return true;
+  }
+
+  // Subscribe to party member goals
+  void _subscribeToPartyMemberGoals() {
+    if (_isDisposed) return; // Skip if already disposed
+
+    for (String memberId in _members) {
+      var subscription = _firestore
+          .collection('userGoals')
+          .doc(memberId)
+          .snapshots()
+          .listen((doc) {
+        if (_isDisposed) return; // Skip processing if disposed
+
+        if (doc.exists) {
+          List<dynamic> goalsData = doc.data()?['goals'] ?? [];
+          final List<Goal> newGoals =
+              goalsData.map((data) => Goal.fromMap(data)).toList();
+
+          final List<Goal> previousGoals = _partyMemberGoals[memberId] ?? [];
+          final bool hasChanges = _haveGoalsChanged(previousGoals, newGoals);
+
+          if (hasChanges) {
+            batchUpdates(() {
+              _partyMemberGoals[memberId] = newGoals;
+            });
+          }
+        } else {
+          if (_partyMemberGoals[memberId]?.isNotEmpty ?? false) {
+            batchUpdates(() {
+              _partyMemberGoals[memberId] = [];
+            });
+          }
+        }
+      });
+      _goalSubscriptions.add(subscription);
+    }
+  }
+
+  // Check if goals have changed
+  bool _haveGoalsChanged(List<Goal> oldGoals, List<Goal> newGoals) {
+    if (oldGoals.length != newGoals.length) return true;
+
+    for (int i = 0; i < oldGoals.length; i++) {
+      if (oldGoals[i].id != newGoals[i].id) return true;
+
+      final oldCompletions = oldGoals[i].currentWeekCompletions;
+      final newCompletions = newGoals[i].currentWeekCompletions;
+
+      if (oldCompletions.length != newCompletions.length) return true;
+
+      for (final key in oldCompletions.keys) {
+        if (!newCompletions.containsKey(key) ||
+            oldCompletions[key].toString() != newCompletions[key].toString()) {
+          return true;
+        }
+      }
+    }
+    return false;
+  }
+
+  // Cancel goal subscriptions
+  void _cancelGoalSubscriptions() {
+    for (var subscription in _goalSubscriptions) {
+      subscription?.cancel();
+    }
+    _goalSubscriptions = [];
+  }
+
+  // Reset state
+  void _resetState() {
+    if (_isDisposed) return; // Skip if already disposed
+
+    batchUpdates(() {
+      _partyId = null;
+      _partyName = null;
+      _members = [];
+      _memberDetails = {};
+      _partyMemberGoals = {};
+      _cancelGoalSubscriptions();
+      setLoading(false);
+    });
+  }
+
+  // Public method to reset state (for auth changes)
+  void resetState() {
+    if (_isDisposed) return; // Skip if already disposed
+
+    _partySubscription?.cancel();
+    _resetState();
+  }
+
+  // Set loading state
+  void setLoading(bool value) {
+    if (_isDisposed) return; // Skip if already disposed
+
+    _isLoading = value;
+    notifyListeners();
+  }
+
+  // Batch updates to reduce UI rebuilds
+  void batchUpdates(Function callback) {
+    if (_isDisposed) return; // Skip if already disposed
+
+    _isBatchingUpdates = true;
+    callback();
+    _isBatchingUpdates = false;
+
+    if (_pendingNotification) {
+      _pendingNotification = false;
       notifyListeners();
     }
   }
 
-  Future<void> cancelInvite(String inviteId) async {
-    print("Firestore read: Deleting invite with ID $inviteId");
-    await _firestore.collection('invites').doc(inviteId).delete();
-    notifyListeners();
-  }
-
-  Future<List<Goal>> fetchGoalsForUser(String userId) async {
-    DocumentSnapshot userGoalsDoc =
-        await _firestore.collection('userGoals').doc(userId).get();
-
-    if (userGoalsDoc.exists) {
-      final data = userGoalsDoc.data();
-      if (data != null && data is Map<String, dynamic>) {
-        List<dynamic> goalsData = data['goals'] ?? [];
-        return goalsData.map((goalData) => Goal.fromMap(goalData)).toList();
-      }
+  // Override notifyListeners to support batching and check for disposed state
+  @override
+  void notifyListeners() {
+    if (_isDisposed) {
+      // Skip notification if already disposed
+      return;
     }
-    return [];
-  }
 
-  Future<void> endWeekForAll(BuildContext context) async {
-    final timeMachineProvider =
-        Provider.of<TimeMachineProvider>(context, listen: false);
-    DateTime newWeekStartDate = timeMachineProvider.now;
-
-    for (String memberId in _members) {
-      DocumentSnapshot userGoalsDoc =
-          await _firestore.collection('userGoals').doc(memberId).get();
-
-      if (userGoalsDoc.exists) {
-        List<dynamic> goalsData = userGoalsDoc['goals'] ?? [];
-        List<Goal> goals =
-            goalsData.map((goalData) => Goal.fromMap(goalData)).toList();
-
-        // Store current week's progress in history
-        await _firestore
-            .collection('userGoalsHistory')
-            .doc(memberId)
-            .collection('weeks')
-            .doc(timeMachineProvider.now
-                .toString()) //TODO: change this to the history goal's week start date instead
-            .set({'goals': goalsData});
-
-        // Reset goals for the new week
-        for (Goal goal in goals) {
-          goal.weekStartDate = newWeekStartDate;
-          goal.currentWeekCompletions = {}; // Reset completions
-        }
-
-        // Update goals in Firestore
-        List<Map<String, dynamic>> updatedGoalsData =
-            goals.map((goal) => goal.toMap()).toList();
-        await _firestore
-            .collection('userGoals')
-            .doc(memberId)
-            .set({'goals': updatedGoalsData});
-      }
+    if (_isBatchingUpdates) {
+      _pendingNotification = true;
+    } else {
+      super.notifyListeners();
     }
-    notifyListeners(); // Notify listeners after updating goals
-  }
-
-  void resetState() {
-    _partyId = null;
-    _partyName = null;
-    _members = [];
-    _memberDetails = {};
-    _isLoading = false;
-    notifyListeners();
   }
 
   @override
   void dispose() {
+    // Set the disposed flag before canceling subscriptions
+    _isDisposed = true;
+
+    // Cancel all subscriptions
     _partySubscription?.cancel();
+    _cancelGoalSubscriptions();
+    partyNameController.dispose();
+    inviteController.dispose();
+
     super.dispose();
   }
 }

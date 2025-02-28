@@ -11,8 +11,15 @@ class TimeMachineProvider with ChangeNotifier {
     return DateTime.now();
   }
 
+  DateTime get startOfWeek {
+    DateTime currentDateTime = now;
+    DateTime startOfWeek = currentDateTime.subtract(
+        Duration(days: currentDateTime.weekday - 1)); // Start from Monday
+    return DateTime(startOfWeek.year, startOfWeek.month,
+        startOfWeek.day); // Set time to midnight
+  }
+
   void setCustomDateTime(DateTime dateTime) {
-    print('time set to: ${dateTime}');
     _customDateTime = dateTime;
     _useCustomDateTime = true;
     notifyListeners();
@@ -21,7 +28,6 @@ class TimeMachineProvider with ChangeNotifier {
   void resetToRealTime() {
     _customDateTime = null;
     _useCustomDateTime = false;
-    print('time set to: ${DateTime.now()}');
     notifyListeners();
   }
 
@@ -29,12 +35,10 @@ class TimeMachineProvider with ChangeNotifier {
     _useCustomDateTime = true;
     if (_useCustomDateTime && _customDateTime != null) {
       _customDateTime = _customDateTime!.add(duration);
-      print('time set to ${_customDateTime}');
       notifyListeners();
     } else {
       _customDateTime = DateTime.now();
       _customDateTime = _customDateTime!.add(duration);
-      print('time set to ${_customDateTime}');
       notifyListeners();
     }
   }

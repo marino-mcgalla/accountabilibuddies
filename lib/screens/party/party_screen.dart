@@ -1,75 +1,81 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import 'create_party_screen.dart';
+import 'party_info_screen.dart';
+import '../../widgets/invite_list.dart';
+import '../../refactor/party_provider.dart';
 
-class PartyScreen extends StatefulWidget {
+class PartyScreen extends StatelessWidget {
   const PartyScreen({super.key});
 
   @override
-  State<PartyScreen> createState() => _PartyScreenState();
-}
-
-class _PartyScreenState extends State<PartyScreen> {
-  final TextEditingController _inviteController = TextEditingController();
-  List<String> _members = ["User1", "User2", "User3"]; // Temporary mock data
-  List<String> _pendingInvites = ["PendingUser1", "PendingUser2"]; // Mock data
-
-  void _sendInvite() {
-    String invitee = _inviteController.text.trim();
-    if (invitee.isNotEmpty) {
-      setState(() {
-        _pendingInvites.add(invitee);
-      });
-      _inviteController.clear();
-    }
-  }
-
-  @override
   Widget build(BuildContext context) {
+    final partyProvider = Provider.of<PartyProvider>(context);
+    if (partyProvider.isLoading) {
+      return Scaffold(
+        appBar: AppBar(title: const Text("Party")),
+        body: const Center(child: CircularProgressIndicator()),
+      );
+    }
+
     return Scaffold(
       appBar: AppBar(title: const Text("Party")),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text("Party Members",
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-            const SizedBox(height: 8),
-            ..._members.map((member) => ListTile(
-                  leading: const Icon(Icons.person),
-                  title: Text(member),
-                )),
-            const Divider(),
-            const Text("Invite a User",
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-            const SizedBox(height: 8),
-            Row(
-              children: [
-                Expanded(
-                  child: TextField(
-                    controller: _inviteController,
+        child: partyProvider.partyId == null
+            ? Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  CreatePartyScreen(),
+                  const SizedBox(height: 20),
+                  InviteList(
+                    inviteStream: partyProvider.fetchIncomingPendingInvites(),
+                    title: "Incoming Pending Invites",
+                    onAction: (inviteId, partyId) =>
+                        partyProvider.acceptInvite(inviteId, partyId),
+                    isOutgoing: false,
+                  ),
+                ],
+              )
+            : Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  PartyInfoScreen(
+                    partyId: partyProvider.partyId!,
+                    partyName: partyProvider.partyName!,
+                    members: partyProvider.members,
+                    updateCounter: partyProvider.updateCounter,
+                    leaveParty: partyProvider.leaveParty,
+                    closeParty: partyProvider.closeParty,
+                  ),
+                  const SizedBox(height: 20),
+                  TextField(
+                    controller: partyProvider.inviteController,
                     decoration: const InputDecoration(
-                      labelText: "Enter username or email",
+                      labelText: "Invite Member by Email",
                       border: OutlineInputBorder(),
                     ),
                   ),
-                ),
-                const SizedBox(width: 8),
-                ElevatedButton(
-                  onPressed: _sendInvite,
-                  child: const Text("Invite"),
-                ),
-              ],
-            ),
-            const Divider(),
-            const Text("Pending Invites",
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-            const SizedBox(height: 8),
-            ..._pendingInvites.map((invite) => ListTile(
-                  leading: const Icon(Icons.hourglass_empty),
-                  title: Text(invite),
-                )),
-          ],
-        ),
+                  const SizedBox(height: 20),
+                  ElevatedButton(
+                    onPressed: partyProvider.sendInvite,
+                    child: const Text("Send Invite"),
+                  ),
+                  const SizedBox(height: 20),
+                  ElevatedButton(
+                    onPressed: () => partyProvider.endWeekForAll(context),
+                    child: const Text("End Week for All"),
+                  ),
+                  const SizedBox(height: 20),
+                  InviteList(
+                    inviteStream: partyProvider.fetchOutgoingPendingInvites(),
+                    title: "Outgoing Pending Invites",
+                    onAction: (inviteId, _) =>
+                        partyProvider.cancelInvite(inviteId),
+                    isOutgoing: true,
+                  ),
+                ],
+              ),
       ),
     );
   }

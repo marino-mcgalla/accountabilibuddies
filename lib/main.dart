@@ -1,7 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'firebase_options.dart';
-import 'routing/app_router.dart'; // Import new router
+import 'routing/app_router.dart';
+import 'package:provider/provider.dart';
+import 'refactor/goals_provider.dart';
+import 'refactor/party_provider.dart';
+import 'refactor/time_machine_provider.dart'; // Import TimeMachineProvider
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -16,14 +20,22 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp.router(
-      // Use router-based navigation
-      title: 'Flutter Demo',
-      theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.green),
-        useMaterial3: true,
+    return MultiProvider(
+      providers: [
+        ChangeNotifierProvider(create: (context) => GoalsProvider()),
+        ChangeNotifierProvider(create: (context) => PartyProvider()),
+        ChangeNotifierProvider(
+            create: (context) =>
+                TimeMachineProvider()), // Use TimeMachineProvider
+      ],
+      child: MaterialApp.router(
+        title: 'Flutter Demo',
+        theme: ThemeData(
+          colorScheme: ColorScheme.fromSeed(seedColor: Colors.green),
+          useMaterial3: true,
+        ),
+        routerConfig: appRouter,
       ),
-      routerConfig: appRouter, // Use the new app router
     );
   }
 }

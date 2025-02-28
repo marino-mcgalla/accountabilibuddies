@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'firebase_options.dart';
-import 'routing/app_router.dart';
+import 'features/core/routing/app_router.dart';
 import 'package:provider/provider.dart';
-import 'refactor/goals_provider.dart';
-import 'refactor/party_provider.dart';
-import 'refactor/time_machine_provider.dart'; // Import TimeMachineProvider
+import 'features/goals/providers/goals_provider.dart';
+import 'features/party/providers/party_provider.dart';
+import 'features/time_machine/providers/time_machine_provider.dart'; // Import TimeMachineProvider
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();

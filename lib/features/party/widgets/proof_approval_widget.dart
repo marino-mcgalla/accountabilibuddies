@@ -30,28 +30,24 @@ class _PendingProofsWidgetState extends State<PendingProofsWidget> {
     _loadSubmittedGoals();
   }
 
+  @override
+  void dispose() {
+    // Cancel any pending operations
+    _isLoadingData = true; // Prevent any new operations
+    super.dispose();
+  }
+
   Future<void> _loadSubmittedGoals() async {
-    // Prevent multiple simultaneous loads
-    if (_isLoadingData) return;
+    // Prevent multiple simultaneous loads or loading after disposal
+    if (_isLoadingData || !mounted) return;
     _isLoadingData = true;
-
-    // Store context before the async gap
-    final BuildContext currentContext = context;
-
-    // Only set loading state if we're not already showing results
-    if (_submittedGoals.isEmpty && mounted) {
-      setState(() {
-        _isLoading = true;
-      });
-    }
 
     try {
       // Get provider before async operation
-      final partyProvider =
-          Provider.of<PartyProvider>(currentContext, listen: false);
+      final partyProvider = Provider.of<PartyProvider>(context, listen: false);
       final submittedGoals = await partyProvider.fetchSubmittedGoalsForParty();
 
-      // Make sure the widget is still mounted before updating state
+      // Check again if still mounted after async operation
       if (!mounted) return;
 
       setState(() {
@@ -67,7 +63,9 @@ class _PendingProofsWidgetState extends State<PendingProofsWidget> {
         _isLoading = false;
       });
     } finally {
-      _isLoadingData = false;
+      if (mounted) {
+        _isLoadingData = false;
+      }
     }
   }
 
@@ -77,7 +75,7 @@ class _PendingProofsWidgetState extends State<PendingProofsWidget> {
       selector: (_, provider) => provider.partyMemberGoals,
       builder: (context, partyMemberGoals, child) {
         // When party members' goals change, reload our data
-        if (!_isLoadingData) {
+        if (!_isLoadingData && mounted) {
           Future.microtask(() {
             if (mounted) {
               _loadSubmittedGoals();
@@ -103,10 +101,13 @@ class _PendingProofsWidgetState extends State<PendingProofsWidget> {
           return const Center(child: Text('No pending proofs'));
         }
 
+        // Use a more consistent key approach that doesn't change on every build
+        final String listKey = 'proofs-list-${_submittedGoals.length}';
+
         return AnimatedSwitcher(
           duration: const Duration(milliseconds: 300),
           child: ListView.builder(
-            key: ValueKey<int>(_submittedGoals.length),
+            key: ValueKey<String>(listKey),
             shrinkWrap: true,
             itemCount: _submittedGoals.length,
             itemBuilder: (context, index) {
@@ -121,9 +122,9 @@ class _PendingProofsWidgetState extends State<PendingProofsWidget> {
                       ?['displayName'] ??
                   'Unknown User';
 
-              // Create a unique key for each proof item
+              // Use a more stable key that doesn't change on every build
               final String proofKey =
-                  '${goal.id}-${goalData['date'] ?? 'total'}-$index';
+                  '${goal.id}-${goalData['date'] ?? 'total'}-$userId-$index';
 
               return ProofItem(
                 key: ValueKey(proofKey),

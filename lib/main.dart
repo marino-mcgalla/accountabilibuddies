@@ -31,6 +31,11 @@ class MyApp extends StatelessWidget {
               goalsProvider!..updateTimeMachineProvider(timeMachineProvider),
         ),
         ChangeNotifierProvider(create: (context) => PartyProvider()),
+        ChangeNotifierProvider(
+          create: (context) => GoalsProvider(
+            Provider.of<TimeMachineProvider>(context, listen: false),
+          ),
+        ),
       ],
       child: MaterialApp.router(
         title: 'Flutter Demo',

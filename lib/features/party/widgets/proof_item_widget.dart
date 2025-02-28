@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../../goals/models/goal_model.dart';
 import '../../goals/models/total_goal.dart';
 import '../../goals/models/weekly_goal.dart';
+import '../../goals/models/proof_model.dart'; // Import Proof model
 import '../../common/utils/utils.dart';
 
 /// A widget that displays a single proof item
@@ -9,7 +10,7 @@ class ProofItem extends StatelessWidget {
   final Goal goal;
   final String userName;
   final String? date;
-  final Map<String, dynamic>? proof;
+  final dynamic proof; // Changed to dynamic to handle both Map and Proof
   final Function(String, String?, bool) onAction;
 
   const ProofItem({
@@ -64,15 +65,41 @@ class ProofItem extends StatelessWidget {
 
   /// Builds a card for a total goal proof
   Widget _buildTotalGoalItem(BuildContext context) {
-    // Extract proof details
-    final String proofText = proof!['proofText'] ?? 'No details provided';
-    final String submissionDate = proof!['submissionDate'] ?? '';
+    // Extract proof details - handle both Map and Proof object
+    String proofText;
+    String submissionDate;
+
+    try {
+      if (proof is Map<String, dynamic>) {
+        // Legacy map format
+        proofText = proof['proofText'] ?? 'No details provided';
+        submissionDate = proof['submissionDate'] ?? '';
+      } else if (proof is Proof) {
+        // New Proof object
+        proofText = proof.proofText;
+        submissionDate = proof.submissionDate.toIso8601String();
+      } else {
+        // Try to use dynamic approach for flexibility
+        final dynamic proofObj = proof;
+        // Try to access properties safely
+        proofText = proofObj?.proofText ?? 'No details provided';
+        submissionDate = proofObj?.submissionDate?.toIso8601String() ?? '';
+      }
+    } catch (e) {
+      // Fallback if any error occurs
+      proofText = 'Error accessing proof details';
+      submissionDate = '';
+    }
 
     // Format submission date if available
     String formattedDate = 'Unknown date';
     if (submissionDate.isNotEmpty) {
-      final DateTime dateObj = DateTime.parse(submissionDate);
-      formattedDate = Utils.formatDate(dateObj);
+      try {
+        final DateTime dateObj = DateTime.parse(submissionDate);
+        formattedDate = Utils.formatDate(dateObj);
+      } catch (e) {
+        formattedDate = 'Invalid date format';
+      }
     }
 
     return Card(

@@ -1,320 +1,132 @@
 import 'dart:async';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/goal_model.dart';
 import '../models/total_goal.dart';
 import '../models/weekly_goal.dart';
-import '../models/proof_model.dart'; // Import our new Proof model
+import '../repositories/goals_repository.dart';
+import '../services/goal_management_service.dart';
+import '../services/proof_service.dart';
+import '../services/week_service.dart';
 import '../../time_machine/providers/time_machine_provider.dart';
 
 class GoalsProvider with ChangeNotifier {
-  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final GoalsRepository _repository = GoalsRepository();
+  late GoalManagementService _goalService;
+  late ProofService _proofService;
+  late WeekService _weekService;
+
   TimeMachineProvider _timeMachineProvider;
 
+  List<Goal> _goals = [];
+  bool _isLoading = false;
+  StreamSubscription<List<Goal>>? _goalsSubscription;
+
   GoalsProvider(this._timeMachineProvider) {
+    _initializeServices();
     initializeGoalsListener();
+  }
+
+  void _initializeServices() {
+    _goalService = GoalManagementService(_repository);
+    _proofService = ProofService(_repository, _timeMachineProvider);
+    _weekService = WeekService(_repository, _timeMachineProvider);
   }
 
   void updateTimeMachineProvider(TimeMachineProvider timeMachineProvider) {
     _timeMachineProvider = timeMachineProvider;
+    _initializeServices();
   }
 
-  List<Goal> _goals = [];
-  bool _isLoading = false;
-  StreamSubscription<DocumentSnapshot>? _goalsSubscription;
-
+  // Getters
   List<Goal> get goals => _goals;
   bool get isLoading => _isLoading;
 
-  initializeGoalsListener() {
-    String? currentUserId = FirebaseAuth.instance.currentUser?.uid;
-    if (currentUserId == null || currentUserId.isEmpty) {
-      return; // Exit if there is no valid user ID
-    }
+  void initializeGoalsListener() {
+    String? userId = _repository.getCurrentUserId();
+    if (userId == null) return;
 
-    _goalsSubscription?.cancel(); // Cancel any existing subscription
-    _goalsSubscription = FirebaseFirestore.instance
-        .collection('userGoals')
-        .doc(currentUserId)
-        .snapshots()
-        .listen((doc) {
-      if (doc.exists) {
-        List<dynamic> goalsData = doc.data()?['goals'] ?? [];
-        _goals = goalsData.map((data) => Goal.fromMap(data)).toList();
-        notifyListeners();
-      }
+    _goalsSubscription?.cancel();
+    _goalsSubscription = _repository.getGoalsStream(userId).listen((goals) {
+      _goals = goals;
+      notifyListeners();
     });
   }
 
+  // Goal CRUD Operations
   Future<void> addGoal(Goal goal) async {
     _setLoading(true);
-    _goals.add(goal);
-    await _updateGoalsInFirestore();
+    await _goalService.addGoal(_goals, goal);
     _setLoading(false);
-    notifyListeners();
   }
 
   Future<void> editGoal(Goal updatedGoal) async {
     _setLoading(true);
-    int index = _goals.indexWhere((goal) => goal.id == updatedGoal.id);
-    if (index != -1) {
-      _goals[index] = updatedGoal;
-      await _updateGoalsInFirestore();
-    }
+    await _goalService.editGoal(_goals, updatedGoal);
     _setLoading(false);
-    notifyListeners();
   }
 
   Future<void> removeGoal(BuildContext context, String goalId) async {
     _setLoading(true);
-    _goals.removeWhere((goal) => goal.id == goalId);
-    await _updateGoalsInFirestore();
+    await _goalService.removeGoal(_goals, goalId);
     _setLoading(false);
-    notifyListeners();
   }
 
-  // adds 1 for total goals
+  // Goal Progress Operations
   Future<void> incrementCompletions(String goalId) async {
     int index = _goals.indexWhere((goal) => goal.id == goalId);
     if (index != -1 && _goals[index] is TotalGoal) {
-      final goal = _goals[index] as TotalGoal;
+      final updatedGoals = List<Goal>.from(_goals);
+      final goal = updatedGoals[index] as TotalGoal;
       final day = _timeMachineProvider.now.toIso8601String().split('T').first;
       goal.currentWeekCompletions[day] =
           (goal.currentWeekCompletions[day] ?? 0) + 1;
       goal.totalCompletions += 1;
-      await _updateGoalsInFirestore();
-      notifyListeners();
+      String? userId = _repository.getCurrentUserId();
+      if (userId != null) {
+        await _repository.saveGoals(userId, updatedGoals);
+      }
     }
   }
 
-  // updates the completion status for weekly goals
   Future<void> toggleSkipPlan(String goalId, String day, String status) async {
     int index = _goals.indexWhere((goal) => goal.id == goalId);
     if (index != -1 && _goals[index] is WeeklyGoal) {
-      final goal = _goals[index] as WeeklyGoal;
+      final updatedGoals = List<Goal>.from(_goals);
+      final goal = updatedGoals[index] as WeeklyGoal;
       goal.currentWeekCompletions[day] = status;
-      await _updateGoalsInFirestore();
-      notifyListeners();
+      String? userId = _repository.getCurrentUserId();
+      if (userId != null) {
+        await _repository.saveGoals(userId, updatedGoals);
+      }
     }
   }
 
+  // Week Management
   Future<void> endWeek() async {
     _setLoading(true);
-
-    // Store current week's progress in history
-    await _storeWeeklyProgressInHistory();
-
-    // Reset goals for the new week
-    DateTime newWeekStartDate = _timeMachineProvider.now;
-    for (Goal goal in _goals) {
-      goal.weekStartDate = newWeekStartDate;
-
-      if (goal is WeeklyGoal) {
-        goal.currentWeekCompletions = {}; // Reset weekly completions
-      } else if (goal is TotalGoal) {
-        goal.currentWeekCompletions = {}; // Reset weekly counts
-        // Note: we don't reset totalCompletions as it's a running total
-      }
-    }
-
-    await _updateGoalsInFirestore();
+    await _weekService.endWeek(_goals);
     _setLoading(false);
-    notifyListeners();
   }
 
-  Future<void> _storeWeeklyProgressInHistory() async {
-    String currentUserId = FirebaseAuth.instance.currentUser?.uid ?? "";
-    List<Map<String, dynamic>> goalsData =
-        _goals.map((goal) => goal.toMap()).toList();
-    await FirebaseFirestore.instance
-        .collection('userGoalsHistory')
-        .doc(currentUserId)
-        .collection('weeks')
-        .doc(_timeMachineProvider.now.toIso8601String())
-        .set({'goals': goalsData});
-  }
-
-  Future<void> _updateGoalsInFirestore() async {
-    String currentUserId = FirebaseAuth.instance.currentUser?.uid ?? "";
-    List<Map<String, dynamic>> goalsData =
-        _goals.map((goal) => goal.toMap()).toList();
-    await FirebaseFirestore.instance
-        .collection('userGoals')
-        .doc(currentUserId)
-        .set({'goals': goalsData});
-  }
-
-  // Updated to use the new Proof model
+  // Proof Management
   Future<void> submitProof(String goalId, String proofText) async {
-    String currentUserId = FirebaseAuth.instance.currentUser?.uid ?? "";
-
-    // Find goal in local state
-    int goalIndex = _goals.indexWhere((goal) => goal.id == goalId);
-    if (goalIndex == -1) {
-      throw Exception("Goal not found");
-    }
-
-    Goal goal = _goals[goalIndex];
-    DateTime submissionDate = _timeMachineProvider.now;
-
-    // Create the proof object
-    Proof proof = Proof(
-      proofText: proofText,
-      submissionDate: submissionDate,
-      status: 'pending',
-    );
-
-    // Update based on goal type
-    if (goal is WeeklyGoal) {
-      String currentDay = submissionDate.toIso8601String().split('T').first;
-      goal.currentWeekCompletions[currentDay] = 'submitted';
-    } else if (goal is TotalGoal) {
-      goal.proofs.add(proof);
-    }
-
-    // Update in Firestore
-    await _updateGoalsInFirestore();
+    await _proofService.submitProof(_goals, goalId, proofText);
     notifyListeners();
   }
 
-  // Updated to use the new Proof model
   Future<void> approveProof(
       String goalId, String userId, String? proofDate) async {
-    // Find the goal in local state first
-    int goalIndex = _goals.indexWhere((goal) => goal.id == goalId);
-    if (goalIndex == -1) {
-      // If not in local state, try to fetch from Firestore
-      DocumentSnapshot userGoalsDoc =
-          await _firestore.collection('userGoals').doc(userId).get();
-      if (!userGoalsDoc.exists) {
-        throw Exception("User goals document does not exist");
-      }
-
-      List<dynamic> goalsData = userGoalsDoc['goals'] ?? [];
-      List<Goal> userGoals =
-          goalsData.map((data) => Goal.fromMap(data)).toList();
-      goalIndex = userGoals.indexWhere((goal) => goal.id == goalId);
-
-      if (goalIndex == -1) {
-        throw Exception("Goal not found");
-      }
-
-      // Update the goal based on type
-      Goal goal = userGoals[goalIndex];
-
-      if (goal is WeeklyGoal && proofDate != null) {
-        goal.currentWeekCompletions[proofDate] = 'completed';
-      } else if (goal is TotalGoal) {
-        final day = _timeMachineProvider.now.toIso8601String().split('T').first;
-        goal.currentWeekCompletions[day] =
-            (goal.currentWeekCompletions[day] ?? 0) + 1;
-        goal.totalCompletions += 1;
-        if (goal.proofs.isNotEmpty) {
-          goal.proofs.removeAt(0); // Remove the first (oldest) proof
-        }
-      }
-
-      // Update in Firestore
-      List<Map<String, dynamic>> updatedGoalsData =
-          userGoals.map((goal) => goal.toMap()).toList();
-      await _firestore
-          .collection('userGoals')
-          .doc(userId)
-          .update({'goals': updatedGoalsData});
-
-      // If we're approving our own goals, update local state
-      if (userId == FirebaseAuth.instance.currentUser?.uid) {
-        _goals = userGoals;
-        notifyListeners();
-      }
-    } else {
-      // Goal is in our local state
-      Goal goal = _goals[goalIndex];
-
-      if (goal is WeeklyGoal && proofDate != null) {
-        goal.currentWeekCompletions[proofDate] = 'completed';
-      } else if (goal is TotalGoal) {
-        final day = _timeMachineProvider.now.toIso8601String().split('T').first;
-        goal.currentWeekCompletions[day] =
-            (goal.currentWeekCompletions[day] ?? 0) + 1;
-        goal.totalCompletions += 1;
-        if (goal.proofs.isNotEmpty) {
-          goal.proofs.removeAt(0); // Remove the first proof
-        }
-      }
-
-      // Update in Firestore
-      await _updateGoalsInFirestore();
-      notifyListeners();
-    }
+    await _proofService.approveProof(goalId, userId, proofDate);
+    // If approving our own goal, it will be updated via the stream listener
   }
 
-  // Updated to use the new Proof model
   Future<void> denyProof(
       String goalId, String userId, String? proofDate) async {
-    // Similar approach to approveProof, but marking as denied
-    int goalIndex = _goals.indexWhere((goal) => goal.id == goalId);
-    if (goalIndex == -1) {
-      // If not in local state, try to fetch from Firestore
-      DocumentSnapshot userGoalsDoc =
-          await _firestore.collection('userGoals').doc(userId).get();
-      if (!userGoalsDoc.exists) {
-        throw Exception("User goals document does not exist");
-      }
-
-      List<dynamic> goalsData = userGoalsDoc['goals'] ?? [];
-      List<Goal> userGoals =
-          goalsData.map((data) => Goal.fromMap(data)).toList();
-      goalIndex = userGoals.indexWhere((goal) => goal.id == goalId);
-
-      if (goalIndex == -1) {
-        throw Exception("Goal not found");
-      }
-
-      // Update the goal based on type
-      Goal goal = userGoals[goalIndex];
-
-      if (goal is WeeklyGoal && proofDate != null) {
-        goal.currentWeekCompletions[proofDate] = 'denied';
-      } else if (goal is TotalGoal) {
-        if (goal.proofs.isNotEmpty) {
-          goal.proofs
-              .removeAt(0); // Remove the first proof without incrementing
-        }
-      }
-
-      // Update in Firestore
-      List<Map<String, dynamic>> updatedGoalsData =
-          userGoals.map((goal) => goal.toMap()).toList();
-      await _firestore
-          .collection('userGoals')
-          .doc(userId)
-          .update({'goals': updatedGoalsData});
-
-      // If we're denying our own goals, update local state
-      if (userId == FirebaseAuth.instance.currentUser?.uid) {
-        _goals = userGoals;
-        notifyListeners();
-      }
-    } else {
-      // Goal is in our local state
-      Goal goal = _goals[goalIndex];
-
-      if (goal is WeeklyGoal && proofDate != null) {
-        goal.currentWeekCompletions[proofDate] = 'denied';
-      } else if (goal is TotalGoal) {
-        if (goal.proofs.isNotEmpty) {
-          goal.proofs.removeAt(0); // Remove the first proof
-        }
-      }
-
-      // Update in Firestore
-      await _updateGoalsInFirestore();
-      notifyListeners();
-    }
+    await _proofService.denyProof(goalId, userId, proofDate);
+    // If denying our own goal, it will be updated via the stream listener
   }
 
+  // Reset state
   void resetState() {
     _goals = [];
     _isLoading = false;

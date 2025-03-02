@@ -118,17 +118,19 @@ class _PendingProofsWidgetState extends State<PendingProofsWidget> {
                   Provider.of<PartyProvider>(context, listen: false);
               final String userName = partyProvider.memberDetails[userId]
                       ?['displayName'] ??
+                  partyProvider.memberDetails[userId]?['username'] ??
+                  partyProvider.memberDetails[userId]?['email'] ??
                   'Unknown User';
 
-              // Use a more stable key that doesn't change on every build
               // Create a unique key for each proof item
               final String proofKey =
                   '${goal.id}-${goalData['date'] ?? 'total'}-$userId-$index';
 
               return ProofItem(
-                key: ValueKey(proofKey), // Unique key for each item
+                key: ValueKey(proofKey),
                 goal: goal,
                 userName: userName,
+                userId: userId, // Pass userId to check for self-approval
                 date: goalData['date'],
                 proof: goalData['proof'],
                 onAction: _handleAction,

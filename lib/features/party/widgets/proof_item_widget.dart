@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart'; // Import for current user ID
 import '../../goals/models/goal_model.dart';
 import '../../goals/models/total_goal.dart';
 import '../../goals/models/weekly_goal.dart';
@@ -9,6 +10,7 @@ import '../../common/utils/utils.dart';
 class ProofItem extends StatelessWidget {
   final Goal goal;
   final String userName;
+  final String userId; // Add userId parameter to check for self-approval
   final String? date;
   final dynamic proof; // Can be Map, Proof object, or null
   final Function(String, String?, bool) onAction;
@@ -16,6 +18,7 @@ class ProofItem extends StatelessWidget {
   const ProofItem({
     required this.goal,
     required this.userName,
+    required this.userId, // Add to constructor
     required this.onAction,
     this.date,
     this.proof,
@@ -56,6 +59,12 @@ class ProofItem extends StatelessWidget {
     );
   }
 
+  /// Check if the current user is the owner of this goal
+  bool _isOwnGoal() {
+    final currentUserId = FirebaseAuth.instance.currentUser?.uid;
+    return currentUserId == userId || currentUserId == goal.ownerId;
+  }
+
   /// Builds a card for a weekly goal proof
   Widget _buildWeeklyGoalItem(BuildContext context, bool isSmallScreen) {
     // Format date for display
@@ -79,6 +88,9 @@ class ProofItem extends StatelessWidget {
         debugPrint('Error accessing weekly proof details: $e');
       }
     }
+
+    // Check if this is the user's own goal
+    final isSelfApproval = _isOwnGoal();
 
     return Card(
       margin: EdgeInsets.symmetric(
@@ -165,51 +177,75 @@ class ProofItem extends StatelessWidget {
             const SizedBox(height: 16),
 
             // Action buttons - different layout for mobile
-            isSmallScreen
-                ? Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      ElevatedButton.icon(
-                        onPressed: () => onAction(goal.id, date, true),
-                        icon: const Icon(Icons.check),
-                        label: const Text('Approve'),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.green,
-                          foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(vertical: 12),
-                        ),
+            if (isSelfApproval) ...[
+              // Self-approval not allowed - show message instead
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.grey[200],
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Row(
+                  children: [
+                    Icon(Icons.info_outline, color: Colors.grey[700]),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        "You can't review your own proof. Another party member needs to verify it.",
+                        style: TextStyle(color: Colors.grey[700]),
                       ),
-                      const SizedBox(height: 8),
-                      OutlinedButton.icon(
-                        onPressed: () => onAction(goal.id, date, false),
-                        icon: const Icon(Icons.close),
-                        label: const Text('Deny'),
-                        style: OutlinedButton.styleFrom(
-                          foregroundColor: Colors.red,
-                          side: const BorderSide(color: Colors.red),
-                          padding: const EdgeInsets.symmetric(vertical: 12),
-                        ),
-                      ),
-                    ],
-                  )
-                : Row(
-                    mainAxisAlignment: MainAxisAlignment.end,
-                    children: [
-                      TextButton(
-                        onPressed: () => onAction(goal.id, date, false),
-                        style:
-                            TextButton.styleFrom(foregroundColor: Colors.red),
-                        child: const Text('Deny'),
-                      ),
-                      const SizedBox(width: 8),
-                      ElevatedButton(
-                        onPressed: () => onAction(goal.id, date, true),
-                        style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.green),
-                        child: const Text('Approve'),
-                      ),
-                    ],
+                    ),
+                  ],
+                ),
+              ),
+            ] else if (isSmallScreen) ...[
+              // Mobile layout for other users
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  ElevatedButton.icon(
+                    onPressed: () => onAction(goal.id, date, true),
+                    icon: const Icon(Icons.check),
+                    label: const Text('Approve'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.green,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                    ),
                   ),
+                  const SizedBox(height: 8),
+                  OutlinedButton.icon(
+                    onPressed: () => onAction(goal.id, date, false),
+                    icon: const Icon(Icons.close),
+                    label: const Text('Deny'),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: Colors.red,
+                      side: const BorderSide(color: Colors.red),
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                    ),
+                  ),
+                ],
+              ),
+            ] else ...[
+              // Desktop layout for other users
+              Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  TextButton(
+                    onPressed: () => onAction(goal.id, date, false),
+                    style: TextButton.styleFrom(foregroundColor: Colors.red),
+                    child: const Text('Deny'),
+                  ),
+                  const SizedBox(width: 8),
+                  ElevatedButton(
+                    onPressed: () => onAction(goal.id, date, true),
+                    style:
+                        ElevatedButton.styleFrom(backgroundColor: Colors.green),
+                    child: const Text('Approve'),
+                  ),
+                ],
+              ),
+            ],
           ],
         ),
       ),
@@ -253,6 +289,9 @@ class ProofItem extends StatelessWidget {
         formattedDate = 'Invalid date format';
       }
     }
+
+    // Check if this is the user's own goal
+    final isSelfApproval = _isOwnGoal();
 
     return Card(
       margin: EdgeInsets.symmetric(
@@ -335,52 +374,76 @@ class ProofItem extends StatelessWidget {
 
             const SizedBox(height: 16),
 
-            // Action buttons - different layout for mobile
-            isSmallScreen
-                ? Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      ElevatedButton.icon(
-                        onPressed: () => onAction(goal.id, date, true),
-                        icon: const Icon(Icons.check),
-                        label: const Text('Approve'),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.green,
-                          foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(vertical: 12),
-                        ),
+            // Action buttons - different based on whether it's self-approval
+            if (isSelfApproval) ...[
+              // Self-approval not allowed - show message instead
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.grey[200],
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Row(
+                  children: [
+                    Icon(Icons.info_outline, color: Colors.grey[700]),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        "You can't review your own proof. Another party member needs to verify it.",
+                        style: TextStyle(color: Colors.grey[700]),
                       ),
-                      const SizedBox(height: 8),
-                      OutlinedButton.icon(
-                        onPressed: () => onAction(goal.id, date, false),
-                        icon: const Icon(Icons.close),
-                        label: const Text('Deny'),
-                        style: OutlinedButton.styleFrom(
-                          foregroundColor: Colors.red,
-                          side: const BorderSide(color: Colors.red),
-                          padding: const EdgeInsets.symmetric(vertical: 12),
-                        ),
-                      ),
-                    ],
-                  )
-                : Row(
-                    mainAxisAlignment: MainAxisAlignment.end,
-                    children: [
-                      TextButton(
-                        onPressed: () => onAction(goal.id, date, false),
-                        style:
-                            TextButton.styleFrom(foregroundColor: Colors.red),
-                        child: const Text('Deny'),
-                      ),
-                      const SizedBox(width: 8),
-                      ElevatedButton(
-                        onPressed: () => onAction(goal.id, date, true),
-                        style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.green),
-                        child: const Text('Approve'),
-                      ),
-                    ],
+                    ),
+                  ],
+                ),
+              ),
+            ] else if (isSmallScreen) ...[
+              // Mobile layout for other users
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  ElevatedButton.icon(
+                    onPressed: () => onAction(goal.id, date, true),
+                    icon: const Icon(Icons.check),
+                    label: const Text('Approve'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.green,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                    ),
                   ),
+                  const SizedBox(height: 8),
+                  OutlinedButton.icon(
+                    onPressed: () => onAction(goal.id, date, false),
+                    icon: const Icon(Icons.close),
+                    label: const Text('Deny'),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: Colors.red,
+                      side: const BorderSide(color: Colors.red),
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                    ),
+                  ),
+                ],
+              ),
+            ] else ...[
+              // Desktop layout for other users
+              Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  TextButton(
+                    onPressed: () => onAction(goal.id, date, false),
+                    style: TextButton.styleFrom(foregroundColor: Colors.red),
+                    child: const Text('Deny'),
+                  ),
+                  const SizedBox(width: 8),
+                  ElevatedButton(
+                    onPressed: () => onAction(goal.id, date, true),
+                    style:
+                        ElevatedButton.styleFrom(backgroundColor: Colors.green),
+                    child: const Text('Approve'),
+                  ),
+                ],
+              ),
+            ],
           ],
         ),
       ),

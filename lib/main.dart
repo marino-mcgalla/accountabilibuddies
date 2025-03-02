@@ -1,3 +1,5 @@
+import 'package:auth_test/features/core/themes/app_theme.dart';
+import 'package:auth_test/features/core/themes/theme_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'firebase_options.dart';
@@ -6,7 +8,7 @@ import 'package:provider/provider.dart';
 import 'features/goals/providers/goals_provider.dart';
 import 'features/party/providers/party_provider.dart';
 import 'features/time_machine/providers/time_machine_provider.dart';
-import 'features/core/utils/responsive_wrapper.dart'; // Import the new wrapper
+import 'features/core/utils/responsive_wrapper.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -23,6 +25,9 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MultiProvider(
       providers: [
+        // Add the ThemeProvider
+        ChangeNotifierProvider(create: (context) => ThemeProvider()),
+
         ChangeNotifierProvider(create: (context) => TimeMachineProvider()),
         ChangeNotifierProxyProvider<TimeMachineProvider, GoalsProvider>(
           create: (context) => GoalsProvider(
@@ -38,34 +43,20 @@ class MyApp extends StatelessWidget {
           ),
         ),
       ],
-      child: ResponsiveWrapper(
-        child: MaterialApp.router(
-          title: 'Accountabilibuddies',
-          theme: ThemeData(
-            colorScheme: ColorScheme.fromSeed(seedColor: Colors.green),
-            useMaterial3: true,
-            // Optimize for mobile
-            visualDensity: VisualDensity.adaptivePlatformDensity,
-            // Make sure input fields have sufficient height
-            inputDecorationTheme: const InputDecorationTheme(
-              contentPadding:
-                  EdgeInsets.symmetric(vertical: 16.0, horizontal: 12.0),
+      child: Consumer<ThemeProvider>(
+        builder: (context, themeProvider, child) {
+          return ResponsiveWrapper(
+            child: MaterialApp.router(
+              title: 'Accountabilibuddies',
+              theme: AppTheme.lightTheme, // Light theme
+              darkTheme: AppTheme.darkTheme, // Dark theme
+              themeMode: themeProvider.isDarkMode
+                  ? ThemeMode.dark
+                  : ThemeMode.light, // Use stored preference
+              routerConfig: appRouter,
             ),
-            elevatedButtonTheme: ElevatedButtonThemeData(
-              style: ElevatedButton.styleFrom(
-                minimumSize: const Size(44, 44), // Make buttons more tappable
-              ),
-            ),
-            // More generous space for dialogs
-            dialogTheme: DialogTheme(
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(16),
-              ),
-              contentTextStyle: const TextStyle(fontSize: 16),
-            ),
-          ),
-          routerConfig: appRouter,
-        ),
+          );
+        },
       ),
     );
   }

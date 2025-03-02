@@ -1,6 +1,8 @@
+import 'package:auth_test/features/core/themes/theme_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:provider/provider.dart';
 
 class AppScaffold extends StatelessWidget {
   final Widget child;
@@ -8,9 +10,9 @@ class AppScaffold extends StatelessWidget {
   const AppScaffold({super.key, required this.child});
 
   Future<void> _signOut(BuildContext context) async {
-    await FirebaseAuth.instance.signOut(); // ✅ Actually logs out the user
+    await FirebaseAuth.instance.signOut(); // Actually logs out the user
     if (context.mounted) {
-      context.go('/'); // ✅ Redirects to AuthGate
+      context.go('/'); // Redirects to AuthGate
     }
   }
 
@@ -20,11 +22,32 @@ class AppScaffold extends StatelessWidget {
     final screenWidth = MediaQuery.of(context).size.width;
     final isSmallScreen = screenWidth < 600;
 
+    // Get the current theme mode
+    final themeProvider = Provider.of<ThemeProvider>(context);
+    final isDarkMode = themeProvider.isDarkMode;
+
     return Scaffold(
       appBar: AppBar(
-        title: const Text("Accountabilibuddies"),
+        title: const Text(
+          "Accountabilibuddies",
+          style: TextStyle(fontWeight: FontWeight.bold),
+        ),
         // For small screens, make sure the title fits
         titleSpacing: isSmallScreen ? 0 : NavigationToolbar.kMiddleSpacing,
+        // Add theme toggle button to the app bar
+        actions: [
+          IconButton(
+            icon: Icon(
+              isDarkMode ? Icons.light_mode : Icons.dark_mode,
+              color: Colors.white,
+            ),
+            onPressed: () {
+              themeProvider.toggleTheme();
+            },
+            tooltip:
+                isDarkMode ? 'Switch to light theme' : 'Switch to dark theme',
+          ),
+        ],
       ),
       drawer: Drawer(
         // Make drawer take appropriate width based on screen size
@@ -33,60 +56,100 @@ class AppScaffold extends StatelessWidget {
           padding: EdgeInsets.zero,
           children: <Widget>[
             DrawerHeader(
-              decoration: const BoxDecoration(
-                color: Colors.blue,
+              decoration: BoxDecoration(
+                color: Theme.of(context).primaryColor,
               ),
-              child: Text(
-                'Navigation Drawer',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: isSmallScreen ? 20 : 24,
-                ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  // User avatar or app logo
+                  CircleAvatar(
+                    backgroundColor: Colors.white24,
+                    radius: 32,
+                    child: Icon(
+                      Icons.person,
+                      color: Colors.white,
+                      size: 40,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  // User email or display name if available
+                  Text(
+                    FirebaseAuth.instance.currentUser?.email ?? 'Guest User',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 16,
+                    ),
+                  ),
+                ],
               ),
             ),
             // Increase touch target size for mobile
+            _buildDrawerItem(
+              context,
+              Icons.home,
+              'Home',
+              '/home',
+              isSmallScreen,
+            ),
+            _buildDrawerItem(
+              context,
+              Icons.flag_outlined,
+              'My Goals',
+              '/goals',
+              isSmallScreen,
+            ),
+            _buildDrawerItem(
+              context,
+              Icons.group,
+              'Party',
+              '/party',
+              isSmallScreen,
+            ),
+            _buildDrawerItem(
+              context,
+              Icons.person,
+              'User Info',
+              '/user-info',
+              isSmallScreen,
+            ),
+            _buildDrawerItem(
+              context,
+              Icons.warning,
+              'Time Machine',
+              '/time-machine',
+              isSmallScreen,
+            ),
+
+            // Theme toggle in drawer
             ListTile(
               contentPadding: EdgeInsets.symmetric(
                   horizontal: 16.0, vertical: isSmallScreen ? 4.0 : 0.0),
-              leading: const Icon(Icons.home),
-              title: const Text('Home'),
-              onTap: () => context.go('/home'),
+              leading: Icon(
+                isDarkMode ? Icons.light_mode : Icons.dark_mode,
+              ),
+              title: Text(
+                isDarkMode ? 'Light Theme' : 'Dark Theme',
+              ),
+              onTap: () {
+                themeProvider.toggleTheme();
+                // Optionally close the drawer
+                Navigator.pop(context);
+              },
             ),
-            ListTile(
-              contentPadding: EdgeInsets.symmetric(
-                  horizontal: 16.0, vertical: isSmallScreen ? 4.0 : 0.0),
-              leading: const Icon(Icons.flag_outlined),
-              title: const Text('My Goals'),
-              onTap: () => context.go('/goals'),
-            ),
-            ListTile(
-              contentPadding: EdgeInsets.symmetric(
-                  horizontal: 16.0, vertical: isSmallScreen ? 4.0 : 0.0),
-              leading: const Icon(Icons.group),
-              title: const Text('Party'),
-              onTap: () => context.go('/party'),
-            ),
-            ListTile(
-              contentPadding: EdgeInsets.symmetric(
-                  horizontal: 16.0, vertical: isSmallScreen ? 4.0 : 0.0),
-              leading: const Icon(Icons.person),
-              title: const Text('User Info'),
-              onTap: () => context.go('/user-info'),
-            ),
-            ListTile(
-              contentPadding: EdgeInsets.symmetric(
-                  horizontal: 16.0, vertical: isSmallScreen ? 4.0 : 0.0),
-              leading: const Icon(Icons.warning),
-              title: const Text('Time Machine'),
-              onTap: () => context.go('/time-machine'),
-            ),
+
             const Divider(),
             ListTile(
               contentPadding: EdgeInsets.symmetric(
                   horizontal: 16.0, vertical: isSmallScreen ? 4.0 : 0.0),
-              leading: const Icon(Icons.logout),
-              title: const Text('Sign Out'),
-              onTap: () => _signOut(context), // ✅ Calls Firebase sign-out first
+              leading: const Icon(
+                Icons.logout,
+              ),
+              title: const Text(
+                'Sign Out',
+              ),
+              onTap: () => _signOut(context),
             ),
           ],
         ),
@@ -95,6 +158,45 @@ class AppScaffold extends StatelessWidget {
       body: SafeArea(
         child: child,
       ),
+    );
+  }
+
+  // Helper method to build consistent drawer items
+  Widget _buildDrawerItem(
+    BuildContext context,
+    IconData icon,
+    String title,
+    String route,
+    bool isSmallScreen,
+  ) {
+    final isCurrentRoute = GoRouterState.of(context).matchedLocation == route;
+
+    return ListTile(
+      contentPadding: EdgeInsets.symmetric(
+          horizontal: 16.0, vertical: isSmallScreen ? 4.0 : 0.0),
+      leading: Icon(
+        icon,
+        color: isCurrentRoute ? Theme.of(context).primaryColor : null,
+      ),
+      title: Text(
+        title,
+        style: TextStyle(
+          fontWeight: isCurrentRoute ? FontWeight.bold : FontWeight.normal,
+        ),
+      ),
+      tileColor: isCurrentRoute
+          ? Theme.of(context).primaryColor.withOpacity(0.1)
+          : null,
+      onTap: () => context.go(route),
+      // Show subtle indicator when route is active
+      shape: isCurrentRoute
+          ? const RoundedRectangleBorder(
+              borderRadius: BorderRadius.only(
+                topRight: Radius.circular(30),
+                bottomRight: Radius.circular(30),
+              ),
+            )
+          : null,
     );
   }
 }

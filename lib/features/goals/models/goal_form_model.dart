@@ -15,10 +15,12 @@ class GoalFormModel {
   int goalFrequency;
   bool active;
   DateTime weekStartDate;
-  Map<String, dynamic> currentWeekCompletions;
 
   final formKey = GlobalKey<FormState>();
-  final List<bool> selectedGoalType = [true, false]; // Default to 'total'
+  final List<bool> selectedGoalType = [
+    true,
+    false
+  ]; //refers to toggle buttons. Left is total, right is weekly
 
   GoalFormModel({
     this.id = '',
@@ -27,11 +29,9 @@ class GoalFormModel {
     this.goalType = 'total',
     this.goalCriteria = '',
     this.goalFrequency = 1,
-    this.active = false,
+    this.active = true, // Default to active for new goals
     DateTime? weekStartDate,
-    Map<String, dynamic>? currentWeekCompletions,
-  })  : weekStartDate = weekStartDate ?? DateTime.now(),
-        currentWeekCompletions = currentWeekCompletions ?? {};
+  }) : weekStartDate = weekStartDate ?? DateTime.now();
 
   /// Create a form model from an existing goal
   factory GoalFormModel.fromGoal(Goal goal) {
@@ -44,7 +44,6 @@ class GoalFormModel {
       goalFrequency: goal.goalFrequency,
       active: goal.active,
       weekStartDate: goal.weekStartDate,
-      currentWeekCompletions: goal.currentWeekCompletions,
     );
   }
 
@@ -105,7 +104,9 @@ class GoalFormModel {
         active: active,
         goalFrequency: goalFrequency,
         weekStartDate: weekStartDate,
-        currentWeekCompletions: currentWeekCompletions.cast<String, int>(),
+        currentWeekCompletions: {}, // Initialize empty for new goals
+        totalCompletions: 0, // Initialize at 0 for new goals
+        proofs: [], // Initialize empty for new goals
       );
     } else {
       return WeeklyGoal(
@@ -116,7 +117,7 @@ class GoalFormModel {
         active: active,
         goalFrequency: goalFrequency,
         weekStartDate: weekStartDate,
-        currentWeekCompletions: currentWeekCompletions.cast<String, String>(),
+        currentWeekCompletions: {}, // Initialize empty for new goals
       );
     }
   }

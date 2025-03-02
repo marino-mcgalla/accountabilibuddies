@@ -1,6 +1,9 @@
 import 'goal_model.dart';
+import 'proof_model.dart';
 
 class WeeklyGoal extends Goal {
+  Map<String, Proof> proofs;
+
   WeeklyGoal({
     required String id,
     required String ownerId,
@@ -10,9 +13,7 @@ class WeeklyGoal extends Goal {
     required int goalFrequency,
     required DateTime weekStartDate,
     required Map<String, String> currentWeekCompletions,
-    String? proofText,
-    String? proofStatus,
-    DateTime? proofSubmissionDate,
+    this.proofs = const {},
   }) : super(
           id: id,
           ownerId: ownerId,
@@ -23,30 +24,30 @@ class WeeklyGoal extends Goal {
           goalFrequency: goalFrequency,
           weekStartDate: weekStartDate,
           currentWeekCompletions: currentWeekCompletions,
-          proofText: proofText,
-          proofStatus: proofStatus,
-          proofSubmissionDate: proofSubmissionDate,
         );
+
+  // Type-safe getter for currentWeekCompletions
+  Map<String, String> get weeklyCompletions =>
+      Map<String, String>.from(currentWeekCompletions);
 
   @override
   Map<String, dynamic> toMap() {
-    return {
-      'id': id,
-      'ownerId': ownerId,
-      'goalName': goalName,
-      'goalType': goalType,
-      'goalCriteria': goalCriteria,
-      'active': active,
-      'goalFrequency': goalFrequency,
-      'weekStartDate': weekStartDate.toIso8601String(),
-      'currentWeekCompletions': currentWeekCompletions,
-      'proofText': proofText,
-      'proofStatus': proofStatus,
-      'proofSubmissionDate': proofSubmissionDate?.toIso8601String(),
-    };
+    final map = super.toMap();
+    map['proofs'] = proofs.map((date, proof) => MapEntry(date, proof.toMap()));
+    return map;
   }
 
   factory WeeklyGoal.fromMap(Map<String, dynamic> data) {
+    // Parse proofs
+    Map<String, Proof> proofMap = {};
+    if (data['proofs'] != null) {
+      final Map<String, dynamic> proofsData =
+          Map<String, dynamic>.from(data['proofs']);
+      proofsData.forEach((date, proofData) {
+        proofMap[date] = Proof.fromMap(proofData);
+      });
+    }
+
     return WeeklyGoal(
       id: data['id'],
       ownerId: data['ownerId'],
@@ -56,12 +57,8 @@ class WeeklyGoal extends Goal {
       goalFrequency: data['goalFrequency'],
       weekStartDate: DateTime.parse(data['weekStartDate']),
       currentWeekCompletions:
-          Map<String, String>.from(data['currentWeekCompletions']),
-      proofText: data['proofText'],
-      proofStatus: data['proofStatus'],
-      proofSubmissionDate: data['proofSubmissionDate'] != null
-          ? DateTime.parse(data['proofSubmissionDate'])
-          : null,
+          Map<String, String>.from(data['currentWeekCompletions'] ?? {}),
+      proofs: proofMap,
     );
   }
 }

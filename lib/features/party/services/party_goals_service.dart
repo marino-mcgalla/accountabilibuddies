@@ -3,6 +3,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import '../../goals/models/goal_model.dart';
 import '../../goals/models/total_goal.dart';
 import '../../goals/models/weekly_goal.dart';
+import '../../goals/models/proof_model.dart'; // Import the Proof model
 import '../../time_machine/providers/time_machine_provider.dart';
 
 /// Service for handling goal-related operations in parties
@@ -39,43 +40,64 @@ class PartyGoalsService {
       List<String> members) async {
     List<Map<String, dynamic>> submittedGoals = [];
 
-    for (String memberId in members) {
-      DocumentSnapshot userGoalsDoc =
-          await _firestore.collection('userGoals').doc(memberId).get();
+    try {
+      for (String memberId in members) {
+        DocumentSnapshot userGoalsDoc =
+            await _firestore.collection('userGoals').doc(memberId).get();
 
-      if (userGoalsDoc.exists && userGoalsDoc.data() != null) {
-        Map<String, dynamic> userData =
-            userGoalsDoc.data() as Map<String, dynamic>;
-        List<dynamic> goalsData = userData['goals'] ?? [];
+        if (userGoalsDoc.exists && userGoalsDoc.data() != null) {
+          Map<String, dynamic> userData =
+              userGoalsDoc.data() as Map<String, dynamic>;
+          List<dynamic> goalsData = userData['goals'] ?? [];
 
-        for (var goalData in goalsData) {
-          Goal goal = Goal.fromMap(goalData);
+          for (var goalData in goalsData) {
+            Goal goal = Goal.fromMap(goalData);
 
-          if (goal is WeeklyGoal) {
-            Map<String, String> completions =
-                goal.currentWeekCompletions.cast<String, String>();
-            completions.forEach((day, status) {
-              if (status == 'submitted') {
-                submittedGoals.add({
-                  'goal': goal,
-                  'userId': memberId,
-                  'date': day,
-                });
-              }
-            });
-          } else if (goal is TotalGoal) {
-            for (var proof in goal.proofs) {
-              if (proof['status'] == 'pending') {
-                submittedGoals.add({
-                  'goal': goal,
-                  'userId': memberId,
-                  'proof': proof,
-                });
+            if (goal is WeeklyGoal) {
+              Map<String, String> completions =
+                  Map<String, String>.from(goal.currentWeekCompletions);
+              completions.forEach((day, status) {
+                if (status == 'submitted') {
+                  // Check if there's a proof for this day
+                  dynamic proofData;
+                  if (goal.proofs.containsKey(day)) {
+                    proofData = goal.proofs[day]?.toMap();
+                  }
+
+                  submittedGoals.add({
+                    'goal': goal,
+                    'userId': memberId,
+                    'date': day,
+                    'proof': proofData, // Include the proof data if available
+                  });
+                }
+              });
+            } else if (goal is TotalGoal) {
+              for (var proof in goal.proofs) {
+                // Convert Proof object to a Map to avoid type issues
+                Map<String, dynamic> proofMap = {
+                  'proofText': proof.proofText,
+                  'submissionDate': proof.submissionDate.toIso8601String(),
+                  'status': proof.status,
+                  'imageUrl': proof.imageUrl, // Include the image URL
+                };
+
+                if (proof.status == 'pending') {
+                  submittedGoals.add({
+                    'goal': goal,
+                    'userId': memberId,
+                    'proof': proofMap, // Use the Map instead of the object
+                  });
+                }
               }
             }
           }
         }
       }
+    } catch (e) {
+      print('Error in fetchSubmittedGoalsForParty: $e');
+      // Rethrow to let the caller handle it
+      rethrow;
     }
 
     return submittedGoals;

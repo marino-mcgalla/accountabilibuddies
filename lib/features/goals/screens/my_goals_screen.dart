@@ -34,7 +34,7 @@ class _MyGoalsScreenState extends State<MyGoalsScreen>
 
   Future<void> _refreshGoals() async {
     // This will trigger the firestore listener in GoalsProvider
-    await Provider.of<GoalsProvider>(context, listen: false)
+    Provider.of<GoalsProvider>(context, listen: false)
         .initializeGoalsListener();
   }
 

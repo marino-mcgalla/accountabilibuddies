@@ -80,32 +80,138 @@ class _UserInfoScreenState extends State<UserInfoScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // Get screen size for responsive design
+    final screenWidth = MediaQuery.of(context).size.width;
+    final isSmallScreen = screenWidth < 600;
+
     return Scaffold(
       appBar: AppBar(title: const Text("User Info")),
       body: Padding(
-        padding: const EdgeInsets.all(16.0),
+        padding: EdgeInsets.all(isSmallScreen ? 16.0 : 24.0),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             if (_username != null && _username!.isNotEmpty) ...[
-              Text("Username: $_username",
-                  style: Theme.of(context).textTheme.titleLarge),
-            ] else ...[
-              TextField(
-                controller: _usernameController,
-                decoration: InputDecoration(
-                  labelText: "Username",
-                  border: OutlineInputBorder(),
-                  errorText: _errorMessage,
+              // Profile display mode
+              Card(
+                elevation: isSmallScreen ? 2 : 1,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(isSmallScreen ? 16 : 8),
+                ),
+                child: Padding(
+                  padding: EdgeInsets.all(isSmallScreen ? 24.0 : 16.0),
+                  child: Column(
+                    children: [
+                      // Avatar placeholder
+                      CircleAvatar(
+                        radius: isSmallScreen ? 48 : 40,
+                        backgroundColor: Theme.of(context)
+                            .colorScheme
+                            .primary
+                            .withOpacity(0.2),
+                        child: Icon(
+                          Icons.person,
+                          size: isSmallScreen ? 48 : 40,
+                          color: Theme.of(context).colorScheme.primary,
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+
+                      // Username display
+                      Text(
+                        "Username: $_username",
+                        style: TextStyle(
+                          fontSize: isSmallScreen ? 20 : 18,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+
+                      const SizedBox(height: 8),
+
+                      // Email display if available
+                      if (_auth.currentUser?.email != null)
+                        Text(
+                          "Email: ${_auth.currentUser!.email}",
+                          style: TextStyle(
+                            fontSize: isSmallScreen ? 16 : 14,
+                            color: Colors.grey[600],
+                          ),
+                        ),
+
+                      const SizedBox(height: 24),
+
+                      // Edit button
+                      ElevatedButton.icon(
+                        onPressed: () {
+                          setState(() {
+                            _username = null; // Switch to edit mode
+                          });
+                        },
+                        icon: const Icon(Icons.edit),
+                        label: const Text("Edit Username"),
+                        style: ElevatedButton.styleFrom(
+                          padding: EdgeInsets.symmetric(
+                            horizontal: 24,
+                            vertical: isSmallScreen ? 12 : 8,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
-              const SizedBox(height: 16),
-              _isLoading
-                  ? const CircularProgressIndicator()
-                  : ElevatedButton(
-                      onPressed: _saveUsername,
-                      child: const Text("Save"),
-                    ),
+            ] else ...[
+              // Edit mode
+              Card(
+                elevation: isSmallScreen ? 2 : 1,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(isSmallScreen ? 16 : 8),
+                ),
+                child: Padding(
+                  padding: EdgeInsets.all(isSmallScreen ? 24.0 : 16.0),
+                  child: Column(
+                    children: [
+                      Text(
+                        "Set Your Username",
+                        style: TextStyle(
+                          fontSize: isSmallScreen ? 20 : 18,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      const SizedBox(height: 24),
+                      TextField(
+                        controller: _usernameController,
+                        decoration: InputDecoration(
+                          labelText: "Username",
+                          border: const OutlineInputBorder(),
+                          errorText: _errorMessage,
+                          contentPadding: EdgeInsets.symmetric(
+                            horizontal: 16.0,
+                            vertical: isSmallScreen ? 16.0 : 12.0,
+                          ),
+                        ),
+                        style: TextStyle(fontSize: isSmallScreen ? 16 : 14),
+                        textInputAction: TextInputAction.done,
+                        onSubmitted: (_) => _saveUsername(),
+                      ),
+                      const SizedBox(height: 24),
+                      _isLoading
+                          ? const CircularProgressIndicator()
+                          : ElevatedButton.icon(
+                              onPressed: _saveUsername,
+                              icon: const Icon(Icons.save),
+                              label: const Text("Save Username"),
+                              style: ElevatedButton.styleFrom(
+                                padding: EdgeInsets.symmetric(
+                                  horizontal: 24,
+                                  vertical: isSmallScreen ? 12 : 8,
+                                ),
+                              ),
+                            ),
+                    ],
+                  ),
+                ),
+              ),
             ],
           ],
         ),

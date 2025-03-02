@@ -22,7 +22,7 @@ class CreatePartyScreen extends StatelessWidget {
         ElevatedButton(
           onPressed: () =>
               partyProvider.createParty(partyProvider.partyNameController.text),
-          child: const Text("Create Partylasjdlkajd"),
+          child: const Text("Create Party"),
         ),
       ],
     );

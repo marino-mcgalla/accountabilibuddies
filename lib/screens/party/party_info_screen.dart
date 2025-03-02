@@ -32,7 +32,6 @@ class PartyInfoScreen extends StatelessWidget {
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text("Party ID: $partyId"),
             Text("Party Name: $partyName"),
             const SizedBox(height: 20),
             ...members.map((memberId) => Column(

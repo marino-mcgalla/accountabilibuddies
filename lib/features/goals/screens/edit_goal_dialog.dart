@@ -72,15 +72,78 @@ class _EditGoalDialogState extends State<EditGoalDialog> {
 
   @override
   Widget build(BuildContext context) {
+    // Get screen size for responsive design
+    final screenSize = MediaQuery.of(context).size;
+    final isSmallScreen = screenSize.width < 600;
+
+    // For mobile, use a more appropriate full-screen dialog
+    if (isSmallScreen) {
+      return Dialog.fullscreen(
+        child: Scaffold(
+          resizeToAvoidBottomInset:
+              false, // This prevents resize when keyboard appears
+          appBar: AppBar(
+            title: const Text('Edit Goal'),
+            leading: IconButton(
+              icon: const Icon(Icons.close),
+              onPressed: () => Navigator.of(context).pop(),
+            ),
+            actions: [
+              if (_isLoading)
+                const Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 16.0),
+                  child: Center(
+                    child: SizedBox(
+                      width: 24,
+                      height: 24,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    ),
+                  ),
+                )
+              else
+                TextButton(
+                  onPressed: _saveGoal,
+                  child: const Text(
+                    'SAVE',
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                )
+            ],
+          ),
+          body: SafeArea(
+            // Use SingleChildScrollView to allow scrolling when keyboard appears
+            child: SingleChildScrollView(
+              child: Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: GoalForm(
+                  model: _model,
+                  onFormChanged: _onFormChanged,
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+    }
+
+    // Desktop version
     return FormDialog(
       title: 'Edit Goal',
       isLoading: _isLoading,
       onCancel: () => Navigator.of(context).pop(),
       onSubmit: _saveGoal,
       submitText: 'Save',
-      child: GoalForm(
-        model: _model,
-        onFormChanged: _onFormChanged,
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(
+          maxWidth: 400,
+          minWidth: 300,
+        ),
+        child: GoalForm(
+          model: _model,
+          onFormChanged: _onFormChanged,
+        ),
       ),
     );
   }

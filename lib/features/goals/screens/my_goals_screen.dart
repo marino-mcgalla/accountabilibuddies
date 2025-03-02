@@ -130,10 +130,10 @@ class _MyGoalsScreenState extends State<MyGoalsScreen>
           );
         },
       ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () => _showAddGoalDialog(context),
-        child: const Icon(Icons.add),
-      ),
+      // floatingActionButton: FloatingActionButton(
+      //   onPressed: () => _showAddGoalDialog(context),
+      //   child: const Icon(Icons.add),
+      // ),
     );
   }
 

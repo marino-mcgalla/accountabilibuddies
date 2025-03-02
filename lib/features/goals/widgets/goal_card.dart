@@ -26,21 +26,30 @@ class GoalCard extends StatefulWidget {
 class _GoalCardState extends State<GoalCard> {
   @override
   Widget build(BuildContext context) {
+    // Check screen size for responsive adjustments
+    final screenWidth = MediaQuery.of(context).size.width;
+    final isSmallScreen = screenWidth < 600;
+
     return Card(
-      margin: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+      margin: EdgeInsets.symmetric(
+          horizontal: isSmallScreen ? 8.0 : 16.0, vertical: 8.0),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(isSmallScreen ? 12 : 8),
+      ),
       child: Padding(
-        padding: const EdgeInsets.all(16.0),
+        padding: EdgeInsets.all(isSmallScreen ? 12.0 : 16.0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _buildHeader(),
+            _buildHeader(isSmallScreen),
             const Divider(),
             ProgressTracker(
               goal: widget.goal,
               onDayTap: _handleDayTap,
+              isCompact: isSmallScreen, // Pass the screen size info
             ),
             const SizedBox(height: 12),
-            _buildActions(context),
+            _buildActions(context, isSmallScreen),
           ],
         ),
       ),
@@ -48,14 +57,14 @@ class _GoalCardState extends State<GoalCard> {
   }
 
   /// Builds the goal header with name and details
-  Widget _buildHeader() {
+  Widget _buildHeader(bool isSmallScreen) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
           widget.goal.goalName,
-          style: const TextStyle(
-            fontSize: 18,
+          style: TextStyle(
+            fontSize: isSmallScreen ? 18 : 18,
             fontWeight: FontWeight.bold,
           ),
         ),
@@ -63,7 +72,7 @@ class _GoalCardState extends State<GoalCard> {
         Text(
           '${widget.goal.goalType.capitalize()} goal · ${widget.goal.goalFrequency} ${widget.goal.goalType == 'weekly' ? 'days/week' : 'total'}',
           style: TextStyle(
-            fontSize: 14,
+            fontSize: isSmallScreen ? 14 : 14,
             color: Colors.grey[700],
           ),
         ),
@@ -72,7 +81,7 @@ class _GoalCardState extends State<GoalCard> {
           Text(
             widget.goal.goalCriteria,
             style: TextStyle(
-              fontSize: 14,
+              fontSize: isSmallScreen ? 14 : 14,
               fontStyle: FontStyle.italic,
               color: Colors.grey[600],
             ),
@@ -83,39 +92,102 @@ class _GoalCardState extends State<GoalCard> {
   }
 
   /// Builds the action buttons
-  Widget _buildActions(BuildContext context) {
+  Widget _buildActions(BuildContext context, bool isSmallScreen) {
     final goalsProvider = Provider.of<GoalsProvider>(context, listen: false);
 
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.end,
-      children: [
-        if (widget.goal is TotalGoal)
+    // For small screens, use a more compact layout
+    if (isSmallScreen) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          // First row
+          Row(
+            children: [
+              if (widget.goal is TotalGoal)
+                Expanded(
+                  child: ElevatedButton.icon(
+                    icon: const Icon(Icons.add, size: 18),
+                    label: const Text('Increment'),
+                    onPressed: () =>
+                        goalsProvider.incrementCompletions(widget.goal.id),
+                    style: ElevatedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                    ),
+                  ),
+                )
+              else
+                const Spacer(),
+              const SizedBox(width: 8),
+              Expanded(
+                child: ElevatedButton.icon(
+                  icon: const Icon(Icons.check, size: 18),
+                  label: const Text('Submit Proof'),
+                  onPressed: () => _submitProof(context),
+                  style: ElevatedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          // Second row
+          Row(
+            mainAxisAlignment: MainAxisAlignment.end,
+            children: [
+              IconButton(
+                icon: const Icon(Icons.edit),
+                onPressed: widget.onEdit,
+                tooltip: 'Edit',
+                iconSize: 24,
+                padding: const EdgeInsets.all(12),
+              ),
+              IconButton(
+                icon: const Icon(Icons.delete),
+                onPressed: widget.onDelete,
+                tooltip: 'Delete',
+                color: Colors.red,
+                iconSize: 24,
+                padding: const EdgeInsets.all(12),
+              ),
+            ],
+          ),
+        ],
+      );
+    } else {
+      // Desktop layout
+      return Row(
+        mainAxisAlignment: MainAxisAlignment.end,
+        children: [
+          if (widget.goal is TotalGoal)
+            TextButton.icon(
+              icon: const Icon(Icons.add),
+              label: const Text('Increment'),
+              onPressed: () =>
+                  goalsProvider.incrementCompletions(widget.goal.id),
+            )
+          else
+            const SizedBox.shrink(),
+          const Spacer(),
           TextButton.icon(
-            icon: const Icon(Icons.add),
-            label: const Text('Increment'),
-            onPressed: () => goalsProvider.incrementCompletions(widget.goal.id),
-          )
-        else
-          const SizedBox.shrink(),
-        const Spacer(),
-        TextButton.icon(
-          icon: const Icon(Icons.check),
-          label: const Text('Submit Proof'),
-          onPressed: () => _submitProof(context),
-        ),
-        IconButton(
-          icon: const Icon(Icons.edit),
-          onPressed: widget.onEdit,
-          tooltip: 'Edit',
-        ),
-        IconButton(
-          icon: const Icon(Icons.delete),
-          onPressed: widget.onDelete,
-          tooltip: 'Delete',
-          color: Colors.red,
-        ),
-      ],
-    );
+            icon: const Icon(Icons.check),
+            label: const Text('Submit Proof'),
+            onPressed: () => _submitProof(context),
+          ),
+          IconButton(
+            icon: const Icon(Icons.edit),
+            onPressed: widget.onEdit,
+            tooltip: 'Edit',
+          ),
+          IconButton(
+            icon: const Icon(Icons.delete),
+            onPressed: widget.onDelete,
+            tooltip: 'Delete',
+            color: Colors.red,
+          ),
+        ],
+      );
+    }
   }
 
   /// Handles tapping on a day for weekly goals

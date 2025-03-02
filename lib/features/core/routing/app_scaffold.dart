@@ -16,58 +16,74 @@ class AppScaffold extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Get screen dimensions
+    final screenWidth = MediaQuery.of(context).size.width;
+    final isSmallScreen = screenWidth < 600;
+
     return Scaffold(
       appBar: AppBar(
         title: const Text("Accountabilibuddies"),
+        // For small screens, make sure the title fits
+        titleSpacing: isSmallScreen ? 0 : NavigationToolbar.kMiddleSpacing,
       ),
       drawer: Drawer(
+        // Make drawer take appropriate width based on screen size
+        width: isSmallScreen ? screenWidth * 0.85 : 300,
         child: ListView(
           padding: EdgeInsets.zero,
           children: <Widget>[
-            const DrawerHeader(
-              decoration: BoxDecoration(
+            DrawerHeader(
+              decoration: const BoxDecoration(
                 color: Colors.blue,
               ),
               child: Text(
                 'Navigation Drawer',
                 style: TextStyle(
                   color: Colors.white,
-                  fontSize: 24,
+                  fontSize: isSmallScreen ? 20 : 24,
                 ),
               ),
             ),
+            // Increase touch target size for mobile
             ListTile(
+              contentPadding: EdgeInsets.symmetric(
+                  horizontal: 16.0, vertical: isSmallScreen ? 4.0 : 0.0),
               leading: const Icon(Icons.home),
               title: const Text('Home'),
               onTap: () => context.go('/home'),
             ),
             ListTile(
+              contentPadding: EdgeInsets.symmetric(
+                  horizontal: 16.0, vertical: isSmallScreen ? 4.0 : 0.0),
               leading: const Icon(Icons.flag_outlined),
               title: const Text('My Goals'),
               onTap: () => context.go('/goals'),
             ),
             ListTile(
+              contentPadding: EdgeInsets.symmetric(
+                  horizontal: 16.0, vertical: isSmallScreen ? 4.0 : 0.0),
               leading: const Icon(Icons.group),
               title: const Text('Party'),
               onTap: () => context.go('/party'),
             ),
             ListTile(
+              contentPadding: EdgeInsets.symmetric(
+                  horizontal: 16.0, vertical: isSmallScreen ? 4.0 : 0.0),
               leading: const Icon(Icons.person),
               title: const Text('User Info'),
               onTap: () => context.go('/user-info'),
             ),
             ListTile(
+              contentPadding: EdgeInsets.symmetric(
+                  horizontal: 16.0, vertical: isSmallScreen ? 4.0 : 0.0),
               leading: const Icon(Icons.warning),
               title: const Text('Time Machine'),
               onTap: () => context.go('/time-machine'),
             ),
-            // ListTile(
-            //   leading: const Icon(Icons.punch_clock),
-            //   title: const Text('Sandbox'), // Add Sandbox entry
-            //   onTap: () => context.go('/sandbox'),
-            // ),
             const Divider(),
             ListTile(
+              contentPadding: EdgeInsets.symmetric(
+                  horizontal: 16.0, vertical: isSmallScreen ? 4.0 : 0.0),
               leading: const Icon(Icons.logout),
               title: const Text('Sign Out'),
               onTap: () => _signOut(context), // ✅ Calls Firebase sign-out first
@@ -75,7 +91,10 @@ class AppScaffold extends StatelessWidget {
           ],
         ),
       ),
-      body: child, // Ensures all screens keep the drawer
+      // Wrap body in SafeArea to avoid notches and system UI elements
+      body: SafeArea(
+        child: child,
+      ),
     );
   }
 }

@@ -25,17 +25,22 @@ class ProgressTracker extends StatelessWidget {
     final keyString = '${goal.id}-${goal.currentWeekCompletions.hashCode}';
     final valueKey = ValueKey(keyString);
 
+    // Get screen dimensions
+    final screenWidth = MediaQuery.of(context).size.width;
+    final isMobileScreen = screenWidth < 600;
+
     if (goal is TotalGoal) {
-      return _buildTotalGoalTracker(context, valueKey);
+      return _buildTotalGoalTracker(context, valueKey, isMobileScreen);
     } else if (goal is WeeklyGoal) {
-      return _buildWeeklyGoalTracker(context, valueKey);
+      return _buildWeeklyGoalTracker(context, valueKey, isMobileScreen);
     }
 
     return const SizedBox.shrink(); // Fallback
   }
 
   /// Builds a tracker for total goals
-  Widget _buildTotalGoalTracker(BuildContext context, Key key) {
+  Widget _buildTotalGoalTracker(
+      BuildContext context, Key key, bool isMobileScreen) {
     final totalGoal = goal as TotalGoal;
 
     // Calculate progress
@@ -54,39 +59,48 @@ class ProgressTracker extends StatelessWidget {
 
     return Container(
       key: key,
-      margin: EdgeInsets.symmetric(vertical: isCompact ? 4 : 8),
+      margin: EdgeInsets.symmetric(vertical: isMobileScreen ? 8 : 8),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           if (!isCompact)
             Text(
               goal.goalName,
-              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+              style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: isMobileScreen ? 16 : 16),
             ),
           const SizedBox(height: 4),
           Stack(
             children: [
               // Background progress (includes pending)
-              LinearProgressIndicator(
-                value: pendingProgress,
-                backgroundColor: Colors.grey[300],
-                valueColor: const AlwaysStoppedAnimation<Color>(Colors.yellow),
-                minHeight: isCompact ? 8 : 12,
+              ClipRRect(
+                borderRadius: BorderRadius.circular(6),
+                child: LinearProgressIndicator(
+                  value: pendingProgress,
+                  backgroundColor: Colors.grey[300],
+                  valueColor:
+                      const AlwaysStoppedAnimation<Color>(Colors.yellow),
+                  minHeight: isMobileScreen ? 12 : 10,
+                ),
               ),
               // Foreground progress (approved only)
-              LinearProgressIndicator(
-                value: approvedProgress,
-                backgroundColor: Colors.transparent,
-                valueColor: const AlwaysStoppedAnimation<Color>(Colors.green),
-                minHeight: isCompact ? 8 : 12,
+              ClipRRect(
+                borderRadius: BorderRadius.circular(6),
+                child: LinearProgressIndicator(
+                  value: approvedProgress,
+                  backgroundColor: Colors.transparent,
+                  valueColor: const AlwaysStoppedAnimation<Color>(Colors.green),
+                  minHeight: isMobileScreen ? 12 : 10,
+                ),
               ),
             ],
           ),
-          const SizedBox(height: 4),
+          const SizedBox(height: 8),
           Text(
             'Progress: $approvedCompletions / ${totalGoal.goalFrequency}',
             style: TextStyle(
-              fontSize: isCompact ? 12 : 14,
+              fontSize: isMobileScreen ? 14 : 14,
               color: Colors.black87,
             ),
           ),
@@ -96,7 +110,8 @@ class ProgressTracker extends StatelessWidget {
   }
 
   /// Builds a tracker for weekly goals
-  Widget _buildWeeklyGoalTracker(BuildContext context, Key key) {
+  Widget _buildWeeklyGoalTracker(
+      BuildContext context, Key key, bool isMobileScreen) {
     final weeklyGoal = goal as WeeklyGoal;
     final timeMachineProvider = Provider.of<TimeMachineProvider>(context);
     final daysOfWeek = Utils.getCurrentWeekDays(timeMachineProvider.now);
@@ -108,21 +123,25 @@ class ProgressTracker extends StatelessWidget {
 
     return Container(
       key: key,
-      margin: EdgeInsets.symmetric(vertical: isCompact ? 4 : 8),
+      margin: EdgeInsets.symmetric(vertical: isMobileScreen ? 8 : 8),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           if (!isCompact)
             Text(
               goal.goalName,
-              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+              style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: isMobileScreen ? 16 : 16),
             ),
-          const SizedBox(height: 4),
+          const SizedBox(height: 8),
           Row(
             children: daysOfWeek.map((day) {
               final status =
                   weeklyGoal.currentWeekCompletions[day] ?? 'default';
-              final dayAbbr = isCompact
+
+              // Use shorter labels on mobile
+              final dayAbbr = isMobileScreen
                   ? Utils.getShortDayAbbreviation(day)
                   : Utils.getDayAbbreviation(day);
 
@@ -132,18 +151,19 @@ class ProgressTracker extends StatelessWidget {
                       ? () => onDayTap!(weeklyGoal.id, day, status)
                       : null,
                   child: Container(
-                    height: isCompact ? 24 : 36,
+                    height: isMobileScreen ? 40 : 36,
                     margin: const EdgeInsets.symmetric(horizontal: 1.0),
                     decoration: BoxDecoration(
                       color: Utils.getStatusColor(status),
-                      borderRadius: BorderRadius.circular(isCompact ? 2 : 4),
+                      borderRadius:
+                          BorderRadius.circular(isMobileScreen ? 4 : 4),
                     ),
                     alignment: Alignment.center,
                     child: Text(
                       dayAbbr,
                       style: TextStyle(
                         color: Colors.white,
-                        fontSize: isCompact ? 10 : 12,
+                        fontSize: isMobileScreen ? 12 : 12,
                         fontWeight: FontWeight.bold,
                       ),
                     ),
@@ -152,11 +172,11 @@ class ProgressTracker extends StatelessWidget {
               );
             }).toList(),
           ),
-          const SizedBox(height: 4),
+          const SizedBox(height: 8),
           Text(
             'Completed: $completedDays / ${weeklyGoal.goalFrequency} days',
             style: TextStyle(
-              fontSize: isCompact ? 12 : 14,
+              fontSize: isMobileScreen ? 14 : 14,
               color: Colors.black87,
             ),
           ),

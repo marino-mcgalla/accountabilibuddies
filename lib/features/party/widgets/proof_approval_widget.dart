@@ -101,13 +101,11 @@ class _PendingProofsWidgetState extends State<PendingProofsWidget> {
           return const Center(child: Text('No pending proofs'));
         }
 
-        // Use a more consistent key approach that doesn't change on every build
-        final String listKey = 'proofs-list-${_submittedGoals.length}';
-
+        // Don't use a single key for the entire list
         return AnimatedSwitcher(
           duration: const Duration(milliseconds: 300),
           child: ListView.builder(
-            key: ValueKey<String>(listKey),
+            // Remove the key from here - each item will have its own key
             shrinkWrap: true,
             itemCount: _submittedGoals.length,
             itemBuilder: (context, index) {
@@ -123,11 +121,12 @@ class _PendingProofsWidgetState extends State<PendingProofsWidget> {
                   'Unknown User';
 
               // Use a more stable key that doesn't change on every build
+              // Create a unique key for each proof item
               final String proofKey =
                   '${goal.id}-${goalData['date'] ?? 'total'}-$userId-$index';
 
               return ProofItem(
-                key: ValueKey(proofKey),
+                key: ValueKey(proofKey), // Unique key for each item
                 goal: goal,
                 userName: userName,
                 date: goalData['date'],

@@ -1,3 +1,4 @@
+import 'package:auth_test/features/goals/widgets/proof_submission_dialog.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../models/goal_model.dart';
@@ -143,45 +144,23 @@ class _GoalCardState extends State<GoalCard> {
 
   /// Opens a dialog to submit proof
   Future<void> _submitProof(BuildContext context) async {
-    final TextEditingController proofController = TextEditingController();
     final goalsProvider = Provider.of<GoalsProvider>(context, listen: false);
 
-    bool? result = await showDialog<bool>(
+    await showDialog<bool>(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Submit Proof'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text('Goal: ${widget.goal.goalName}'),
-            const SizedBox(height: 16),
-            TextField(
-              controller: proofController,
-              decoration: const InputDecoration(
-                labelText: 'Proof Details',
-                border: OutlineInputBorder(),
-              ),
-              maxLines: 3,
-              autofocus: true,
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(false),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () => Navigator.of(context).pop(true),
-            child: const Text('Submit'),
-          ),
-        ],
+      builder: (context) => ProofSubmissionDialog(
+        goal: widget.goal,
+        onSubmit: (proofText, imageUrl) async {
+          debugPrint(
+              'Submitting proof with text: $proofText and image URL: $imageUrl');
+          await goalsProvider.submitProof(
+            widget.goal.id,
+            proofText,
+            imageUrl,
+          );
+        },
       ),
     );
-
-    if (result == true && proofController.text.isNotEmpty) {
-      await goalsProvider.submitProof(widget.goal.id, proofController.text);
-    }
   }
 }
 

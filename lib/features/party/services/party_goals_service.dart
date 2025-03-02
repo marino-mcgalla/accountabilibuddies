@@ -58,10 +58,17 @@ class PartyGoalsService {
                   Map<String, String>.from(goal.currentWeekCompletions);
               completions.forEach((day, status) {
                 if (status == 'submitted') {
+                  // Check if there's a proof for this day
+                  dynamic proofData;
+                  if (goal.proofs.containsKey(day)) {
+                    proofData = goal.proofs[day]?.toMap();
+                  }
+
                   submittedGoals.add({
                     'goal': goal,
                     'userId': memberId,
                     'date': day,
+                    'proof': proofData, // Include the proof data if available
                   });
                 }
               });
@@ -71,7 +78,8 @@ class PartyGoalsService {
                 Map<String, dynamic> proofMap = {
                   'proofText': proof.proofText,
                   'submissionDate': proof.submissionDate.toIso8601String(),
-                  'status': proof.status
+                  'status': proof.status,
+                  'imageUrl': proof.imageUrl, // Include the image URL
                 };
 
                 if (proof.status == 'pending') {

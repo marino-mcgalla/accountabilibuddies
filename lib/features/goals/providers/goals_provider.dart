@@ -109,8 +109,9 @@ class GoalsProvider with ChangeNotifier {
   }
 
   // Proof Management
-  Future<void> submitProof(String goalId, String proofText) async {
-    await _proofService.submitProof(_goals, goalId, proofText);
+  Future<void> submitProof(
+      String goalId, String proofText, String? imageUrl) async {
+    await _proofService.submitProof(_goals, goalId, proofText, imageUrl);
     notifyListeners();
   }
 

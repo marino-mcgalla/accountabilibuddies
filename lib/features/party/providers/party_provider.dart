@@ -22,6 +22,7 @@ class PartyProvider with ChangeNotifier {
   // State variables
   String? _partyId;
   String? _partyName;
+  String? _partyLeaderId;
   List<String> _members = [];
   Map<String, Map<String, dynamic>> _memberDetails = {};
   Map<String, List<Goal>> _partyMemberGoals = {};
@@ -43,6 +44,8 @@ class PartyProvider with ChangeNotifier {
   Map<String, Map<String, dynamic>> get memberDetails => _memberDetails;
   Map<String, List<Goal>> get partyMemberGoals => _partyMemberGoals;
   bool get isLoading => _isLoading;
+  String? get partyLeaderId => _partyLeaderId;
+  bool get isCurrentUserPartyLeader => _partyLeaderId == _auth.currentUser?.uid;
 
   PartyProvider({
     PartyMembersService? membersService,
@@ -91,6 +94,7 @@ class PartyProvider with ChangeNotifier {
             batchUpdates(() {
               _partyId = partyId;
               _partyName = partyDoc['partyName'];
+              _partyLeaderId = partyDoc['partyOwner'];
 
               final List<String> newMembers =
                   List<String>.from(partyDoc['members']);
@@ -158,6 +162,65 @@ class PartyProvider with ChangeNotifier {
     }
   }
 
+  Future<void> transferLeadership(String newLeaderId) async {
+    if (_isDisposed) return;
+    if (_partyId == null) return;
+    if (!isCurrentUserPartyLeader)
+      return; // Only current leader can transfer leadership
+    if (!_members.contains(newLeaderId)) return; // New leader must be a member
+
+    setLoading(true);
+
+    try {
+      // Update the party document
+      await _firestore.collection('parties').doc(_partyId).update({
+        'partyOwner': newLeaderId,
+      });
+
+      // Local state will be updated through the stream listener
+    } catch (e) {
+      print('Error transferring leadership: $e');
+    } finally {
+      if (!_isDisposed) {
+        setLoading(false);
+      }
+    }
+  }
+
+  Future<void> removeMember(String memberId) async {
+    if (_isDisposed) return;
+    if (_partyId == null) return;
+    if (!isCurrentUserPartyLeader) return; // Only leader can remove members
+    if (!_members.contains(memberId)) return; // Member must exist
+    if (memberId == _auth.currentUser?.uid)
+      return; // Can't remove self (use leaveParty instead)
+
+    setLoading(true);
+
+    try {
+      // Remove from party members list
+      List<String> updatedMembers = List<String>.from(_members);
+      updatedMembers.remove(memberId);
+
+      await _firestore.collection('parties').doc(_partyId).update({
+        'members': updatedMembers,
+      });
+
+      // Remove party ID from user's document
+      await _firestore.collection('users').doc(memberId).update({
+        'partyId': FieldValue.delete(),
+      });
+
+      // Local state will be updated through stream listeners
+    } catch (e) {
+      print('Error removing member: $e');
+    } finally {
+      if (!_isDisposed) {
+        setLoading(false);
+      }
+    }
+  }
+
   // Leave a party
   Future<void> leaveParty() async {
     if (_isDisposed) return; // Skip if already disposed
@@ -185,6 +248,7 @@ class PartyProvider with ChangeNotifier {
   Future<void> closeParty() async {
     if (_isDisposed) return; // Skip if already disposed
     if (_partyId == null) return;
+    if (!isCurrentUserPartyLeader) return; // Only leader can close party
 
     setLoading(true);
 
@@ -354,6 +418,7 @@ class PartyProvider with ChangeNotifier {
   Future<void> endWeekForAll(BuildContext context) async {
     if (_isDisposed) return; // Skip if already disposed
     if (_members.isEmpty) return;
+    if (!isCurrentUserPartyLeader) return; // Only leader can end week
 
     try {
       final timeMachineProvider =

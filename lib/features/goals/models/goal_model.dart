@@ -47,4 +47,27 @@ class Goal {
       'currentWeekCompletions': currentWeekCompletions,
     };
   }
+
+  // Compatibility getters for MemberItem widget
+  bool get isCompleted {
+    // Get the number of completions recorded for this week
+    int completionsCount = 0;
+
+    // Sum up the values in the completions map
+    if (currentWeekCompletions.isNotEmpty) {
+      currentWeekCompletions.forEach((date, value) {
+        if (value is int) {
+          completionsCount += value;
+        } else if (value is bool && value) {
+          completionsCount += 1;
+        }
+      });
+    }
+
+    // Goal is completed if the number of completions meets or exceeds the goal frequency
+    return completionsCount >= goalFrequency;
+  }
+
+  // Map goalName to title for compatibility
+  String get title => goalName;
 }

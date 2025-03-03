@@ -28,6 +28,17 @@ class PartyProvider with ChangeNotifier {
   Map<String, List<Goal>> _partyMemberGoals = {};
   bool _isLoading = true;
   bool _isDisposed = false; // Track if provider has been disposed
+  int _challengeStartDay = 1; // Default to Monday
+  Map<String, dynamic>? _activeChallenge;
+  static const List<String> dayNames = [
+    'Sunday',
+    'Monday',
+    'Tuesday',
+    'Wednesday',
+    'Thursday',
+    'Friday',
+    'Saturday'
+  ];
 
   // Subscription management
   StreamSubscription<DocumentSnapshot>? _partySubscription;
@@ -46,6 +57,16 @@ class PartyProvider with ChangeNotifier {
   bool get isLoading => _isLoading;
   String? get partyLeaderId => _partyLeaderId;
   bool get isCurrentUserPartyLeader => _partyLeaderId == _auth.currentUser?.uid;
+  int get challengeStartDay => _challengeStartDay;
+  String get challengeStartDayName => dayNames[_challengeStartDay];
+  bool get hasActiveChallenge => _activeChallenge != null;
+  DateTime? get challengeStartDate => _activeChallenge != null
+      ? (_activeChallenge!['startDate'] as Timestamp).toDate()
+      : null;
+  DateTime? get challengeEndDate => _activeChallenge != null
+      ? (_activeChallenge!['endDate'] as Timestamp).toDate()
+      : null;
+  String? get challengeId => _activeChallenge?['id'];
 
   PartyProvider({
     PartyMembersService? membersService,
@@ -96,6 +117,10 @@ class PartyProvider with ChangeNotifier {
               _partyName = partyDoc['partyName'];
               _partyLeaderId = partyDoc['partyOwner'];
 
+              // Add these lines to read challenge configuration
+              _challengeStartDay = partyDoc['challengeStartDay'] ?? 1;
+              _activeChallenge = partyDoc['activeChallenge'];
+
               final List<String> newMembers =
                   List<String>.from(partyDoc['members']);
               final bool membersChanged = !_areListsEqual(_members, newMembers);
@@ -136,6 +161,8 @@ class PartyProvider with ChangeNotifier {
         'members': [currentUserId],
         'partyName': partyName,
         'createdAt': FieldValue.serverTimestamp(),
+        'challengeStartDay': 1, // Monday by default (0=Sun, 1=Mon,..., 6=Sat)
+        'activeChallenge': null, // null when no active challenge
       });
 
       String partyId = partyRef.id;
@@ -600,5 +627,110 @@ class PartyProvider with ChangeNotifier {
     inviteController.dispose();
 
     super.dispose();
+  }
+
+  //challenge stuff:
+  // Add these methods to PartyProvider
+
+// Set which day of the week challenges will start on
+  Future<void> setChallengeStartDay(int dayOfWeek) async {
+    if (_isDisposed) return;
+    if (_partyId == null) return;
+    if (!isCurrentUserPartyLeader) return; // Only leader can configure
+    if (dayOfWeek < 0 || dayOfWeek > 6) return; // Valid range check
+
+    try {
+      await _firestore.collection('parties').doc(_partyId).update({
+        'challengeStartDay': dayOfWeek,
+      });
+      // State will update via stream listener
+    } catch (e) {
+      print('Error setting challenge start day: $e');
+    }
+  }
+
+// Start a new weekly challenge
+  Future<void> startNewChallenge() async {
+    if (_isDisposed) return;
+    if (_partyId == null) return;
+    if (!isCurrentUserPartyLeader) return; // Only leader can start challenge
+    if (hasActiveChallenge) return; // Can't start if one is already active
+
+    setLoading(true);
+
+    try {
+      // Get current time
+      final now = DateTime.now();
+
+      // Create the challenge
+      final challengeId = 'challenge_${DateTime.now().millisecondsSinceEpoch}';
+
+      // Calculate end date (7 days from now)
+      final endDate = now.add(Duration(days: 7));
+
+      final challenge = {
+        'id': challengeId,
+        'startDate': Timestamp.fromDate(now),
+        'endDate': Timestamp.fromDate(endDate),
+        'status': 'active',
+      };
+
+      // Update the party document
+      await _firestore.collection('parties').doc(_partyId).update({
+        'activeChallenge': challenge,
+      });
+
+      // State will update via stream listener
+    } catch (e) {
+      print('Error starting new challenge: $e');
+    } finally {
+      if (!_isDisposed) {
+        setLoading(false);
+      }
+    }
+  }
+
+// End the current challenge
+  Future<void> endCurrentChallenge() async {
+    if (_isDisposed) return;
+    if (_partyId == null) return;
+    if (!isCurrentUserPartyLeader) return; // Only leader can end challenge
+    if (!hasActiveChallenge) return; // Can't end if none is active
+
+    setLoading(true);
+
+    try {
+      // Get the current challenge ID
+      final String currentChallengeId = challengeId!;
+
+      // Store challenge history
+      final completedChallenge = {
+        ..._activeChallenge!,
+        'completedAt': Timestamp.fromDate(DateTime.now()),
+        'status': 'completed'
+      };
+
+      // Update the challenge history
+      await _firestore
+          .collection('parties')
+          .doc(_partyId)
+          .collection('challengeHistory')
+          .doc(currentChallengeId)
+          .set(completedChallenge);
+
+      // Clear the active challenge
+      await _firestore.collection('parties').doc(_partyId).update({
+        'activeChallenge': null,
+      });
+
+      // Reset all members' goals for the new week (we'll add this functionality later)
+      // This is just a placeholder for now
+    } catch (e) {
+      print('Error ending challenge: $e');
+    } finally {
+      if (!_isDisposed) {
+        setLoading(false);
+      }
+    }
   }
 }

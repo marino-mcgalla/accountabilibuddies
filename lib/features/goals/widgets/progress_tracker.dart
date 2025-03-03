@@ -101,7 +101,9 @@ class ProgressTracker extends StatelessWidget {
             'Progress: $approvedCompletions / ${totalGoal.goalFrequency}',
             style: TextStyle(
               fontSize: isMobileScreen ? 14 : 14,
-              color: Colors.black87,
+              color: Theme.of(context).brightness == Brightness.dark
+                  ? Colors.white
+                  : Colors.black87,
             ),
           ),
         ],
@@ -177,7 +179,9 @@ class ProgressTracker extends StatelessWidget {
             'Completed: $completedDays / ${weeklyGoal.goalFrequency} days',
             style: TextStyle(
               fontSize: isMobileScreen ? 14 : 14,
-              color: Colors.black87,
+              color: Theme.of(context).brightness == Brightness.dark
+                  ? Colors.white
+                  : Colors.black87,
             ),
           ),
         ],

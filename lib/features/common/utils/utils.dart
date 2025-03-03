@@ -62,8 +62,9 @@ class Utils {
       case 'completed':
         return Colors.green;
       case 'skipped':
-      case 'denied':
         return Colors.red;
+      case 'denied':
+        return const Color.fromARGB(255, 118, 14, 7); // Dark red
       case 'planned':
         return Colors.blue;
       case 'default':

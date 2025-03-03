@@ -161,16 +161,22 @@ class PartyInfoTab extends StatelessWidget {
           Row(
             children: [
               Expanded(
-                child: ElevatedButton(
-                  onPressed: partyProvider.sendInvite,
-                  child: const Text("Send Invite"),
+                child: ElevatedButton.icon(
+                  icon: const Icon(Icons.send),
+                  label: const Text("Send Invite"),
+                  onPressed: partyProvider.isCurrentUserPartyLeader
+                      ? partyProvider.sendInvite
+                      : null,
                 ),
               ),
               const SizedBox(width: 10),
               Expanded(
-                child: ElevatedButton(
-                  onPressed: () => partyProvider.endWeekForAll(context),
-                  child: const Text("End Week for All"),
+                child: ElevatedButton.icon(
+                  icon: const Icon(Icons.calendar_today),
+                  label: const Text("End Week for All"),
+                  onPressed: partyProvider.isCurrentUserPartyLeader
+                      ? () => partyProvider.endWeekForAll(context)
+                      : null,
                 ),
               ),
             ],

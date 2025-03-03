@@ -47,6 +47,7 @@ class MyApp extends StatelessWidget {
         builder: (context, themeProvider, child) {
           return ResponsiveWrapper(
             child: MaterialApp.router(
+              debugShowCheckedModeBanner: false,
               title: 'Accountabilibuddies',
               theme: AppTheme.lightTheme, // Light theme
               darkTheme: AppTheme.darkTheme, // Dark theme

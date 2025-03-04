@@ -14,7 +14,7 @@ class GoalFormModel {
   String goalCriteria;
   int goalFrequency;
   bool active;
-  DateTime weekStartDate;
+  // DateTime weekStartDate;
 
   final formKey = GlobalKey<FormState>();
   final List<bool> selectedGoalType = [
@@ -30,8 +30,8 @@ class GoalFormModel {
     this.goalCriteria = '',
     this.goalFrequency = 1,
     this.active = true, // Default to active for new goals
-    DateTime? weekStartDate,
-  }) : weekStartDate = weekStartDate ?? DateTime.now();
+    // DateTime? weekStartDate,
+  });
 
   /// Create a form model from an existing goal
   factory GoalFormModel.fromGoal(Goal goal) {
@@ -43,7 +43,6 @@ class GoalFormModel {
       goalCriteria: goal.goalCriteria,
       goalFrequency: goal.goalFrequency,
       active: goal.active,
-      weekStartDate: goal.weekStartDate,
     );
   }
 
@@ -103,7 +102,6 @@ class GoalFormModel {
         goalCriteria: goalCriteria,
         active: active,
         goalFrequency: goalFrequency,
-        weekStartDate: weekStartDate,
         currentWeekCompletions: {}, // Initialize empty for new goals
         totalCompletions: 0, // Initialize at 0 for new goals
         proofs: [], // Initialize empty for new goals
@@ -116,7 +114,6 @@ class GoalFormModel {
         goalCriteria: goalCriteria,
         active: active,
         goalFrequency: goalFrequency,
-        weekStartDate: weekStartDate,
         currentWeekCompletions: {}, // Initialize empty for new goals
       );
     }

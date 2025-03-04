@@ -36,11 +36,6 @@ class _AddGoalDialogState extends State<AddGoalDialog> {
       });
 
       try {
-        // Get the time machine provider to set the correct week start date
-        final timeMachineProvider =
-            Provider.of<TimeMachineProvider>(context, listen: false);
-        _model.weekStartDate = timeMachineProvider.startOfWeek;
-
         // Create the goal object
         final goal = _model.toGoal();
 

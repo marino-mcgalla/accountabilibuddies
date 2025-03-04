@@ -11,7 +11,6 @@ class WeeklyGoal extends Goal {
     required String goalCriteria,
     required bool active,
     required int goalFrequency,
-    required DateTime weekStartDate,
     required Map<String, String> currentWeekCompletions,
     this.proofs = const {},
   }) : super(
@@ -22,7 +21,6 @@ class WeeklyGoal extends Goal {
           goalCriteria: goalCriteria,
           active: active,
           goalFrequency: goalFrequency,
-          weekStartDate: weekStartDate,
           currentWeekCompletions: currentWeekCompletions,
         );
 
@@ -55,7 +53,6 @@ class WeeklyGoal extends Goal {
       goalCriteria: data['goalCriteria'],
       active: data['active'],
       goalFrequency: data['goalFrequency'],
-      weekStartDate: DateTime.parse(data['weekStartDate']),
       currentWeekCompletions:
           Map<String, String>.from(data['currentWeekCompletions'] ?? {}),
       proofs: proofMap,

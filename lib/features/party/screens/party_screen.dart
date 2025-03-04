@@ -169,16 +169,6 @@ class PartyInfoTab extends StatelessWidget {
                       : null,
                 ),
               ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: ElevatedButton.icon(
-                  icon: const Icon(Icons.calendar_today),
-                  label: const Text("End Week for All"),
-                  onPressed: partyProvider.isCurrentUserPartyLeader
-                      ? () => partyProvider.endWeekForAll(context)
-                      : null,
-                ),
-              ),
             ],
           ),
           const SizedBox(height: 20),

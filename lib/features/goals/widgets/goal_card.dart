@@ -226,10 +226,7 @@ class _GoalCardState extends State<GoalCard> {
           debugPrint(
               'Submitting proof with text: $proofText and image URL: $imageUrl');
           await goalsProvider.submitProof(
-            widget.goal.id,
-            proofText,
-            imageUrl,
-          );
+              widget.goal.id, proofText, imageUrl, false);
         },
       ),
     );

@@ -15,9 +15,9 @@ class ProofService {
 
   // Submit proof for a goal with optional image URL
   Future<void> submitProof(List<Goal> currentGoals, String goalId,
-      String proofText, String? imageUrl) async {
+      String proofText, String? imageUrl, bool yesterday) async {
     debugPrint('SubmitProof called with text: $proofText, imageUrl: $imageUrl');
-
+    DateTime submissionDate;
     String? userId = _repository.getCurrentUserId();
     if (userId == null) return;
 
@@ -27,7 +27,13 @@ class ProofService {
     if (index == -1) return;
 
     Goal goal = updatedGoals[index];
-    DateTime submissionDate = _timeMachineProvider.now;
+    if (!yesterday) {
+      submissionDate = _timeMachineProvider.now;
+      print("Proof submitted for today");
+    } else {
+      submissionDate = _timeMachineProvider.now.subtract(Duration(days: 1));
+      print("Proof submitted for yesterday");
+    }
     String currentDay = submissionDate.toIso8601String().split('T').first;
 
     if (goal is WeeklyGoal) {

@@ -29,6 +29,7 @@ class _ProofSubmissionDialogState extends State<ProofSubmissionDialog> {
   bool _isUploading = false;
   String? _errorMessage;
   String? _statusMessage;
+  bool _yesterday = false; // [Yesterday, Today]
 
   @override
   void dispose() {
@@ -193,6 +194,7 @@ class _ProofSubmissionDialogState extends State<ProofSubmissionDialog> {
       content: SingleChildScrollView(
         child: Column(
           mainAxisSize: MainAxisSize.min,
+          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text('Goal: ${widget.goal.goalName}'),
@@ -207,6 +209,35 @@ class _ProofSubmissionDialogState extends State<ProofSubmissionDialog> {
               autofocus: true,
             ),
             const SizedBox(height: 16),
+
+            // Yesterday/Today radio buttons, centered, with today on the right side and padding at the bottom
+            Center(
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Radio<bool>(
+                    value: true,
+                    groupValue: _yesterday,
+                    onChanged: (value) {
+                      setState(() {
+                        _yesterday = value!;
+                      });
+                    },
+                  ),
+                  const Text('Yesterday'),
+                  Radio<bool>(
+                    value: false,
+                    groupValue: _yesterday,
+                    onChanged: (value) {
+                      setState(() {
+                        _yesterday = value!;
+                      });
+                    },
+                  ),
+                  const Text('Today'),
+                ],
+              ),
+            ),
 
             // Image selection button
             Center(

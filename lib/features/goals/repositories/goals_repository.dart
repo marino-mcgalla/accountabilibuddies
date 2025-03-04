@@ -67,4 +67,34 @@ class GoalsRepository {
         .doc(userId)
         .update({'goals': goalsData});
   }
+
+// Update a specific field of a goal
+  Future<void> updateGoalField(
+      String userId, String goalId, String field, dynamic value) async {
+    try {
+      DocumentSnapshot doc =
+          await _firestore.collection('userGoals').doc(userId).get();
+
+      if (!doc.exists) return;
+
+      Map<String, dynamic> userData = doc.data() as Map<String, dynamic>;
+      List<dynamic> goalsData = List.from(userData['goals'] ?? []);
+
+      for (int i = 0; i < goalsData.length; i++) {
+        if (goalsData[i]['id'] == goalId) {
+          // Update just the specified field
+          goalsData[i][field] = value;
+          break;
+        }
+      }
+
+      await _firestore
+          .collection('userGoals')
+          .doc(userId)
+          .update({'goals': goalsData});
+    } catch (e) {
+      print('Error updating goal field: $e');
+      throw e;
+    }
+  }
 }

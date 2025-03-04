@@ -74,6 +74,38 @@ class _MyGoalsScreenState extends State<MyGoalsScreen>
         false;
   }
 
+  //TODO: THIS IS UI CODE WHY IS IT HERE UGHHHHHHHHHHH
+  Future<bool> _confirmArchive(BuildContext context, Goal goal) async {
+    final bool isActive = goal.active;
+    final String action = isActive ? 'archive' : 'restore';
+    final String effect = isActive
+        ? 'will not be included in the next weekly challenge'
+        : 'will be included in future challenges';
+
+    return await showDialog<bool>(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: Text('${isActive ? 'Archive' : 'Restore'} Goal'),
+            content: Text(
+                'Are you sure you want to $action "${goal.goalName}"? This means it $effect.'),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(false),
+                child: const Text('Cancel'),
+              ),
+              TextButton(
+                style: TextButton.styleFrom(
+                  foregroundColor: isActive ? Colors.orange : Colors.green,
+                ),
+                onPressed: () => Navigator.of(context).pop(true),
+                child: Text(isActive ? 'Archive' : 'Restore'),
+              ),
+            ],
+          ),
+        ) ??
+        false;
+  }
+
   @override
   Widget build(BuildContext context) {
     // Check if user is logged in
@@ -192,6 +224,22 @@ class _MyGoalsScreenState extends State<MyGoalsScreen>
                   Utils.showFeedback(context, 'Error deleting goal: $e',
                       isError: true);
                 }
+              }
+            }
+          },
+          onArchive: () async {
+            final confirm = await _confirmArchive(context, goal);
+            if (confirm && mounted) {
+              final currentContext = context;
+              final String action = goal.active ? 'Archiving' : 'Restoring';
+              Utils.showFeedback(currentContext, '$action goal...');
+
+              // This will toggle the active state
+              await goalsProvider.toggleGoalActive(goal.id);
+
+              if (mounted) {
+                final String result = goal.active ? 'archived' : 'restored';
+                Utils.showFeedback(currentContext, 'Goal $result');
               }
             }
           },

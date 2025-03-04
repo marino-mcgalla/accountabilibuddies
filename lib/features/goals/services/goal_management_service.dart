@@ -30,6 +30,15 @@ class GoalManagementService {
     }
   }
 
+// More efficient method that only updates the one field
+  Future<void> updateGoalActiveStatus(String goalId, bool active) async {
+    final userId = _repository.getCurrentUserId();
+    if (userId == null) return;
+
+    // Update just the active field in Firestore
+    await _repository.updateGoalField(userId, goalId, 'active', active);
+  }
+
   // Remove a goal
   Future<void> removeGoal(List<Goal> currentGoals, String goalId) async {
     String? userId = _repository.getCurrentUserId();

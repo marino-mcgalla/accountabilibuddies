@@ -6,7 +6,6 @@ import '../models/weekly_goal.dart';
 import '../repositories/goals_repository.dart';
 import '../services/goal_management_service.dart';
 import '../services/proof_service.dart';
-import '../services/week_service.dart';
 import '../../time_machine/providers/time_machine_provider.dart';
 
 class GoalsProvider with ChangeNotifier {
@@ -63,6 +62,21 @@ class GoalsProvider with ChangeNotifier {
     _setLoading(true);
     await _goalService.editGoal(_goals, updatedGoal);
     _setLoading(false);
+  }
+
+  Future<void> toggleGoalActive(String goalId) async {
+    _setLoading(true);
+    try {
+      final index = _goals.indexWhere((goal) => goal.id == goalId);
+      if (index != -1) {
+        // Pass the goal and the desired state to a targeted method
+        await _goalService.updateGoalActiveStatus(
+            goalId, !_goals[index].active);
+        // State will update via the stream listener
+      }
+    } finally {
+      _setLoading(false);
+    }
   }
 
   Future<void> removeGoal(BuildContext context, String goalId) async {

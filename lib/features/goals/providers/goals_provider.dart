@@ -13,7 +13,7 @@ class GoalsProvider with ChangeNotifier {
   final GoalsRepository _repository = GoalsRepository();
   late GoalManagementService _goalService;
   late ProofService _proofService;
-  late WeekService _weekService;
+  // late WeekService _weekService;
 
   TimeMachineProvider _timeMachineProvider;
 
@@ -29,7 +29,7 @@ class GoalsProvider with ChangeNotifier {
   void _initializeServices() {
     _goalService = GoalManagementService(_repository);
     _proofService = ProofService(_repository, _timeMachineProvider);
-    _weekService = WeekService(_repository, _timeMachineProvider);
+    // _weekService = WeekService(_repository, _timeMachineProvider);
   }
 
   void updateTimeMachineProvider(TimeMachineProvider timeMachineProvider) {
@@ -102,11 +102,12 @@ class GoalsProvider with ChangeNotifier {
   }
 
   // Week Management
-  Future<void> endWeek() async {
-    _setLoading(true);
-    await _weekService.endWeek(_goals);
-    _setLoading(false);
-  }
+  // Future<void> endWeek() async {
+  //   print('its here');
+  //   _setLoading(true);
+  //   await _weekService.endWeek(_goals);
+  //   _setLoading(false);
+  // }
 
   // Proof Management
   Future<void> submitProof(

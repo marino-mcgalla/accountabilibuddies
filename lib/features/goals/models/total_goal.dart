@@ -12,7 +12,6 @@ class TotalGoal extends Goal {
     required String goalCriteria,
     required bool active,
     required int goalFrequency,
-    required DateTime weekStartDate,
     required Map<String, int> currentWeekCompletions,
     this.totalCompletions = 0,
     this.proofs = const [],
@@ -24,7 +23,6 @@ class TotalGoal extends Goal {
           goalCriteria: goalCriteria,
           active: active,
           goalFrequency: goalFrequency,
-          weekStartDate: weekStartDate,
           currentWeekCompletions: currentWeekCompletions,
         );
 
@@ -48,7 +46,6 @@ class TotalGoal extends Goal {
       goalCriteria: data['goalCriteria'],
       active: data['active'],
       goalFrequency: data['goalFrequency'],
-      weekStartDate: DateTime.parse(data['weekStartDate']),
       currentWeekCompletions:
           Map<String, int>.from(data['currentWeekCompletions'] ?? {}),
       totalCompletions: data['totalCompletions'] ?? 0,

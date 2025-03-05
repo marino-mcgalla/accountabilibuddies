@@ -7,7 +7,7 @@ import '../../proof_submission/services/firebase_storage_service.dart';
 
 class ProofSubmissionDialog extends StatefulWidget {
   final Goal goal;
-  final Function(String, String?) onSubmit;
+  final Function(String, String?, bool) onSubmit;
 
   const ProofSubmissionDialog({
     required this.goal,
@@ -29,6 +29,7 @@ class _ProofSubmissionDialogState extends State<ProofSubmissionDialog> {
   bool _isUploading = false;
   String? _errorMessage;
   String? _statusMessage;
+  bool yesterday = false; // [Yesterday, Today]
 
   @override
   void dispose() {
@@ -167,7 +168,7 @@ class _ProofSubmissionDialogState extends State<ProofSubmissionDialog> {
         _statusMessage = 'Submitting proof...';
       });
 
-      await widget.onSubmit(_proofController.text, imageUrl);
+      await widget.onSubmit(_proofController.text, imageUrl, yesterday);
 
       setState(() {
         _statusMessage = 'Proof submitted successfully';
@@ -207,6 +208,35 @@ class _ProofSubmissionDialogState extends State<ProofSubmissionDialog> {
               autofocus: true,
             ),
             const SizedBox(height: 16),
+
+            // Yesterday/Today radio buttons, centered, with today on the right side and padding at the bottom
+            Center(
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Radio<bool>(
+                    value: true,
+                    groupValue: yesterday,
+                    onChanged: (value) {
+                      setState(() {
+                        yesterday = value!;
+                      });
+                    },
+                  ),
+                  const Text('Yesterday'),
+                  Radio<bool>(
+                    value: false,
+                    groupValue: yesterday,
+                    onChanged: (value) {
+                      setState(() {
+                        yesterday = value!;
+                      });
+                    },
+                  ),
+                  const Text('Today'),
+                ],
+              ),
+            ),
 
             // Image selection button
             Center(

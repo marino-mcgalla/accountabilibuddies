@@ -210,33 +210,35 @@ class _ProofSubmissionDialogState extends State<ProofSubmissionDialog> {
             const SizedBox(height: 16),
 
             // Yesterday/Today radio buttons, centered, with today on the right side and padding at the bottom
-            Center(
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Radio<bool>(
-                    value: true,
-                    groupValue: yesterday,
-                    onChanged: (value) {
-                      setState(() {
-                        yesterday = value!;
-                      });
-                    },
-                  ),
-                  const Text('Yesterday'),
-                  Radio<bool>(
-                    value: false,
-                    groupValue: yesterday,
-                    onChanged: (value) {
-                      setState(() {
-                        yesterday = value!;
-                      });
-                    },
-                  ),
-                  const Text('Today'),
-                ],
+            // Only show this if it is not Monday
+            if (DateTime.now().weekday != DateTime.monday)
+              Center(
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Radio<bool>(
+                      value: true,
+                      groupValue: yesterday,
+                      onChanged: (value) {
+                        setState(() {
+                          yesterday = value!;
+                        });
+                      },
+                    ),
+                    const Text('Yesterday'),
+                    Radio<bool>(
+                      value: false,
+                      groupValue: yesterday,
+                      onChanged: (value) {
+                        setState(() {
+                          yesterday = value!;
+                        });
+                      },
+                    ),
+                    const Text('Today'),
+                  ],
+                ),
               ),
-            ),
 
             // Image selection button
             Center(

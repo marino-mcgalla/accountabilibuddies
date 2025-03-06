@@ -47,7 +47,8 @@ class GoalsProvider with ChangeNotifier {
     if (userId == null) return;
 
     _goalsSubscription?.cancel();
-    _goalsSubscription = _repository.getGoalsStream(userId).listen((goals) {
+    _goalsSubscription =
+        _repository.getChallengeGoalsStream(userId).listen((goals) {
       _goals = goals;
       notifyListeners();
     });
@@ -172,43 +173,54 @@ class GoalsProvider with ChangeNotifier {
       if (activeTemplates.isEmpty) return;
 
       String? userId = _repository.getCurrentUserId();
-      if (userId != null) {
-        // Create fresh copies of the templates
-        List<Goal> freshGoals = activeTemplates.map((template) {
-          if (template is TotalGoal) {
-            return TotalGoal(
-              id: template.id,
-              ownerId: template.ownerId,
-              goalName: template.goalName,
-              goalCriteria: template.goalCriteria,
-              goalFrequency: template.goalFrequency,
-              active: template.active,
-              totalCompletions: 0, // Reset to 0
-              currentWeekCompletions: {}, // Empty map
-              proofs: [], // Empty proofs
-            );
-          } else if (template is WeeklyGoal) {
-            return WeeklyGoal(
-              id: template.id,
-              ownerId: template.ownerId,
-              goalName: template.goalName,
-              goalCriteria: template.goalCriteria,
-              goalFrequency: template.goalFrequency,
-              active: template.active,
-              currentWeekCompletions: {}, // Empty map
-              proofs: {}, // Empty map
-            );
-          }
-          return template;
-        }).toList();
+      if (userId == null) return;
 
-        // Save the fresh goals as the regular goals
-        await _repository.saveGoals(userId, freshGoals);
+      // Create fresh copies of the templates
+      List<Goal> freshGoals = activeTemplates.map((template) {
+        if (template is TotalGoal) {
+          return TotalGoal(
+            id: template.id,
+            ownerId: template.ownerId,
+            goalName: template.goalName,
+            goalCriteria: template.goalCriteria,
+            goalFrequency: template.goalFrequency,
+            active: template.active,
+            totalCompletions: 0, // Reset to 0
+            currentWeekCompletions: {}, // Empty map
+            proofs: [], // Empty proofs
+          );
+        } else if (template is WeeklyGoal) {
+          return WeeklyGoal(
+            id: template.id,
+            ownerId: template.ownerId,
+            goalName: template.goalName,
+            goalCriteria: template.goalCriteria,
+            goalFrequency: template.goalFrequency,
+            active: template.active,
+            currentWeekCompletions: {}, // Empty map
+            proofs: {}, // Empty map
+          );
+        }
+        return template;
+      }).toList();
 
-        // Update local goals list
-        _goals = freshGoals;
-        notifyListeners();
-      }
+      // Create a batch for saving both regular goals and challenge goals
+      WriteBatch batch = _firestore.batch();
+
+      // Convert goals to map data
+      List<Map<String, dynamic>> goalsData =
+          freshGoals.map((goal) => goal.toMap()).toList();
+
+      // Also save them as challenge goals
+      batch.set(_firestore.collection('userGoals').doc(userId),
+          {'challengeGoals': goalsData}, SetOptions(merge: true));
+
+      // Execute both updates
+      await batch.commit();
+
+      // Update local goals list
+      _goals = freshGoals;
+      notifyListeners();
     } finally {
       _setLoading(false);
     }

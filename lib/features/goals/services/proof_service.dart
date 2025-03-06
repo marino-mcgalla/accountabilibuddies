@@ -59,7 +59,7 @@ class ProofService {
       debugPrint('Added proof to total goal');
     }
 
-    await _repository.saveGoals(userId, updatedGoals);
+    await _repository.saveChallengeGoals(userId, updatedGoals);
   }
 
   // Approve proof for another user's goal

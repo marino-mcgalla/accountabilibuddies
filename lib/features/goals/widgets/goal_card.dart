@@ -205,7 +205,7 @@ class _GoalCardState extends State<GoalCard> {
         .toggleSkipPlan(goalId, day, newStatus);
   }
 
-  /// Opens a dialog to submit proof
+  // Opens a dialog to submit proof
   Future<void> _submitProof(BuildContext context) async {
     final goalsProvider = Provider.of<GoalsProvider>(context, listen: false);
 

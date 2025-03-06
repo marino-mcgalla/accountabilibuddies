@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:auth_test/features/party/models/party_model.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -48,6 +49,7 @@ class PartyProvider with ChangeNotifier {
   bool _isBatchingUpdates = false;
   bool _pendingNotification = false;
 
+  //TODO: clean this trash up, leaving it for now
   // Getters
   String? get partyId => _partyId;
   String? get partyName => _partyName;
@@ -145,7 +147,6 @@ class PartyProvider with ChangeNotifier {
     });
   }
 
-  // Create a new party
   Future<void> createParty(String partyName) async {
     if (_isDisposed) return;
     if (partyName.isEmpty) return;
@@ -155,15 +156,10 @@ class PartyProvider with ChangeNotifier {
     try {
       String currentUserId = _auth.currentUser?.uid ?? "";
 
-      DocumentReference partyRef = await _firestore.collection('parties').add({
-        'createdBy': currentUserId,
-        'partyOwner': currentUserId,
-        'members': [currentUserId],
-        'partyName': partyName,
-        'createdAt': FieldValue.serverTimestamp(),
-        'challengeStartDay': 1, // Monday by default (0=Sun, 1=Mon,..., 6=Sat)
-        'activeChallenge': null, // null when no active challenge
-      });
+      Party party = Party.create(currentUserId, partyName);
+
+      DocumentReference partyRef =
+          await _firestore.collection('parties').add(party.toMap());
 
       String partyId = partyRef.id;
 
@@ -171,6 +167,7 @@ class PartyProvider with ChangeNotifier {
         'partyId': partyId,
       });
 
+      // Update local state
       if (!_isDisposed) {
         batchUpdates(() {
           _partyId = partyId;
@@ -180,7 +177,6 @@ class PartyProvider with ChangeNotifier {
         });
       }
     } catch (e) {
-      // Handle error
       print('Error creating party: $e');
     } finally {
       if (!_isDisposed) {
@@ -199,12 +195,9 @@ class PartyProvider with ChangeNotifier {
     setLoading(true);
 
     try {
-      // Update the party document
       await _firestore.collection('parties').doc(_partyId).update({
         'partyOwner': newLeaderId,
       });
-
-      // Local state will be updated through the stream listener
     } catch (e) {
       print('Error transferring leadership: $e');
     } finally {
@@ -225,7 +218,6 @@ class PartyProvider with ChangeNotifier {
     setLoading(true);
 
     try {
-      // Remove from party members list
       List<String> updatedMembers = List<String>.from(_members);
       updatedMembers.remove(memberId);
 
@@ -233,12 +225,9 @@ class PartyProvider with ChangeNotifier {
         'members': updatedMembers,
       });
 
-      // Remove party ID from user's document
       await _firestore.collection('users').doc(memberId).update({
         'partyId': FieldValue.delete(),
       });
-
-      // Local state will be updated through stream listeners
     } catch (e) {
       print('Error removing member: $e');
     } finally {
@@ -248,20 +237,27 @@ class PartyProvider with ChangeNotifier {
     }
   }
 
-  // Leave a party
   Future<void> leaveParty() async {
-    if (_isDisposed) return; // Skip if already disposed
+    if (_isDisposed) return;
     if (_partyId == null) return;
 
     setLoading(true);
 
     try {
-      if (_members.length <= 1) {
-        await closeParty();
-      } else {
-        await _membersService.leaveParty(_partyId!);
-        _resetState();
+      String? currentUserId = _auth.currentUser?.uid;
+      if (currentUserId == null) {
+        throw Exception('User not logged in');
       }
+
+      await _firestore.collection('users').doc(currentUserId).update({
+        'partyId': FieldValue.delete(),
+      });
+
+      await _firestore.collection('parties').doc(_partyId).update({
+        'members': FieldValue.arrayRemove([currentUserId]),
+      });
+
+      _resetState();
     } catch (e) {
       print('Error leaving party: $e');
     } finally {
@@ -271,16 +267,22 @@ class PartyProvider with ChangeNotifier {
     }
   }
 
-  // Close an entire party
   Future<void> closeParty() async {
-    if (_isDisposed) return; // Skip if already disposed
+    if (_isDisposed) return;
     if (_partyId == null) return;
     if (!isCurrentUserPartyLeader) return; // Only leader can close party
 
     setLoading(true);
 
     try {
-      await _membersService.closeParty(_partyId!, _members);
+      await _firestore.collection('parties').doc(_partyId).delete();
+
+      for (String memberId in _members) {
+        await _firestore.collection('users').doc(memberId).update({
+          'partyId': FieldValue.delete(),
+        });
+      }
+
       _resetState();
     } catch (e) {
       print('Error closing party: $e');
@@ -291,7 +293,7 @@ class PartyProvider with ChangeNotifier {
     }
   }
 
-  // Send an invite to join the party
+  // INVITES SECTION ------------------------------------------------------------------------------------------------------------------------------------
   Future<void> sendInvite() async {
     if (_isDisposed) return; // Skip if already disposed
     if (_partyId == null || inviteController.text.isEmpty) return;
@@ -486,7 +488,7 @@ class PartyProvider with ChangeNotifier {
         if (_isDisposed) return; // Skip processing if disposed
 
         if (doc.exists) {
-          List<dynamic> goalsData = doc.data()?['goals'] ?? [];
+          List<dynamic> goalsData = doc.data()?['goalTemplates'] ?? [];
           final List<Goal> newGoals =
               goalsData.map((data) => Goal.fromMap(data)).toList();
 
@@ -634,24 +636,19 @@ class PartyProvider with ChangeNotifier {
     }
   }
 
-  // Start a new weekly challenge
   Future<void> startNewChallenge() async {
     if (_isDisposed) return;
     if (_partyId == null) return;
-    if (!isCurrentUserPartyLeader) return; // Only leader can start challenge
-    if (hasActiveChallenge) return; // Can't start if one is already active
+    if (!isCurrentUserPartyLeader) return;
+    if (hasActiveChallenge) return;
 
     setLoading(true);
 
     try {
+      // Create challenge metadata
       final now = DateTime.now();
-
-      final challengeId = 'challenge_${DateTime.now().millisecondsSinceEpoch}';
-
-      // Calculate end date (7 days from now)
-      final endDate = now.add(Duration(
-          days:
-              7)); //make sure it's always the end of the week, not just 7 days away
+      final challengeId = 'challenge_${now.millisecondsSinceEpoch}';
+      final endDate = now.add(Duration(days: 7));
 
       final challenge = {
         'id': challengeId,
@@ -660,19 +657,15 @@ class PartyProvider with ChangeNotifier {
         'status': 'active',
       };
 
-      // Update the party document
-      await _firestore.collection('parties').doc(_partyId).update({
-        'activeChallenge': challenge,
-      });
+      // Update party with challenge info - that's all the leader needs to do
+      await _firestore
+          .collection('parties')
+          .doc(_partyId)
+          .update({'activeChallenge': challenge});
 
-      //TODO: can I call "setupMemberChallenges" here?
-      // get members
-      // loop through and add a challenge object to each user's goals
-      // challenge
-
-      // State will update via stream listener
+      print('Challenge started successfully');
     } catch (e) {
-      print('Error starting new challenge: $e');
+      print('Error starting challenge: $e');
     } finally {
       if (!_isDisposed) {
         setLoading(false);

@@ -24,7 +24,19 @@ class GoalsRepository {
     });
   }
 
-  // Save goals to Firestore
+  Stream<List<Goal>> getChallengeGoalsStream(String userId) {
+    return _firestore
+        .collection('userGoals')
+        .doc(userId)
+        .snapshots()
+        .map((doc) {
+      if (!doc.exists) return [];
+      List<dynamic> goalsData = doc.data()?['challengeGoals'] ?? [];
+      return goalsData.map((data) => Goal.fromMap(data)).toList();
+    });
+  }
+
+  // Maybe not using anymore???
   Future<void> saveGoals(String userId, List<Goal> goals) async {
     List<Map<String, dynamic>> goalsData =
         goals.map((goal) => goal.toMap()).toList();
@@ -32,6 +44,15 @@ class GoalsRepository {
         .collection('userGoals')
         .doc(userId)
         .set({'goals': goalsData}, SetOptions(merge: true)); // Use merge: true
+  }
+
+  // submits proof to challengeGoals instead of template
+  Future<void> saveChallengeGoals(String userId, List<Goal> goals) async {
+    List<Map<String, dynamic>> goalsData =
+        goals.map((goal) => goal.toMap()).toList();
+    await _firestore.collection('userGoals').doc(userId).set(
+        {'challengeGoals': goalsData},
+        SetOptions(merge: true)); // Use merge: true
   }
 
   // Save goals history to Firestore

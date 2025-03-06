@@ -17,6 +17,7 @@ class GoalsProvider with ChangeNotifier {
 
   TimeMachineProvider _timeMachineProvider;
 
+  List<Goal> _goalTemplates = [];
   List<Goal> _goals = [];
   bool _isLoading = false;
   StreamSubscription<List<Goal>>? _goalsSubscription;
@@ -24,6 +25,7 @@ class GoalsProvider with ChangeNotifier {
   GoalsProvider(this._timeMachineProvider) {
     _initializeServices();
     initializeGoalsListener();
+    loadGoalTemplates();
   }
 
   void _initializeServices() {
@@ -52,16 +54,45 @@ class GoalsProvider with ChangeNotifier {
   }
 
   // Goal CRUD Operations
-  Future<void> addGoal(Goal goal) async {
+  Future<void> createGoalTemplate(Goal goal) async {
     _setLoading(true);
-    await _goalService.addGoal(_goals, goal);
+    try {
+      // Only add to templates, not to active goals
+      _goalTemplates.add(goal);
+      String? userId = _repository.getCurrentUserId();
+      if (userId != null) {
+        await _repository.saveGoalTemplates(userId, _goalTemplates);
+      }
+    } finally {
+      _setLoading(false);
+    }
+  }
+
+  Future<void> createWeek(Goal goal) async {
+    _setLoading(true);
+    await _goalService.createWeek(_goals, goal);
     _setLoading(false);
   }
 
   Future<void> editGoal(Goal updatedGoal) async {
     _setLoading(true);
-    await _goalService.editGoal(_goals, updatedGoal);
-    _setLoading(false);
+    try {
+      // Update regular goal
+      // await _goalService.editGoal(_goals, updatedGoal);
+
+      // Also update template
+      //TODO: why is this code so much longer than ^^^^ that one?
+      int index = _goalTemplates.indexWhere((g) => g.id == updatedGoal.id);
+      if (index != -1) {
+        _goalTemplates[index] = updatedGoal;
+        String? userId = _repository.getCurrentUserId();
+        if (userId != null) {
+          await _repository.saveGoalTemplates(userId, _goalTemplates);
+        }
+      }
+    } finally {
+      _setLoading(false);
+    }
   }
 
   Future<void> toggleGoalActive(String goalId) async {
@@ -86,21 +117,21 @@ class GoalsProvider with ChangeNotifier {
   }
 
   // Goal Progress Operations
-  Future<void> incrementCompletions(String goalId) async {
-    int index = _goals.indexWhere((goal) => goal.id == goalId);
-    if (index != -1 && _goals[index] is TotalGoal) {
-      final updatedGoals = List<Goal>.from(_goals);
-      final goal = updatedGoals[index] as TotalGoal;
-      final day = _timeMachineProvider.now.toIso8601String().split('T').first;
-      goal.currentWeekCompletions[day] =
-          (goal.currentWeekCompletions[day] ?? 0) + 1;
-      goal.totalCompletions += 1;
-      String? userId = _repository.getCurrentUserId();
-      if (userId != null) {
-        await _repository.saveGoals(userId, updatedGoals);
-      }
-    }
-  }
+  // Future<void> incrementCompletions(String goalId) async {
+  //   int index = _goals.indexWhere((goal) => goal.id == goalId);
+  //   if (index != -1 && _goals[index] is TotalGoal) {
+  //     final updatedGoals = List<Goal>.from(_goals);
+  //     final goal = updatedGoals[index] as TotalGoal;
+  //     final day = _timeMachineProvider.now.toIso8601String().split('T').first;
+  //     goal.currentWeekCompletions[day] =
+  //         (goal.currentWeekCompletions[day] ?? 0) + 1;
+  //     goal.totalCompletions += 1;
+  //     String? userId = _repository.getCurrentUserId();
+  //     if (userId != null) {
+  //       await _repository.saveGoals(userId, updatedGoals);
+  //     }
+  //   }
+  // }
 
   Future<void> toggleSkipPlan(String goalId, String day, String status) async {
     int index = _goals.indexWhere((goal) => goal.id == goalId);
@@ -135,36 +166,65 @@ class GoalsProvider with ChangeNotifier {
   Future<void> lockInActiveGoals() async {
     _setLoading(true);
     try {
-      final activeGoals = _goals.where((goal) => goal.active).toList();
-      if (activeGoals.isEmpty) return;
+      // Get active template goals
+      final activeTemplates =
+          _goalTemplates.where((goal) => goal.active).toList();
+      if (activeTemplates.isEmpty) return;
 
       String? userId = _repository.getCurrentUserId();
       if (userId != null) {
-        // Create locked copies of active goals
-        List<Map<String, dynamic>> lockedGoals = activeGoals.map((goal) {
-          final goalMap = goal.toMap();
-          goalMap['lockedInId'] = 'locked_${goalMap['id']}';
-          goalMap['originalGoalId'] = goalMap['id'];
-          goalMap['lockedInDate'] = _timeMachineProvider.now.toIso8601String();
-          goalMap['lockedInVersion'] = true;
-          goalMap['currentWeekCompletions'] = {};
-          return goalMap;
+        // Create fresh copies of the templates
+        List<Goal> freshGoals = activeTemplates.map((template) {
+          if (template is TotalGoal) {
+            return TotalGoal(
+              id: template.id,
+              ownerId: template.ownerId,
+              goalName: template.goalName,
+              goalCriteria: template.goalCriteria,
+              goalFrequency: template.goalFrequency,
+              active: template.active,
+              totalCompletions: 0, // Reset to 0
+              currentWeekCompletions: {}, // Empty map
+              proofs: [], // Empty proofs
+            );
+          } else if (template is WeeklyGoal) {
+            return WeeklyGoal(
+              id: template.id,
+              ownerId: template.ownerId,
+              goalName: template.goalName,
+              goalCriteria: template.goalCriteria,
+              goalFrequency: template.goalFrequency,
+              active: template.active,
+              currentWeekCompletions: {}, // Empty map
+              proofs: {}, // Empty map
+            );
+          }
+          return template;
         }).toList();
 
-        await _firestore.collection('userGoals').doc(userId).update({
-          'currentChallengeGoals': {
-            'goals': lockedGoals,
-            'lockedInDate': _timeMachineProvider.now.toIso8601String()
-          }
-        });
+        // Save the fresh goals as the regular goals
+        await _repository.saveGoals(userId, freshGoals);
+
+        // Update local goals list
+        _goals = freshGoals;
+        notifyListeners();
       }
     } finally {
       _setLoading(false);
     }
   }
 
+  Future<void> loadGoalTemplates() async {
+    String? userId = _repository.getCurrentUserId();
+    if (userId == null) return;
+
+    _goalTemplates = await _repository.getgoalTemplatesForUser(userId);
+    notifyListeners();
+  }
+
   void resetState() {
     _goals = [];
+    _goalTemplates = [];
     _isLoading = false;
     notifyListeners();
   }

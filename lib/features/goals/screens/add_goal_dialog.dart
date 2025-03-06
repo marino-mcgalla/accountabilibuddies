@@ -40,7 +40,8 @@ class _AddGoalDialogState extends State<AddGoalDialog> {
         final goal = _model.toGoal();
 
         // Save it using the provider
-        await Provider.of<GoalsProvider>(context, listen: false).addGoal(goal);
+        await Provider.of<GoalsProvider>(context, listen: false)
+            .createGoalTemplate(goal);
 
         // Close the dialog
         if (mounted) {

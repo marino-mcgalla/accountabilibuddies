@@ -644,14 +644,14 @@ class PartyProvider with ChangeNotifier {
     setLoading(true);
 
     try {
-      // Get current time
       final now = DateTime.now();
 
-      // Create the challenge
       final challengeId = 'challenge_${DateTime.now().millisecondsSinceEpoch}';
 
       // Calculate end date (7 days from now)
-      final endDate = now.add(Duration(days: 7));
+      final endDate = now.add(Duration(
+          days:
+              7)); //make sure it's always the end of the week, not just 7 days away
 
       final challenge = {
         'id': challengeId,

@@ -106,20 +106,6 @@ class _GoalCardState extends State<GoalCard> {
           // First row
           Row(
             children: [
-              if (widget.goal is TotalGoal)
-                Expanded(
-                  child: ElevatedButton.icon(
-                    icon: const Icon(Icons.add, size: 18),
-                    label: const Text('Increment'),
-                    onPressed: () =>
-                        goalsProvider.incrementCompletions(widget.goal.id),
-                    style: ElevatedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(vertical: 12),
-                    ),
-                  ),
-                )
-              else
-                const Spacer(),
               const SizedBox(width: 8),
               Expanded(
                 child: ElevatedButton.icon(
@@ -169,15 +155,7 @@ class _GoalCardState extends State<GoalCard> {
       return Row(
         mainAxisAlignment: MainAxisAlignment.end,
         children: [
-          if (widget.goal is TotalGoal)
-            TextButton.icon(
-              icon: const Icon(Icons.add),
-              label: const Text('Increment'),
-              onPressed: () =>
-                  goalsProvider.incrementCompletions(widget.goal.id),
-            )
-          else
-            const SizedBox.shrink(),
+          const SizedBox.shrink(),
           const Spacer(),
           TextButton.icon(
             icon: const Icon(Icons.check),

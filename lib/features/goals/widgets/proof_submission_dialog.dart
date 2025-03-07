@@ -1,9 +1,12 @@
 // lib/features/goals/widgets/proof_submission_dialog.dart
 import 'dart:typed_data';
+import 'package:auth_test/features/time_machine/providers/time_machine_provider.dart';
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import '../models/goal_model.dart';
 import '../../proof_submission/services/image_picker_service.dart';
 import '../../proof_submission/services/firebase_storage_service.dart';
+import 'package:intl/date_time_patterns.dart';
 
 class ProofSubmissionDialog extends StatefulWidget {
   final Goal goal;
@@ -189,6 +192,10 @@ class _ProofSubmissionDialogState extends State<ProofSubmissionDialog> {
 
   @override
   Widget build(BuildContext context) {
+    final timeMachineProvider =
+        Provider.of<TimeMachineProvider>(context, listen: false);
+    final now = timeMachineProvider.now;
+
     return AlertDialog(
       title: const Text('Submit Proof'),
       content: SingleChildScrollView(
@@ -210,8 +217,10 @@ class _ProofSubmissionDialogState extends State<ProofSubmissionDialog> {
             const SizedBox(height: 16),
 
             // Yesterday/Today radio buttons, centered, with today on the right side and padding at the bottom
-            // Only show this if it is not Monday
-            if (DateTime.now().weekday != DateTime.monday)
+            // Only show this if it is not Monday.
+            // TODO: CHANGE DAY TO START DAY PARAMETER
+
+            if (now.weekday != DateTime.monday)
               Center(
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.center,

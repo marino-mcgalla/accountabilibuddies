@@ -69,14 +69,8 @@ class _ProofSubmissionDialogState extends State<ProofSubmissionDialog> {
     Navigator.of(context).pop(); // Close the dialog temporarily
 
     try {
-      // Try the direct camera method first
-      Uint8List? imageData = await _imagePickerService.takePhoto();
-
-      // If direct method fails, try the fallback
-      if (imageData == null) {
-        debugPrint('Direct camera access failed, trying fallback method...');
-        imageData = await _imagePickerService.takePhotoFallback();
-      }
+      // Use the refactored service, which handles both web and mobile
+      final imageData = await _imagePickerService.takePhoto();
 
       if (imageData != null && mounted) {
         setState(() {
@@ -85,6 +79,10 @@ class _ProofSubmissionDialogState extends State<ProofSubmissionDialog> {
               'photo_${DateTime.now().millisecondsSinceEpoch}.jpg';
           _statusMessage = 'Photo captured';
           _errorMessage = null;
+        });
+      } else if (mounted) {
+        setState(() {
+          _statusMessage = 'No photo captured';
         });
       }
     } catch (e) {

@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import '../models/goal_model.dart';
 import '../models/total_goal.dart';
@@ -14,6 +15,7 @@ class GoalsProvider with ChangeNotifier {
   late GoalManagementService _goalService;
   late ProofService _proofService;
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final FirebaseAuth _auth;
 
   TimeMachineProvider _timeMachineProvider;
 
@@ -22,7 +24,10 @@ class GoalsProvider with ChangeNotifier {
   bool _isLoading = false;
   StreamSubscription<List<Goal>>? _goalsSubscription;
 
-  GoalsProvider(this._timeMachineProvider) {
+  GoalsProvider(
+    this._timeMachineProvider, {
+    FirebaseAuth? auth,
+  }) : _auth = auth ?? FirebaseAuth.instance {
     _initializeServices();
     initializeGoalsListener();
     loadGoalTemplates();
@@ -82,7 +87,6 @@ class GoalsProvider with ChangeNotifier {
       // await _goalService.editGoal(_goals, updatedGoal);
 
       // Also update template
-      //TODO: why is this code so much longer than ^^^^ that one?
       int index = _goalTemplates.indexWhere((g) => g.id == updatedGoal.id);
       if (index != -1) {
         _goalTemplates[index] = updatedGoal;
@@ -101,7 +105,6 @@ class GoalsProvider with ChangeNotifier {
     try {
       final index = _goals.indexWhere((goal) => goal.id == goalId);
       if (index != -1) {
-        // Pass the goal and the desired state to a targeted method
         await _goalService.updateGoalActiveStatus(
             goalId, !_goals[index].active);
         // State will update via the stream listener
@@ -113,8 +116,23 @@ class GoalsProvider with ChangeNotifier {
 
   Future<void> removeGoal(BuildContext context, String goalId) async {
     _setLoading(true);
-    await _goalService.removeGoal(_goals, goalId);
-    _setLoading(false);
+    try {
+      await _goalService.removeGoal(_goals, goalId);
+
+      // Update local state - important!
+      _goals = _goals.where((goal) => goal.id != goalId).toList();
+
+      // Also update templates if needed
+      _goalTemplates =
+          _goalTemplates.where((goal) => goal.id != goalId).toList();
+
+      // Ensure UI updates
+      notifyListeners();
+    } catch (e) {
+      print("Error removing goal: $e");
+    } finally {
+      _setLoading(false);
+    }
   }
 
   // Goal Progress Operations
@@ -147,6 +165,27 @@ class GoalsProvider with ChangeNotifier {
   Future<void> denyProof(
       String goalId, String userId, String? proofDate) async {
     await _proofService.denyProof(goalId, userId, proofDate);
+  }
+
+  // New method to lock in goals and update party status
+  Future<void> lockInGoalsForChallenge(String partyId) async {
+    _setLoading(true);
+    try {
+      // Lock in goals
+      await lockInActiveGoals();
+
+      // Update party document
+      final userId = _auth.currentUser?.uid;
+      if (userId == null) return;
+
+      await _firestore.collection('parties').doc(partyId).update({
+        'activeChallenge.lockedInMembers': FieldValue.arrayUnion([userId])
+      });
+    } catch (e) {
+      print('Error locking in goals for challenge: $e');
+    } finally {
+      _setLoading(false);
+    }
   }
 
   Future<void> lockInActiveGoals() async {

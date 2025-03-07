@@ -124,7 +124,6 @@ class PartyMembersService {
         .snapshots();
   }
 
-  //TODO: moved back to provider
   // Future<void> leaveParty(String partyId) async {
   //   String? currentUserId = _auth.currentUser?.uid;
   //   if (currentUserId == null) {

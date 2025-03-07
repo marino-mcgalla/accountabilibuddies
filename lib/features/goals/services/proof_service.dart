@@ -13,7 +13,6 @@ class ProofService {
 
   ProofService(this._repository, this._timeMachineProvider);
 
-  // Submit proof for a goal with optional image URL
   Future<void> submitProof(List<Goal> currentGoals, String goalId,
       String proofText, String? imageUrl, bool yesterday) async {
     debugPrint(
@@ -36,29 +35,24 @@ class ProofService {
     String currentDay = submissionDate.toIso8601String().split('T').first;
 
     if (goal is WeeklyGoal) {
-      // Update status to 'submitted'
       goal.currentWeekCompletions[currentDay] = 'submitted';
 
-      // Create a proof object with the text and image URL
       Proof proof = Proof(
         proofText: proofText,
         submissionDate: submissionDate,
         imageUrl: imageUrl,
       );
 
-      // Store the proof in the weekly goal's proofs map
       goal.proofs[currentDay] = proof;
 
       debugPrint('Added proof to weekly goal for day: $currentDay');
     } else if (goal is TotalGoal) {
-      // Create a proof object with the text and image URL
       Proof proof = Proof(
         proofText: proofText,
         submissionDate: submissionDate,
         imageUrl: imageUrl,
       );
 
-      // Add the proof to the total goal's proofs list
       goal.proofs.add(proof);
 
       debugPrint('Added proof to total goal');

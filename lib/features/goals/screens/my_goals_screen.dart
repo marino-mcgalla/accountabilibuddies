@@ -7,6 +7,7 @@ import '../models/goal_model.dart';
 import 'add_goal_dialog.dart';
 import 'edit_goal_dialog.dart';
 import '../../common/utils/utils.dart';
+import '../../party/providers/party_provider.dart';
 
 class MyGoalsScreen extends StatefulWidget {
   const MyGoalsScreen({Key? key}) : super(key: key);
@@ -74,7 +75,6 @@ class _MyGoalsScreenState extends State<MyGoalsScreen>
         false;
   }
 
-  //TODO: THIS IS UI CODE WHY IS IT HERE UGHHHHHHHHHHH
   Future<bool> _confirmArchive(BuildContext context, Goal goal) async {
     final bool isActive = goal.active;
     final String action = isActive ? 'archive' : 'restore';
@@ -116,6 +116,12 @@ class _MyGoalsScreenState extends State<MyGoalsScreen>
       );
     }
 
+    // Get the party provider to check for pending challenge
+    //TODO: does this have to be here??
+    final partyProvider = Provider.of<PartyProvider>(context, listen: false);
+    final bool isPendingChallenge = partyProvider.hasPendingChallenge;
+    final bool isUserLockedIn = partyProvider.isCurrentUserLockedIn;
+
     return Scaffold(
       appBar: AppBar(
         title: const Text("My Goals"),
@@ -128,12 +134,39 @@ class _MyGoalsScreenState extends State<MyGoalsScreen>
         ),
         actions: [
           Consumer<GoalsProvider>(
-            builder: (context, goalsProvider, _) => TextButton.icon(
-              icon: const Icon(Icons.lock_outline, color: Colors.white),
-              label:
-                  const Text('Lock In', style: TextStyle(color: Colors.white)),
-              onPressed: () => _lockInGoals(context, goalsProvider),
-            ),
+            //TODO: don't really need this here, the one in the party screen is good enough
+            builder: (context, goalsProvider, _) {
+              // Check if there are any active goals
+              final hasActiveGoals =
+                  goalsProvider.goals.any((goal) => goal.active);
+
+              // Show Lock In button (with pending challenge indicator if applicable)
+              return TextButton.icon(
+                icon: Icon(
+                  isPendingChallenge
+                      ? (isUserLockedIn ? Icons.lock : Icons.lock_outline)
+                      : Icons.lock_outline,
+                  // Fix deprecated withOpacity
+                  color: hasActiveGoals
+                      ? Colors.white
+                      : Color.fromARGB(128, 255, 255, 255),
+                ),
+                label: Text(
+                  isPendingChallenge
+                      ? (isUserLockedIn ? 'Locked In' : 'Lock In')
+                      : 'Lock In',
+                  style: TextStyle(
+                    color: hasActiveGoals
+                        ? Colors.white
+                        : Color.fromARGB(128, 255, 255, 255),
+                  ),
+                ),
+                // Button is only enabled if there are active goals and not already locked in
+                onPressed: hasActiveGoals && (!isUserLockedIn)
+                    ? () => _lockInGoals(context, goalsProvider, partyProvider)
+                    : null,
+              );
+            },
           ),
           // Existing Add button
           IconButton(
@@ -161,20 +194,41 @@ class _MyGoalsScreenState extends State<MyGoalsScreen>
           return RefreshIndicator(
             key: _refreshKey,
             onRefresh: _refreshGoals,
-            child: TabBarView(
-              controller: _tabController,
+            child: Column(
               children: [
-                _buildGoalsList(context, totalGoals, goalsProvider),
-                _buildGoalsList(context, weeklyGoals, goalsProvider),
+                // Show pending challenge banner if applicable
+                if (isPendingChallenge && !isUserLockedIn)
+                  Container(
+                    color: Colors.amber.shade100,
+                    padding: const EdgeInsets.all(12),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.notifications_active,
+                            color: Colors.amber),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            'Challenge preparation in progress. Review your goals and lock them in when ready.',
+                            style: TextStyle(fontWeight: FontWeight.w500),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                Expanded(
+                  child: TabBarView(
+                    controller: _tabController,
+                    children: [
+                      _buildGoalsList(context, totalGoals, goalsProvider),
+                      _buildGoalsList(context, weeklyGoals, goalsProvider),
+                    ],
+                  ),
+                ),
               ],
             ),
           );
         },
       ),
-      // floatingActionButton: FloatingActionButton(
-      //   onPressed: () => _showAddGoalDialog(context),
-      //   child: const Icon(Icons.add),
-      // ),
     );
   }
 
@@ -215,16 +269,9 @@ class _MyGoalsScreenState extends State<MyGoalsScreen>
             final confirm = await _confirmDelete(context, goal.goalName);
             if (confirm && mounted) {
               try {
-                // Store a local copy of the context
                 final BuildContext currentContext = context;
-
-                // First show feedback that deletion is starting
                 Utils.showFeedback(currentContext, 'Deleting goal...');
-
-                // Then delete the goal
                 await goalsProvider.removeGoal(context, goal.id);
-
-                // Only show success feedback if still mounted
                 if (mounted) {
                   Utils.showFeedback(currentContext, 'Goal deleted');
                 }
@@ -242,10 +289,7 @@ class _MyGoalsScreenState extends State<MyGoalsScreen>
               final currentContext = context;
               final String action = goal.active ? 'Archiving' : 'Restoring';
               Utils.showFeedback(currentContext, '$action goal...');
-
-              // This will toggle the active state
               await goalsProvider.toggleGoalActive(goal.id);
-
               if (mounted) {
                 final String result = goal.active ? 'archived' : 'restored';
                 Utils.showFeedback(currentContext, 'Goal $result');
@@ -257,9 +301,9 @@ class _MyGoalsScreenState extends State<MyGoalsScreen>
     );
   }
 
-// Replace the _lockInGoals method in MyGoalsScreen
-  void _lockInGoals(BuildContext context, GoalsProvider goalsProvider) async {
-    // Filter only active goals
+  // Updated lock in method that connects with party challenge system
+  void _lockInGoals(BuildContext context, GoalsProvider goalsProvider,
+      PartyProvider partyProvider) async {
     final activeGoals =
         goalsProvider.goals.where((goal) => goal.active).toList();
 
@@ -280,24 +324,52 @@ class _MyGoalsScreenState extends State<MyGoalsScreen>
       return;
     }
 
+    // Show confirmation dialog for challenge
+    final bool shouldLockIn = await showDialog<bool>(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: const Text('Lock In Goals'),
+            content: partyProvider.hasPendingChallenge
+                ? const Text(
+                    'This will lock in your goals for the upcoming challenge. Continue?')
+                : const Text('Are you sure you want to lock in these goals?'),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context, false),
+                child: const Text('Cancel'),
+              ),
+              ElevatedButton(
+                onPressed: () => Navigator.pop(context, true),
+                child: const Text('Lock In'),
+              ),
+            ],
+          ),
+        ) ??
+        false;
+
+    if (!shouldLockIn) return;
+
     // Show loading indicator
     Utils.showFeedback(context, 'Locking in goals...');
 
     try {
-      // This will create locked-in copies of the active goals
-      await goalsProvider.lockInActiveGoals();
+      // If there's a pending challenge, use the challenge-specific method
+      if (partyProvider.hasPendingChallenge && partyProvider.partyId != null) {
+        await goalsProvider.lockInGoalsForChallenge(partyProvider.partyId!);
+      } else {
+        await goalsProvider.lockInActiveGoals();
+      }
 
-      // Display success dialog with the goals that were locked in
-      final goalNames = activeGoals.map((goal) => goal.goalName).join('\n• ');
-
+      // Display success dialog
       if (mounted) {
         Utils.showFeedback(context, 'Goals locked in successfully');
+        final goalNames = activeGoals.map((goal) => goal.goalName).join('\n• ');
+
         showDialog(
           context: context,
           builder: (context) => AlertDialog(
             title: const Text('Goals Locked In'),
-            content: Text(
-                "These goals are now locked in for the next challenge:\n\n• $goalNames"),
+            content: Text("These goals are now locked in:\n\n• $goalNames"),
             actions: [
               TextButton(
                 onPressed: () => Navigator.pop(context),

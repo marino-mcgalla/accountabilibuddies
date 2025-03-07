@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:auth_test/features/goals/providers/goals_provider.dart';
 import 'package:auth_test/features/party/models/party_model.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
@@ -49,7 +50,6 @@ class PartyProvider with ChangeNotifier {
   bool _isBatchingUpdates = false;
   bool _pendingNotification = false;
 
-  //TODO: clean this trash up, leaving it for now
   // Getters
   String? get partyId => _partyId;
   String? get partyName => _partyName;
@@ -69,6 +69,16 @@ class PartyProvider with ChangeNotifier {
       ? (_activeChallenge!['endDate'] as Timestamp).toDate()
       : null;
   String? get challengeId => _activeChallenge?['id'];
+  // Add new getters
+  bool get hasPendingChallenge =>
+      hasActiveChallenge && _activeChallenge?['state'] == 'pending';
+
+  List<String> get lockedInMembers => hasPendingChallenge
+      ? List<String>.from(_activeChallenge?['lockedInMembers'] ?? [])
+      : [];
+
+  bool get isCurrentUserLockedIn =>
+      lockedInMembers.contains(_auth.currentUser?.uid);
 
   PartyProvider({
     PartyMembersService? membersService,
@@ -290,6 +300,93 @@ class PartyProvider with ChangeNotifier {
       if (!_isDisposed) {
         setLoading(false);
       }
+    }
+  }
+// CHALLENGE SECTION ------------------------------------------------------------------------------------------------------------------------------------
+
+  Future<void> initiateChallengePreparation() async {
+    if (_isDisposed || _partyId == null || !isCurrentUserPartyLeader) return;
+    if (hasActiveChallenge) {
+      // Handle existing challenge case - either cancel or show error
+      return;
+    }
+
+    setLoading(true);
+    try {
+      final now = DateTime.now();
+      final challengeId = 'challenge_${now.millisecondsSinceEpoch}';
+
+      final pendingChallenge = {
+        'id': challengeId,
+        'state': 'pending',
+        'startDate': null, // Will be set when actually started
+        'endDate': null, // Will be set when actually started
+        'lockedInMembers': [], // Initially empty
+        'initiatedAt': Timestamp.fromDate(now)
+      };
+
+      await _firestore
+          .collection('parties')
+          .doc(_partyId)
+          .update({'activeChallenge': pendingChallenge});
+    } catch (e) {
+      print('Error initiating challenge preparation: $e');
+    } finally {
+      setLoading(false);
+    }
+  }
+
+// Modified method for confirming challenge (Phase 2)
+  Future<void> confirmChallengeStart(BuildContext context) async {
+    if (_isDisposed || _partyId == null || !isCurrentUserPartyLeader) return;
+    if (!hasActiveChallenge || _activeChallenge?['state'] != 'pending') return;
+
+    setLoading(true);
+    try {
+      final now = DateTime.now();
+      final endDate = now.add(Duration(days: 7));
+      final challengeId = _activeChallenge!['id'];
+
+      final activeChallenge = {
+        'id': challengeId,
+        'state': 'active',
+        'startDate': Timestamp.fromDate(now),
+        'endDate': Timestamp.fromDate(endDate),
+        'lockedInMembers': _activeChallenge!['lockedInMembers'],
+        'initiatedAt': _activeChallenge!['initiatedAt']
+      };
+
+      await _firestore
+          .collection('parties')
+          .doc(_partyId)
+          .update({'activeChallenge': activeChallenge});
+
+      // Lock in leader's goals automatically
+      final String leaderId = _auth.currentUser!.uid;
+      await Provider.of<GoalsProvider>(context, listen: false)
+          .lockInActiveGoals();
+    } catch (e) {
+      print('Error confirming challenge: $e');
+    } finally {
+      setLoading(false);
+    }
+  }
+
+// New method to cancel challenge preparation
+  Future<void> cancelChallengePreparation() async {
+    if (_isDisposed || _partyId == null || !isCurrentUserPartyLeader) return;
+    if (!hasActiveChallenge || _activeChallenge?['state'] != 'pending') return;
+
+    setLoading(true);
+    try {
+      await _firestore
+          .collection('parties')
+          .doc(_partyId)
+          .update({'activeChallenge': null});
+    } catch (e) {
+      print('Error canceling challenge preparation: $e');
+    } finally {
+      setLoading(false);
     }
   }
 

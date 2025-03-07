@@ -118,21 +118,6 @@ class GoalsProvider with ChangeNotifier {
   }
 
   // Goal Progress Operations
-  // Future<void> incrementCompletions(String goalId) async {
-  //   int index = _goals.indexWhere((goal) => goal.id == goalId);
-  //   if (index != -1 && _goals[index] is TotalGoal) {
-  //     final updatedGoals = List<Goal>.from(_goals);
-  //     final goal = updatedGoals[index] as TotalGoal;
-  //     final day = _timeMachineProvider.now.toIso8601String().split('T').first;
-  //     goal.currentWeekCompletions[day] =
-  //         (goal.currentWeekCompletions[day] ?? 0) + 1;
-  //     goal.totalCompletions += 1;
-  //     String? userId = _repository.getCurrentUserId();
-  //     if (userId != null) {
-  //       await _repository.saveGoals(userId, updatedGoals);
-  //     }
-  //   }
-  // }
 
   Future<void> toggleSkipPlan(String goalId, String day, String status) async {
     int index = _goals.indexWhere((goal) => goal.id == goalId);

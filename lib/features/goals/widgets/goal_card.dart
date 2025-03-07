@@ -230,19 +230,17 @@ class _GoalCardState extends State<GoalCard> {
   /// Opens a dialog to submit proof
   Future<void> _submitProof(BuildContext context) async {
     final goalsProvider = Provider.of<GoalsProvider>(context, listen: false);
+    // get the value of the yesterday variable
 
     await showDialog<bool>(
       context: context,
       builder: (context) => ProofSubmissionDialog(
         goal: widget.goal,
-        onSubmit: (proofText, imageUrl) async {
+        onSubmit: (proofText, imageUrl, yesterday) async {
           debugPrint(
               'Submitting proof with text: $proofText and image URL: $imageUrl');
-          await goalsProvider.submitProof(
-            widget.goal.id,
-            proofText,
-            imageUrl,
-          );
+          await goalsProvider.submitProof(widget.goal.id, proofText, imageUrl,
+              yesterday); //THIS IS THE ISSUE!!!
         },
       ),
     );

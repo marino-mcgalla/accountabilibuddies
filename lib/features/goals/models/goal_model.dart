@@ -9,7 +9,6 @@ class Goal {
   final String goalCriteria;
   final int goalFrequency;
   final bool active; // Whether the goal is active for the current week
-  DateTime weekStartDate; // When current week tracking started
   Map<String, dynamic> currentWeekCompletions; // Adding this back
 
   Goal({
@@ -20,7 +19,6 @@ class Goal {
     required this.goalCriteria,
     required this.goalFrequency,
     required this.active,
-    required this.weekStartDate,
     required this.currentWeekCompletions,
   });
 
@@ -43,7 +41,6 @@ class Goal {
       'goalCriteria': goalCriteria,
       'goalFrequency': goalFrequency,
       'active': active,
-      'weekStartDate': weekStartDate.toIso8601String(),
       'currentWeekCompletions': currentWeekCompletions,
     };
   }

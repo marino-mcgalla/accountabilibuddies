@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import '../models/goal_model.dart';
 import '../models/total_goal.dart';
@@ -6,14 +7,13 @@ import '../models/weekly_goal.dart';
 import '../repositories/goals_repository.dart';
 import '../services/goal_management_service.dart';
 import '../services/proof_service.dart';
-import '../services/week_service.dart';
 import '../../time_machine/providers/time_machine_provider.dart';
 
 class GoalsProvider with ChangeNotifier {
   final GoalsRepository _repository = GoalsRepository();
   late GoalManagementService _goalService;
   late ProofService _proofService;
-  late WeekService _weekService;
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
   TimeMachineProvider _timeMachineProvider;
 
@@ -29,7 +29,6 @@ class GoalsProvider with ChangeNotifier {
   void _initializeServices() {
     _goalService = GoalManagementService(_repository);
     _proofService = ProofService(_repository, _timeMachineProvider);
-    _weekService = WeekService(_repository, _timeMachineProvider);
   }
 
   void updateTimeMachineProvider(TimeMachineProvider timeMachineProvider) {
@@ -63,6 +62,21 @@ class GoalsProvider with ChangeNotifier {
     _setLoading(true);
     await _goalService.editGoal(_goals, updatedGoal);
     _setLoading(false);
+  }
+
+  Future<void> toggleGoalActive(String goalId) async {
+    _setLoading(true);
+    try {
+      final index = _goals.indexWhere((goal) => goal.id == goalId);
+      if (index != -1) {
+        // Pass the goal and the desired state to a targeted method
+        await _goalService.updateGoalActiveStatus(
+            goalId, !_goals[index].active);
+        // State will update via the stream listener
+      }
+    } finally {
+      _setLoading(false);
+    }
   }
 
   Future<void> removeGoal(BuildContext context, String goalId) async {
@@ -101,16 +115,9 @@ class GoalsProvider with ChangeNotifier {
     }
   }
 
-  // Week Management
-  Future<void> endWeek() async {
-    _setLoading(true);
-    await _weekService.endWeek(_goals);
-    _setLoading(false);
-  }
-
   // Proof Management
   Future<void> submitProof(
-      String goalId, String proofText, String? imageUrl, bool yesterday) async {
+      String goalId, String proofText, String? imageUrl, yesterday) async {
     await _proofService.submitProof(
         _goals, goalId, proofText, imageUrl, yesterday);
     notifyListeners();
@@ -119,16 +126,44 @@ class GoalsProvider with ChangeNotifier {
   Future<void> approveProof(
       String goalId, String userId, String? proofDate) async {
     await _proofService.approveProof(goalId, userId, proofDate);
-    // If approving our own goal, it will be updated via the stream listener
   }
 
   Future<void> denyProof(
       String goalId, String userId, String? proofDate) async {
     await _proofService.denyProof(goalId, userId, proofDate);
-    // If denying our own goal, it will be updated via the stream listener
   }
 
-  // Reset state
+  Future<void> lockInActiveGoals() async {
+    _setLoading(true);
+    try {
+      final activeGoals = _goals.where((goal) => goal.active).toList();
+      if (activeGoals.isEmpty) return;
+
+      String? userId = _repository.getCurrentUserId();
+      if (userId != null) {
+        // Create locked copies of active goals
+        List<Map<String, dynamic>> lockedGoals = activeGoals.map((goal) {
+          final goalMap = goal.toMap();
+          goalMap['lockedInId'] = 'locked_${goalMap['id']}';
+          goalMap['originalGoalId'] = goalMap['id'];
+          goalMap['lockedInDate'] = _timeMachineProvider.now.toIso8601String();
+          goalMap['lockedInVersion'] = true;
+          goalMap['currentWeekCompletions'] = {};
+          return goalMap;
+        }).toList();
+
+        await _firestore.collection('userGoals').doc(userId).update({
+          'currentChallengeGoals': {
+            'goals': lockedGoals,
+            'lockedInDate': _timeMachineProvider.now.toIso8601String()
+          }
+        });
+      }
+    } finally {
+      _setLoading(false);
+    }
+  }
+
   void resetState() {
     _goals = [];
     _isLoading = false;

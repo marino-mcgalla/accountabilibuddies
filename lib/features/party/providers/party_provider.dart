@@ -147,7 +147,7 @@ class PartyProvider with ChangeNotifier {
 
   // Create a new party
   Future<void> createParty(String partyName) async {
-    if (_isDisposed) return; // Skip if already disposed
+    if (_isDisposed) return;
     if (partyName.isEmpty) return;
 
     setLoading(true);
@@ -441,21 +441,6 @@ class PartyProvider with ChangeNotifier {
     }
   }
 
-  // End week for all members
-  Future<void> endWeekForAll(BuildContext context) async {
-    if (_isDisposed) return; // Skip if already disposed
-    if (_members.isEmpty) return;
-    if (!isCurrentUserPartyLeader) return; // Only leader can end week
-
-    try {
-      final timeMachineProvider =
-          Provider.of<TimeMachineProvider>(context, listen: false);
-      await _goalsService.endWeekForParty(_members, timeMachineProvider.now);
-    } catch (e) {
-      print('Error ending week: $e');
-    }
-  }
-
   // Helper methods
   bool _areListsEqual(List<String> list1, List<String> list2) {
     if (list1.length != list2.length) return false;
@@ -632,7 +617,7 @@ class PartyProvider with ChangeNotifier {
   //challenge stuff:
   // Add these methods to PartyProvider
 
-// Set which day of the week challenges will start on
+  // Set which day of the week challenges will start on
   Future<void> setChallengeStartDay(int dayOfWeek) async {
     if (_isDisposed) return;
     if (_partyId == null) return;
@@ -649,7 +634,7 @@ class PartyProvider with ChangeNotifier {
     }
   }
 
-// Start a new weekly challenge
+  // Start a new weekly challenge
   Future<void> startNewChallenge() async {
     if (_isDisposed) return;
     if (_partyId == null) return;
@@ -680,6 +665,11 @@ class PartyProvider with ChangeNotifier {
         'activeChallenge': challenge,
       });
 
+      //TODO: can I call "setupMemberChallenges" here?
+      // get members
+      // loop through and add a challenge object to each user's goals
+      // challenge
+
       // State will update via stream listener
     } catch (e) {
       print('Error starting new challenge: $e');
@@ -690,7 +680,7 @@ class PartyProvider with ChangeNotifier {
     }
   }
 
-// End the current challenge
+  // End the current challenge
   Future<void> endCurrentChallenge() async {
     if (_isDisposed) return;
     if (_partyId == null) return;
@@ -723,14 +713,61 @@ class PartyProvider with ChangeNotifier {
         'activeChallenge': null,
       });
 
-      // Reset all members' goals for the new week (we'll add this functionality later)
-      // This is just a placeholder for now
+      // Reset all members' goals for the new week using batch writes
+      await _endChallenge();
     } catch (e) {
       print('Error ending challenge: $e');
     } finally {
       if (!_isDisposed) {
         setLoading(false);
       }
+    }
+  }
+
+  // Reset all member goals for a new week (using batch writes)
+  Future<void> _endChallenge() async {
+    try {
+      WriteBatch batch = _firestore.batch();
+      final now = DateTime.now();
+
+      for (String memberId in _members) {
+        DocumentSnapshot userGoalsDoc =
+            await _firestore.collection('userGoals').doc(memberId).get();
+
+        if (userGoalsDoc.exists && userGoalsDoc.data() != null) {
+          Map<String, dynamic> userData =
+              userGoalsDoc.data() as Map<String, dynamic>;
+          List<dynamic> goalsData = userData['goals'] ?? [];
+
+          if (goalsData.isNotEmpty) {
+            // Reset each goal's progress tracking
+            for (var goalData in goalsData) {
+              // Reset weekly completions tracking
+              goalData['currentWeekCompletions'] = {};
+
+              // For total goals, clear proofs
+              if (goalData['goalType'] == 'total' &&
+                  goalData.containsKey('proofs')) {
+                goalData['proofs'] = [];
+              }
+
+              // Update week start date
+              // goalData['weekStartDate'] = now.toIso8601String();
+            }
+
+            // Add to batch instead of immediate update
+            batch.update(_firestore.collection('userGoals').doc(memberId),
+                {'goals': goalsData});
+          }
+        }
+      }
+
+      // Execute all updates in a single batch
+      await batch.commit();
+      debugPrint('Successfully reset all member goals');
+    } catch (e) {
+      debugPrint('Error resetting member goals: $e');
+      rethrow;
     }
   }
 }

@@ -1,3 +1,4 @@
+//// filepath: /Users/marino/Documents/dev/Projects/accountabilibuddies/lib/features/goals/widgets/goal_card.dart
 import 'package:auth_test/features/goals/widgets/proof_submission_dialog.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -11,11 +12,13 @@ class GoalCard extends StatefulWidget {
   final Goal goal;
   final VoidCallback onEdit;
   final VoidCallback onDelete;
+  final VoidCallback onArchive; // New callback for archiving the goal
 
   const GoalCard({
     required this.goal,
     required this.onEdit,
     required this.onDelete,
+    required this.onArchive,
     Key? key,
   }) : super(key: key);
 
@@ -95,8 +98,8 @@ class _GoalCardState extends State<GoalCard> {
   Widget _buildActions(BuildContext context, bool isSmallScreen) {
     final goalsProvider = Provider.of<GoalsProvider>(context, listen: false);
 
-    // For small screens, use a more compact layout
     if (isSmallScreen) {
+      // Compact layout for mobile
       return Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -131,7 +134,7 @@ class _GoalCardState extends State<GoalCard> {
             ],
           ),
           const SizedBox(height: 8),
-          // Second row
+          // Second row - action icons for edit, archive and delete
           Row(
             mainAxisAlignment: MainAxisAlignment.end,
             children: [
@@ -141,6 +144,13 @@ class _GoalCardState extends State<GoalCard> {
                 tooltip: 'Edit',
                 iconSize: 24,
                 padding: const EdgeInsets.all(12),
+              ),
+              IconButton(
+                icon:
+                    Icon(widget.goal.active ? Icons.archive : Icons.unarchive),
+                onPressed: widget.onArchive,
+                tooltip: widget.goal.active ? 'Archive' : 'Restore',
+                color: widget.goal.active ? Colors.orange : Colors.green,
               ),
               IconButton(
                 icon: const Icon(Icons.delete),
@@ -180,6 +190,11 @@ class _GoalCardState extends State<GoalCard> {
             tooltip: 'Edit',
           ),
           IconButton(
+            icon: const Icon(Icons.archive),
+            onPressed: widget.onArchive,
+            tooltip: 'Archive',
+          ),
+          IconButton(
             icon: const Icon(Icons.delete),
             onPressed: widget.onDelete,
             tooltip: 'Delete',
@@ -194,7 +209,6 @@ class _GoalCardState extends State<GoalCard> {
   void _handleDayTap(String goalId, String day, String status) {
     if (widget.goal is! WeeklyGoal) return;
 
-    // Cycle through statuses
     String newStatus;
     switch (status) {
       case 'default':
@@ -209,7 +223,6 @@ class _GoalCardState extends State<GoalCard> {
         break;
     }
 
-    // Use the stored context to update the status
     Provider.of<GoalsProvider>(context, listen: false)
         .toggleSkipPlan(goalId, day, newStatus);
   }
@@ -217,16 +230,17 @@ class _GoalCardState extends State<GoalCard> {
   /// Opens a dialog to submit proof
   Future<void> _submitProof(BuildContext context) async {
     final goalsProvider = Provider.of<GoalsProvider>(context, listen: false);
+    // get the value of the yesterday variable
 
     await showDialog<bool>(
       context: context,
       builder: (context) => ProofSubmissionDialog(
         goal: widget.goal,
-        onSubmit: (proofText, imageUrl) async {
+        onSubmit: (proofText, imageUrl, yesterday) async {
           debugPrint(
               'Submitting proof with text: $proofText and image URL: $imageUrl');
-          await goalsProvider.submitProof(
-              widget.goal.id, proofText, imageUrl, false);
+          await goalsProvider.submitProof(widget.goal.id, proofText, imageUrl,
+              yesterday); //THIS IS THE ISSUE!!!
         },
       ),
     );

@@ -74,6 +74,38 @@ class _MyGoalsScreenState extends State<MyGoalsScreen>
         false;
   }
 
+  //TODO: THIS IS UI CODE WHY IS IT HERE UGHHHHHHHHHHH
+  Future<bool> _confirmArchive(BuildContext context, Goal goal) async {
+    final bool isActive = goal.active;
+    final String action = isActive ? 'archive' : 'restore';
+    final String effect = isActive
+        ? 'will not be included in the next weekly challenge'
+        : 'will be included in future challenges';
+
+    return await showDialog<bool>(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: Text('${isActive ? 'Archive' : 'Restore'} Goal'),
+            content: Text(
+                'Are you sure you want to $action "${goal.goalName}"? This means it $effect.'),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(false),
+                child: const Text('Cancel'),
+              ),
+              TextButton(
+                style: TextButton.styleFrom(
+                  foregroundColor: isActive ? Colors.orange : Colors.green,
+                ),
+                onPressed: () => Navigator.of(context).pop(true),
+                child: Text(isActive ? 'Archive' : 'Restore'),
+              ),
+            ],
+          ),
+        ) ??
+        false;
+  }
+
   @override
   Widget build(BuildContext context) {
     // Check if user is logged in
@@ -95,6 +127,15 @@ class _MyGoalsScreenState extends State<MyGoalsScreen>
           ],
         ),
         actions: [
+          Consumer<GoalsProvider>(
+            builder: (context, goalsProvider, _) => TextButton.icon(
+              icon: const Icon(Icons.lock_outline, color: Colors.white),
+              label:
+                  const Text('Lock In', style: TextStyle(color: Colors.white)),
+              onPressed: () => _lockInGoals(context, goalsProvider),
+            ),
+          ),
+          // Existing Add button
           IconButton(
             icon: const Icon(Icons.add),
             onPressed: () => _showAddGoalDialog(context),
@@ -195,8 +236,82 @@ class _MyGoalsScreenState extends State<MyGoalsScreen>
               }
             }
           },
+          onArchive: () async {
+            final confirm = await _confirmArchive(context, goal);
+            if (confirm && mounted) {
+              final currentContext = context;
+              final String action = goal.active ? 'Archiving' : 'Restoring';
+              Utils.showFeedback(currentContext, '$action goal...');
+
+              // This will toggle the active state
+              await goalsProvider.toggleGoalActive(goal.id);
+
+              if (mounted) {
+                final String result = goal.active ? 'archived' : 'restored';
+                Utils.showFeedback(currentContext, 'Goal $result');
+              }
+            }
+          },
         );
       },
     );
+  }
+
+// Replace the _lockInGoals method in MyGoalsScreen
+  void _lockInGoals(BuildContext context, GoalsProvider goalsProvider) async {
+    // Filter only active goals
+    final activeGoals =
+        goalsProvider.goals.where((goal) => goal.active).toList();
+
+    if (activeGoals.isEmpty) {
+      showDialog(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('No Goals to Lock In'),
+          content: const Text("You don't have any active goals to lock in."),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('OK'),
+            ),
+          ],
+        ),
+      );
+      return;
+    }
+
+    // Show loading indicator
+    Utils.showFeedback(context, 'Locking in goals...');
+
+    try {
+      // This will create locked-in copies of the active goals
+      await goalsProvider.lockInActiveGoals();
+
+      // Display success dialog with the goals that were locked in
+      final goalNames = activeGoals.map((goal) => goal.goalName).join('\n• ');
+
+      if (mounted) {
+        Utils.showFeedback(context, 'Goals locked in successfully');
+        showDialog(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: const Text('Goals Locked In'),
+            content: Text(
+                "These goals are now locked in for the next challenge:\n\n• $goalNames"),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('OK'),
+              ),
+            ],
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        Utils.showFeedback(context, 'Error locking in goals: $e',
+            isError: true);
+      }
+    }
   }
 }

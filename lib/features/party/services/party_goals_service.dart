@@ -203,6 +203,12 @@ class PartyGoalsService {
           for (var goalData in goalsData) {
             goalData['weekStartDate'] = newWeekStartDate.toIso8601String();
             goalData['currentWeekCompletions'] = {};
+
+            // Clear proofs for total goals
+            if (goalData['goalType'] == 'total' &&
+                goalData.containsKey('proofs')) {
+              goalData['proofs'] = [];
+            }
           }
 
           // Update goals in Firestore

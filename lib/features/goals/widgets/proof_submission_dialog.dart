@@ -1,13 +1,16 @@
 // lib/features/goals/widgets/proof_submission_dialog.dart
 import 'dart:typed_data';
+import 'package:auth_test/features/time_machine/providers/time_machine_provider.dart';
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import '../models/goal_model.dart';
 import '../../proof_submission/services/image_picker_service.dart';
 import '../../proof_submission/services/firebase_storage_service.dart';
+import 'package:intl/date_time_patterns.dart';
 
 class ProofSubmissionDialog extends StatefulWidget {
   final Goal goal;
-  final Function(String, String?) onSubmit;
+  final Function(String, String?, bool) onSubmit;
 
   const ProofSubmissionDialog({
     required this.goal,
@@ -29,7 +32,7 @@ class _ProofSubmissionDialogState extends State<ProofSubmissionDialog> {
   bool _isUploading = false;
   String? _errorMessage;
   String? _statusMessage;
-  bool _yesterday = false; // [Yesterday, Today]
+  bool yesterday = false; // [Yesterday, Today]
 
   @override
   void dispose() {
@@ -168,7 +171,7 @@ class _ProofSubmissionDialogState extends State<ProofSubmissionDialog> {
         _statusMessage = 'Submitting proof...';
       });
 
-      await widget.onSubmit(_proofController.text, imageUrl);
+      await widget.onSubmit(_proofController.text, imageUrl, yesterday);
 
       setState(() {
         _statusMessage = 'Proof submitted successfully';
@@ -189,6 +192,10 @@ class _ProofSubmissionDialogState extends State<ProofSubmissionDialog> {
 
   @override
   Widget build(BuildContext context) {
+    final timeMachineProvider =
+        Provider.of<TimeMachineProvider>(context, listen: false);
+    final now = timeMachineProvider.now;
+
     return AlertDialog(
       title: const Text('Submit Proof'),
       content: SingleChildScrollView(
@@ -217,20 +224,20 @@ class _ProofSubmissionDialogState extends State<ProofSubmissionDialog> {
                 children: [
                   Radio<bool>(
                     value: true,
-                    groupValue: _yesterday,
+                    groupValue: yesterday,
                     onChanged: (value) {
                       setState(() {
-                        _yesterday = value!;
+                        yesterday = value!;
                       });
                     },
                   ),
                   const Text('Yesterday'),
                   Radio<bool>(
                     value: false,
-                    groupValue: _yesterday,
+                    groupValue: yesterday,
                     onChanged: (value) {
                       setState(() {
-                        _yesterday = value!;
+                        yesterday = value!;
                       });
                     },
                   ),
@@ -238,6 +245,39 @@ class _ProofSubmissionDialogState extends State<ProofSubmissionDialog> {
                 ],
               ),
             ),
+
+            // Yesterday/Today radio buttons, centered, with today on the right side and padding at the bottom
+            // Only show this if it is not Monday.
+            // TODO: CHANGE DAY TO START DAY PARAMETER
+
+            if (now.weekday != DateTime.monday)
+              Center(
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Radio<bool>(
+                      value: true,
+                      groupValue: yesterday,
+                      onChanged: (value) {
+                        setState(() {
+                          yesterday = value!;
+                        });
+                      },
+                    ),
+                    const Text('Yesterday'),
+                    Radio<bool>(
+                      value: false,
+                      groupValue: yesterday,
+                      onChanged: (value) {
+                        setState(() {
+                          yesterday = value!;
+                        });
+                      },
+                    ),
+                    const Text('Today'),
+                  ],
+                ),
+              ),
 
             // Image selection button
             Center(

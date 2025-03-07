@@ -57,8 +57,10 @@ class ProofService {
   }
 
   // Approve proof for another user's goal
+  //TODO: check that this is actually doing something
   Future<void> approveProof(
       String goalId, String userId, String? proofDate) async {
+    print('does this do anything???????');
     List<Goal> userGoals = await _repository.getGoalsForUser(userId);
 
     int goalIndex = userGoals.indexWhere((goal) => goal.id == goalId);

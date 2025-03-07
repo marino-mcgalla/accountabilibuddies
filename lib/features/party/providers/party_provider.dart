@@ -360,11 +360,6 @@ class PartyProvider with ChangeNotifier {
           .collection('parties')
           .doc(_partyId)
           .update({'activeChallenge': activeChallenge});
-
-      // Lock in leader's goals automatically
-      final String leaderId = _auth.currentUser!.uid;
-      await Provider.of<GoalsProvider>(context, listen: false)
-          .lockInActiveGoals();
     } catch (e) {
       print('Error confirming challenge: $e');
     } finally {
@@ -585,7 +580,7 @@ class PartyProvider with ChangeNotifier {
         if (_isDisposed) return; // Skip processing if disposed
 
         if (doc.exists) {
-          List<dynamic> goalsData = doc.data()?['goalTemplates'] ?? [];
+          List<dynamic> goalsData = doc.data()?['challengeGoals'] ?? [];
           final List<Goal> newGoals =
               goalsData.map((data) => Goal.fromMap(data)).toList();
 
@@ -827,7 +822,7 @@ class PartyProvider with ChangeNotifier {
         if (userGoalsDoc.exists && userGoalsDoc.data() != null) {
           Map<String, dynamic> userData =
               userGoalsDoc.data() as Map<String, dynamic>;
-          List<dynamic> goalsData = userData['goals'] ?? [];
+          List<dynamic> goalsData = userData['challengeGoals'] ?? [];
 
           if (goalsData.isNotEmpty) {
             // Reset each goal's progress tracking
@@ -847,7 +842,7 @@ class PartyProvider with ChangeNotifier {
 
             // Add to batch instead of immediate update
             batch.update(_firestore.collection('userGoals').doc(memberId),
-                {'goals': goalsData});
+                {'challengeGoals': goalsData});
           }
         }
       }

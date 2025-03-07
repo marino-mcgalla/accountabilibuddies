@@ -24,14 +24,22 @@ class GoalsRepository {
     });
   }
 
+// Add to GoalsRepository.dart
   Stream<List<Goal>> getChallengeGoalsStream(String userId) {
     return _firestore
         .collection('userGoals')
         .doc(userId)
         .snapshots()
         .map((doc) {
-      if (!doc.exists) return [];
-      List<dynamic> goalsData = doc.data()?['goalTemplates'] ?? [];
+      if (!doc.exists) {
+        return [];
+      }
+
+      Map<String, dynamic>? data = doc.data();
+
+      List<dynamic> goalsData = data?['challengeGoals'] ?? [];
+      if (goalsData.isNotEmpty) {}
+
       return goalsData.map((data) => Goal.fromMap(data)).toList();
     });
   }
@@ -74,7 +82,7 @@ class GoalsRepository {
 
     if (!doc.exists) return [];
     Map<String, dynamic>? data = doc.data() as Map<String, dynamic>?;
-    List<dynamic> goalsData = data?['goals'] ?? [];
+    List<dynamic> goalsData = data?['challengeGoals'] ?? [];
     return goalsData.map((data) => Goal.fromMap(data)).toList();
   }
 
@@ -85,7 +93,7 @@ class GoalsRepository {
     await _firestore
         .collection('userGoals')
         .doc(userId)
-        .update({'goals': goalsData});
+        .update({'challengeGoals': goalsData});
   }
 
 // Update a specific field of a goal

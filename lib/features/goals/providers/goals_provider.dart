@@ -47,15 +47,18 @@ class GoalsProvider with ChangeNotifier {
   List<Goal> get goals => _goals;
   bool get isLoading => _isLoading;
 
-  void initializeGoalsListener() {
+  initializeGoalsListener() {
     String? userId = _repository.getCurrentUserId();
     if (userId == null) return;
 
     _goalsSubscription?.cancel();
     _goalsSubscription =
         _repository.getChallengeGoalsStream(userId).listen((goals) {
+      if (goals.isNotEmpty) {}
       _goals = goals;
       notifyListeners();
+    }, onError: (error) {
+      print('Stream error: $error');
     });
   }
 
@@ -145,7 +148,7 @@ class GoalsProvider with ChangeNotifier {
       goal.currentWeekCompletions[day] = status;
       String? userId = _repository.getCurrentUserId();
       if (userId != null) {
-        await _repository.saveGoals(userId, updatedGoals);
+        await _repository.saveChallengeGoals(userId, updatedGoals);
       }
     }
   }
@@ -157,8 +160,10 @@ class GoalsProvider with ChangeNotifier {
     notifyListeners();
   }
 
+  //TODO: check that this is actually doing something
   Future<void> approveProof(
       String goalId, String userId, String? proofDate) async {
+    print('does this do anything???????');
     await _proofService.approveProof(goalId, userId, proofDate);
   }
 

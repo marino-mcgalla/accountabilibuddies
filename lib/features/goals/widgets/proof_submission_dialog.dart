@@ -199,6 +199,7 @@ class _ProofSubmissionDialogState extends State<ProofSubmissionDialog> {
       content: SingleChildScrollView(
         child: Column(
           mainAxisSize: MainAxisSize.min,
+          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text('Goal: ${widget.goal.goalName}'),
@@ -213,6 +214,35 @@ class _ProofSubmissionDialogState extends State<ProofSubmissionDialog> {
               autofocus: true,
             ),
             const SizedBox(height: 16),
+
+            // Yesterday/Today radio buttons, centered, with today on the right side and padding at the bottom
+            Center(
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Radio<bool>(
+                    value: true,
+                    groupValue: yesterday,
+                    onChanged: (value) {
+                      setState(() {
+                        yesterday = value!;
+                      });
+                    },
+                  ),
+                  const Text('Yesterday'),
+                  Radio<bool>(
+                    value: false,
+                    groupValue: yesterday,
+                    onChanged: (value) {
+                      setState(() {
+                        yesterday = value!;
+                      });
+                    },
+                  ),
+                  const Text('Today'),
+                ],
+              ),
+            ),
 
             // Yesterday/Today radio buttons, centered, with today on the right side and padding at the bottom
             // Only show this if it is not Monday.

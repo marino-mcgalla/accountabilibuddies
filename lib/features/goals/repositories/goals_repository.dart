@@ -19,19 +19,47 @@ class GoalsRepository {
         .snapshots()
         .map((doc) {
       if (!doc.exists) return [];
-      List<dynamic> goalsData = doc.data()?['goals'] ?? [];
+      List<dynamic> goalsData = doc.data()?['goalTemplates'] ?? [];
       return goalsData.map((data) => Goal.fromMap(data)).toList();
     });
   }
 
-  // Save goals to Firestore
+// Add to GoalsRepository.dart
+  Stream<List<Goal>> getChallengeGoalsStream(String userId) {
+    return _firestore
+        .collection('userGoals')
+        .doc(userId)
+        .snapshots()
+        .map((doc) {
+      if (!doc.exists) {
+        return [];
+      }
+
+      Map<String, dynamic>? data = doc.data();
+
+      List<dynamic> goalsData = data?['challengeGoals'] ?? [];
+      if (goalsData.isNotEmpty) {}
+
+      return goalsData.map((data) => Goal.fromMap(data)).toList();
+    });
+  }
+
+  // Maybe not using anymore???
   Future<void> saveGoals(String userId, List<Goal> goals) async {
     List<Map<String, dynamic>> goalsData =
         goals.map((goal) => goal.toMap()).toList();
-    await _firestore
-        .collection('userGoals')
-        .doc(userId)
-        .set({'goals': goalsData});
+    await _firestore.collection('userGoals').doc(userId).set(
+        {'goalTemplates': goalsData},
+        SetOptions(merge: true)); // Use merge: true
+  }
+
+  // submits proof to challengeGoals instead of template
+  Future<void> saveChallengeGoals(String userId, List<Goal> goals) async {
+    List<Map<String, dynamic>> goalsData =
+        goals.map((goal) => goal.toMap()).toList();
+    await _firestore.collection('userGoals').doc(userId).set(
+        {'challengeGoals': goalsData},
+        SetOptions(merge: true)); // Use merge: true
   }
 
   // Save goals history to Firestore
@@ -54,7 +82,7 @@ class GoalsRepository {
 
     if (!doc.exists) return [];
     Map<String, dynamic>? data = doc.data() as Map<String, dynamic>?;
-    List<dynamic> goalsData = data?['goals'] ?? [];
+    List<dynamic> goalsData = data?['challengeGoals'] ?? [];
     return goalsData.map((data) => Goal.fromMap(data)).toList();
   }
 
@@ -65,7 +93,7 @@ class GoalsRepository {
     await _firestore
         .collection('userGoals')
         .doc(userId)
-        .update({'goals': goalsData});
+        .update({'challengeGoals': goalsData});
   }
 
 // Update a specific field of a goal
@@ -78,11 +106,10 @@ class GoalsRepository {
       if (!doc.exists) return;
 
       Map<String, dynamic> userData = doc.data() as Map<String, dynamic>;
-      List<dynamic> goalsData = List.from(userData['goals'] ?? []);
+      List<dynamic> goalsData = List.from(userData['goalTemplates'] ?? []);
 
       for (int i = 0; i < goalsData.length; i++) {
         if (goalsData[i]['id'] == goalId) {
-          // Update just the specified field
           goalsData[i][field] = value;
           break;
         }
@@ -91,10 +118,31 @@ class GoalsRepository {
       await _firestore
           .collection('userGoals')
           .doc(userId)
-          .update({'goals': goalsData});
+          .update({'goalTemplates': goalsData});
     } catch (e) {
       print('Error updating goal field: $e');
       throw e;
     }
+  }
+
+// Save template goals
+  Future<void> saveGoalTemplates(String userId, List<Goal> goals) async {
+    List<Map<String, dynamic>> goalsData =
+        goals.map((goal) => goal.toMap()).toList();
+    await _firestore
+        .collection('userGoals')
+        .doc(userId)
+        .set({'goalTemplates': goalsData}, SetOptions(merge: true)); //?????
+  }
+
+// Get template goals
+  Future<List<Goal>> getgoalTemplatesForUser(String userId) async {
+    DocumentSnapshot doc =
+        await _firestore.collection('userGoals').doc(userId).get();
+    if (!doc.exists) return [];
+
+    Map<String, dynamic>? data = doc.data() as Map<String, dynamic>?;
+    List<dynamic> goalsData = data?['goalTemplates'] ?? [];
+    return goalsData.map((data) => Goal.fromMap(data)).toList();
   }
 }

@@ -8,7 +8,15 @@ class GoalManagementService {
   GoalManagementService(this._repository);
 
   // Add a new goal
-  Future<void> addGoal(List<Goal> currentGoals, Goal newGoal) async {
+  Future<void> createGoalTemplate(List<Goal> currentGoals, Goal newGoal) async {
+    String? userId = _repository.getCurrentUserId();
+    if (userId == null) return;
+
+    final updatedGoals = List<Goal>.from(currentGoals)..add(newGoal);
+    await _repository.saveGoals(userId, updatedGoals);
+  }
+
+  Future<void> createWeek(List<Goal> currentGoals, Goal newGoal) async {
     String? userId = _repository.getCurrentUserId();
     if (userId == null) return;
 

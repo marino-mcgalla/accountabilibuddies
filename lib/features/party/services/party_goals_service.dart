@@ -48,7 +48,7 @@ class PartyGoalsService {
         if (userGoalsDoc.exists && userGoalsDoc.data() != null) {
           Map<String, dynamic> userData =
               userGoalsDoc.data() as Map<String, dynamic>;
-          List<dynamic> goalsData = userData['goals'] ?? [];
+          List<dynamic> goalsData = userData['challengeGoals'] ?? [];
 
           for (var goalData in goalsData) {
             Goal goal = Goal.fromMap(goalData);
@@ -110,7 +110,7 @@ class PartyGoalsService {
         await _firestore.collection('userGoals').doc(userId).get();
 
     if (userGoalsDoc.exists) {
-      List<dynamic> goalsData = userGoalsDoc['goals'] ?? [];
+      List<dynamic> goalsData = userGoalsDoc['challengeGoals'] ?? [];
       for (var goalData in goalsData) {
         if (goalData['id'] == goalId) {
           if (goalData['goalType'] == 'weekly' && proofDate != null) {
@@ -118,6 +118,7 @@ class PartyGoalsService {
           } else if (goalData['goalType'] == 'total') {
             if (goalData['proofs'] != null && goalData['proofs'].isNotEmpty) {
               // Remove the first proof
+              //TODO: "the first proof" is definitely not correct, check that it's the correct one first
               goalData['proofs'].removeAt(0);
 
               // Increment the total completions
@@ -136,7 +137,7 @@ class PartyGoalsService {
 
       // Update Firestore
       await _firestore.collection('userGoals').doc(userId).update({
-        'goals': goalsData,
+        'challengeGoals': goalsData,
       });
     } else {
       throw Exception("User goals document does not exist");

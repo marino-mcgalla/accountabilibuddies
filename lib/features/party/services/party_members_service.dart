@@ -124,37 +124,36 @@ class PartyMembersService {
         .snapshots();
   }
 
-  /// Leave a party
-  Future<void> leaveParty(String partyId) async {
-    String? currentUserId = _auth.currentUser?.uid;
-    if (currentUserId == null) {
-      throw Exception('User not logged in');
-    }
+  // Future<void> leaveParty(String partyId) async {
+  //   String? currentUserId = _auth.currentUser?.uid;
+  //   if (currentUserId == null) {
+  //     throw Exception('User not logged in');
+  //   }
 
-    await _firestore.collection('users').doc(currentUserId).update({
-      'partyId': FieldValue.delete(),
-    });
+  //   await _firestore.collection('users').doc(currentUserId).update({
+  //     'partyId': FieldValue.delete(),
+  //   });
 
-    await _firestore.collection('parties').doc(partyId).update({
-      'members': FieldValue.arrayRemove([currentUserId]),
-    });
-  }
+  //   await _firestore.collection('parties').doc(partyId).update({
+  //     'members': FieldValue.arrayRemove([currentUserId]),
+  //   });
+  // }
 
-  /// Close an entire party (for party owner)
-  Future<void> closeParty(String partyId, List<String> members) async {
-    String? currentUserId = _auth.currentUser?.uid;
-    if (currentUserId == null) {
-      throw Exception('User not logged in');
-    }
+  // /// Close an entire party (for party owner)
+  // Future<void> closeParty(String partyId, List<String> members) async {
+  //   String? currentUserId = _auth.currentUser?.uid;
+  //   if (currentUserId == null) {
+  //     throw Exception('User not logged in');
+  //   }
 
-    // Delete the party document
-    await _firestore.collection('parties').doc(partyId).delete();
+  //   // Delete the party document
+  //   await _firestore.collection('parties').doc(partyId).delete();
 
-    // Remove partyId from all members
-    for (String memberId in members) {
-      await _firestore.collection('users').doc(memberId).update({
-        'partyId': FieldValue.delete(),
-      });
-    }
-  }
+  //   // Remove partyId from all members
+  //   for (String memberId in members) {
+  //     await _firestore.collection('users').doc(memberId).update({
+  //       'partyId': FieldValue.delete(),
+  //     });
+  //   }
+  // }
 }

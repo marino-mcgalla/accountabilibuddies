@@ -14,26 +14,7 @@ class PartyMembersService {
   })  : _auth = auth ?? FirebaseAuth.instance,
         _firestore = firestore ?? FirebaseFirestore.instance;
 
-  /// Get the current user ID
-  String? get currentUserId => _auth.currentUser?.uid;
-
-  /// Fetch details for a list of members
-  Future<Map<String, Map<String, dynamic>>> fetchMemberDetails(
-      List<String> members) async {
-    Map<String, Map<String, dynamic>> memberDetails = {};
-
-    for (String memberId in members) {
-      DocumentSnapshot userDoc =
-          await _firestore.collection('users').doc(memberId).get();
-      if (userDoc.exists) {
-        memberDetails[memberId] = userDoc.data() as Map<String, dynamic>;
-      }
-    }
-
-    return memberDetails;
-  }
-
-  /// Send an invite to a user by email
+  /// Send an invite to a user
   Future<bool> sendInvite(String inviteeEmail, String partyId) async {
     String? currentUserId = _auth.currentUser?.uid;
     if (currentUserId == null || inviteeEmail.isEmpty) {
@@ -42,7 +23,7 @@ class PartyMembersService {
 
     QuerySnapshot userQuery = await _firestore
         .collection('users')
-        .where('email', isEqualTo: inviteeEmail)
+        .where('email', isEqualTo: inviteeEmail) //TODO: add username as well
         .get();
 
     if (userQuery.docs.isEmpty) {
@@ -60,6 +41,27 @@ class PartyMembersService {
     });
 
     return true;
+  }
+
+//ABOVE THIS LINE IS CLEAN --------------------------------------------------------------------------------
+
+  /// Get the current user ID
+  String? get currentUserId => _auth.currentUser?.uid;
+
+  /// Fetch details for a list of members
+  Future<Map<String, Map<String, dynamic>>> fetchMemberDetails(
+      List<String> members) async {
+    Map<String, Map<String, dynamic>> memberDetails = {};
+
+    for (String memberId in members) {
+      DocumentSnapshot userDoc =
+          await _firestore.collection('users').doc(memberId).get();
+      if (userDoc.exists) {
+        memberDetails[memberId] = userDoc.data() as Map<String, dynamic>;
+      }
+    }
+
+    return memberDetails;
   }
 
   /// Accept an invite to join a party
@@ -123,37 +125,4 @@ class PartyMembersService {
         .where('status', isEqualTo: 'pending')
         .snapshots();
   }
-
-  // Future<void> leaveParty(String partyId) async {
-  //   String? currentUserId = _auth.currentUser?.uid;
-  //   if (currentUserId == null) {
-  //     throw Exception('User not logged in');
-  //   }
-
-  //   await _firestore.collection('users').doc(currentUserId).update({
-  //     'partyId': FieldValue.delete(),
-  //   });
-
-  //   await _firestore.collection('parties').doc(partyId).update({
-  //     'members': FieldValue.arrayRemove([currentUserId]),
-  //   });
-  // }
-
-  // /// Close an entire party (for party owner)
-  // Future<void> closeParty(String partyId, List<String> members) async {
-  //   String? currentUserId = _auth.currentUser?.uid;
-  //   if (currentUserId == null) {
-  //     throw Exception('User not logged in');
-  //   }
-
-  //   // Delete the party document
-  //   await _firestore.collection('parties').doc(partyId).delete();
-
-  //   // Remove partyId from all members
-  //   for (String memberId in members) {
-  //     await _firestore.collection('users').doc(memberId).update({
-  //       'partyId': FieldValue.delete(),
-  //     });
-  //   }
-  // }
 }

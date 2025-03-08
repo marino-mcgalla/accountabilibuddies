@@ -9,6 +9,7 @@ import '../../goals/models/goal_model.dart';
 import '../services/party_members_service.dart';
 import '../services/party_goals_service.dart';
 import '../../time_machine/providers/time_machine_provider.dart';
+import '../repositories/party_repository.dart';
 
 class PartyProvider with ChangeNotifier {
   // Services
@@ -16,6 +17,7 @@ class PartyProvider with ChangeNotifier {
   final PartyGoalsService _goalsService;
   final FirebaseAuth _auth;
   final FirebaseFirestore _firestore;
+  final PartyRepository _repository;
 
   // Controllers
   final TextEditingController partyNameController = TextEditingController();
@@ -43,7 +45,7 @@ class PartyProvider with ChangeNotifier {
   ];
 
   // Subscription management
-  StreamSubscription<DocumentSnapshot>? _partySubscription;
+  StreamSubscription<Map<String, dynamic>?>? _partySubscription;
   List<StreamSubscription<DocumentSnapshot>?> _goalSubscriptions = [];
 
   // Batching updates
@@ -85,99 +87,69 @@ class PartyProvider with ChangeNotifier {
     PartyGoalsService? goalsService,
     FirebaseAuth? auth,
     FirebaseFirestore? firestore,
+    PartyRepository? repository,
   })  : _membersService = membersService ?? PartyMembersService(),
         _goalsService = goalsService ?? PartyGoalsService(),
         _auth = auth ?? FirebaseAuth.instance,
-        _firestore = firestore ?? FirebaseFirestore.instance {
+        _firestore = firestore ?? FirebaseFirestore.instance,
+        _repository = repository ?? PartyRepository() {
     initializePartyState();
   }
 
-  // Initialize party state
   void initializePartyState() {
-    if (_isDisposed) return; // Skip if already disposed
-
+    if (_isDisposed) return;
     setLoading(true);
 
-    String? currentUserId = _auth.currentUser?.uid;
-    if (currentUserId == null || currentUserId.isEmpty) {
-      setLoading(false);
-      return;
-    }
-
     _partySubscription?.cancel();
-    _partySubscription = _firestore
-        .collection('users')
-        .doc(currentUserId)
-        .snapshots()
-        .listen((userDoc) {
-      if (_isDisposed) return; // Skip processing if disposed
 
-      if (userDoc.exists &&
-          userDoc.data() != null &&
-          (userDoc.data() as Map<String, dynamic>).containsKey('partyId')) {
-        String partyId = (userDoc.data() as Map<String, dynamic>)['partyId'];
-        _firestore
-            .collection('parties')
-            .doc(partyId)
-            .snapshots()
-            .listen((partyDoc) {
-          if (_isDisposed) return; // Skip processing if disposed
+    _partySubscription = _repository.getUserPartyStream().listen((partyData) {
+      if (_isDisposed) return;
 
-          if (partyDoc.exists) {
-            batchUpdates(() {
-              _partyId = partyId;
-              _partyName = partyDoc['partyName'];
-              _partyLeaderId = partyDoc['partyOwner'];
-
-              // Add these lines to read challenge configuration
-              _challengeStartDay = partyDoc['challengeStartDay'] ?? 1;
-              _activeChallenge = partyDoc['activeChallenge'];
-
-              final List<String> newMembers =
-                  List<String>.from(partyDoc['members']);
-              final bool membersChanged = !_areListsEqual(_members, newMembers);
-              _members = newMembers;
-
-              if (membersChanged) {
-                _cancelGoalSubscriptions();
-                _partyMemberGoals = {};
-                fetchMemberDetails();
-                _subscribeToPartyMemberGoals();
-              }
-
-              setLoading(false);
-            });
-          } else {
-            _resetState();
-          }
-        });
-      } else {
+      if (partyData == null) {
         _resetState();
+        return;
       }
+
+      batchUpdates(() {
+        _partyId = partyData['partyId'];
+        _partyName = partyData['partyName'];
+        _partyLeaderId = partyData['partyOwner'];
+
+        // Challenge configuration
+        _challengeStartDay = partyData['challengeStartDay'] ?? 1;
+        _activeChallenge = partyData['activeChallenge'];
+
+        // Handle members
+        final List<String> newMembers = List<String>.from(partyData['members']);
+        final bool membersChanged = !_areListsEqual(_members, newMembers);
+        _members = newMembers;
+
+        if (membersChanged) {
+          _cancelGoalSubscriptions();
+          _partyMemberGoals = {};
+          fetchMemberDetails();
+          _subscribeToPartyMemberGoals();
+        }
+
+        setLoading(false);
+      });
     });
   }
 
-  Future<void> createParty(String partyName) async {
-    if (_isDisposed) return;
-    if (partyName.isEmpty) return;
-
+// PARTY MANAGEMENT SECTION ------------------------------------------------------------------------------------------------------------------------------------
+  Future<bool> createParty(String partyName) async {
+    if (_isDisposed || partyName.trim().isEmpty) return false;
     setLoading(true);
 
     try {
-      String currentUserId = _auth.currentUser?.uid ?? "";
+      final currentUserId = _auth.currentUser?.uid;
+      if (currentUserId == null) return false;
 
       Party party = Party.create(currentUserId, partyName);
 
-      DocumentReference partyRef =
-          await _firestore.collection('parties').add(party.toMap());
+      final String partyId = await _repository.createParty(party);
+      await _repository.updateUserPartyReference(currentUserId, partyId);
 
-      String partyId = partyRef.id;
-
-      await _firestore.collection('users').doc(currentUserId).update({
-        'partyId': partyId,
-      });
-
-      // Update local state
       if (!_isDisposed) {
         batchUpdates(() {
           _partyId = partyId;
@@ -186,12 +158,13 @@ class PartyProvider with ChangeNotifier {
           fetchMemberDetails();
         });
       }
+
+      return true;
     } catch (e) {
-      print('Error creating party: $e');
+      debugPrint('Error creating party: $e');
+      return false;
     } finally {
-      if (!_isDisposed) {
-        setLoading(false);
-      }
+      if (!_isDisposed) setLoading(false);
     }
   }
 
@@ -278,21 +251,11 @@ class PartyProvider with ChangeNotifier {
   }
 
   Future<void> closeParty() async {
-    if (_isDisposed) return;
-    if (_partyId == null) return;
-    if (!isCurrentUserPartyLeader) return; // Only leader can close party
-
+    if (_isDisposed || _partyId == null || !isCurrentUserPartyLeader) return;
     setLoading(true);
 
     try {
-      await _firestore.collection('parties').doc(_partyId).delete();
-
-      for (String memberId in _members) {
-        await _firestore.collection('users').doc(memberId).update({
-          'partyId': FieldValue.delete(),
-        });
-      }
-
+      await _repository.closeParty(_partyId!, _members);
       _resetState();
     } catch (e) {
       print('Error closing party: $e');
@@ -302,6 +265,50 @@ class PartyProvider with ChangeNotifier {
       }
     }
   }
+
+  // INVITES SECTION ------------------------------------------------------------------------------------------------------------------------------------
+  Future<void> sendInvite() async {
+    if (_isDisposed) return; // Skip if already disposed
+    if (_partyId == null || inviteController.text.isEmpty) return;
+
+    try {
+      bool success =
+          await _membersService.sendInvite(inviteController.text, _partyId!);
+      if (success && !_isDisposed) {
+        inviteController.clear();
+        notifyListeners();
+      }
+    } catch (e) {
+      print('Error sending invite: $e');
+    }
+  }
+
+  // Accept an invite to join a party
+  Future<void> acceptInvite(String inviteId, String partyId) async {
+    if (_isDisposed) return; // Skip if already disposed
+
+    try {
+      await _membersService.acceptInvite(inviteId, partyId);
+      // The party subscription will handle state updates
+    } catch (e) {
+      print('Error accepting invite: $e');
+    }
+  }
+
+  // Cancel a pending invite
+  Future<void> cancelInvite(String inviteId) async {
+    if (_isDisposed) return; // Skip if already disposed
+
+    try {
+      await _membersService.cancelInvite(inviteId);
+      if (!_isDisposed) {
+        notifyListeners();
+      }
+    } catch (e) {
+      print('Error canceling invite: $e');
+    }
+  }
+
 // CHALLENGE SECTION ------------------------------------------------------------------------------------------------------------------------------------
 
   Future<void> initiateChallengePreparation() async {
@@ -382,49 +389,6 @@ class PartyProvider with ChangeNotifier {
       print('Error canceling challenge preparation: $e');
     } finally {
       setLoading(false);
-    }
-  }
-
-  // INVITES SECTION ------------------------------------------------------------------------------------------------------------------------------------
-  Future<void> sendInvite() async {
-    if (_isDisposed) return; // Skip if already disposed
-    if (_partyId == null || inviteController.text.isEmpty) return;
-
-    try {
-      bool success =
-          await _membersService.sendInvite(inviteController.text, _partyId!);
-      if (success && !_isDisposed) {
-        inviteController.clear();
-        notifyListeners();
-      }
-    } catch (e) {
-      print('Error sending invite: $e');
-    }
-  }
-
-  // Accept an invite to join a party
-  Future<void> acceptInvite(String inviteId, String partyId) async {
-    if (_isDisposed) return; // Skip if already disposed
-
-    try {
-      await _membersService.acceptInvite(inviteId, partyId);
-      // The party subscription will handle state updates
-    } catch (e) {
-      print('Error accepting invite: $e');
-    }
-  }
-
-  // Cancel a pending invite
-  Future<void> cancelInvite(String inviteId) async {
-    if (_isDisposed) return; // Skip if already disposed
-
-    try {
-      await _membersService.cancelInvite(inviteId);
-      if (!_isDisposed) {
-        notifyListeners();
-      }
-    } catch (e) {
-      print('Error canceling invite: $e');
     }
   }
 

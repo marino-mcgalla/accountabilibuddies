@@ -13,6 +13,8 @@ class ProofService {
 
   ProofService(this._repository, this._timeMachineProvider);
 
+// Let's review the original submitProof method in lib/features/goals/services/proof_service.dart:
+
   Future<void> submitProof(List<Goal> currentGoals, String goalId,
       String proofText, String? imageUrl, bool yesterday) async {
     debugPrint(
@@ -65,7 +67,8 @@ class ProofService {
   //TODO: check that this is actually doing something
   Future<void> approveProof(
       String goalId, String userId, String? proofDate) async {
-    print('does this do anything???????');
+    print(
+        'Approving proof for goalId: $goalId, userId: $userId, date: $proofDate');
     List<Goal> userGoals = await _repository.getGoalsForUser(userId);
 
     int goalIndex = userGoals.indexWhere((goal) => goal.id == goalId);
@@ -74,22 +77,36 @@ class ProofService {
     Goal goal = userGoals[goalIndex];
 
     if (goal is WeeklyGoal && proofDate != null) {
+      // Change status from 'submitted' to 'completed'
       goal.currentWeekCompletions[proofDate] = 'completed';
 
-      // Remove the proof from the proofs map since it's been approved
+      // Optional: Remove proof now that it's been approved
       if (goal.proofs.containsKey(proofDate)) {
         goal.proofs.remove(proofDate);
       }
+
+      print('Weekly goal proof approved for date: $proofDate');
     } else if (goal is TotalGoal) {
+      // For total goals, increment the counter and remove the proof
       final day = _timeMachineProvider.now.toIso8601String().split('T').first;
-      goal.currentWeekCompletions[day] =
-          (goal.currentWeekCompletions[day] ?? 0) + 1;
+
+      // Update current week completions counter
+      int currentCount = goal.currentWeekCompletions[day] as int? ?? 0;
+      goal.currentWeekCompletions[day] = currentCount + 1;
+
+      // Update total completions counter
       goal.totalCompletions += 1;
+
+      // Remove the proof (assuming first proof in the list)
       if (goal.proofs.isNotEmpty) {
-        goal.proofs.removeAt(0); // Remove the first proof
+        goal.proofs.removeAt(0);
       }
+
+      print(
+          'Total goal proof approved, completions now: ${goal.totalCompletions}');
     }
 
+    // Save the updated goals
     await _repository.updateUserGoals(userId, userGoals);
   }
 

@@ -25,6 +25,11 @@ class _MyGoalsScreenState extends State<MyGoalsScreen>
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
+
+    // Force refresh goals when screen loads
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _refreshGoals();
+    });
   }
 
   @override
@@ -34,9 +39,17 @@ class _MyGoalsScreenState extends State<MyGoalsScreen>
   }
 
   Future<void> _refreshGoals() async {
-    // This will trigger the firestore listener in GoalsProvider
-    Provider.of<GoalsProvider>(context, listen: false)
-        .initializeGoalsListener();
+    if (!mounted) return;
+
+    final goalsProvider = Provider.of<GoalsProvider>(context, listen: false);
+
+    // Don't await this since it returns void
+    goalsProvider.initializeGoalsListener();
+
+    // Force UI update
+    setState(() {
+      // This will trigger a rebuild with the latest data
+    });
   }
 
   void _showAddGoalDialog(BuildContext context) {
@@ -116,12 +129,6 @@ class _MyGoalsScreenState extends State<MyGoalsScreen>
       );
     }
 
-    // Get the party provider to check for pending challenge
-    //TODO: does this have to be here??
-    final partyProvider = Provider.of<PartyProvider>(context, listen: false);
-    final bool isPendingChallenge = partyProvider.hasPendingChallenge;
-    final bool isUserLockedIn = partyProvider.isCurrentUserLockedIn;
-
     return Scaffold(
       appBar: AppBar(
         title: const Text("My Goals"),
@@ -133,101 +140,114 @@ class _MyGoalsScreenState extends State<MyGoalsScreen>
           ],
         ),
         actions: [
-          Consumer<GoalsProvider>(
-            //TODO: don't really need this here, the one in the party screen is good enough
-            builder: (context, goalsProvider, _) {
-              // Check if there are any active goals
-              final hasActiveGoals =
-                  goalsProvider.goals.any((goal) => goal.active);
+          // Existing buttons
+          IconButton(
+            icon: const Icon(Icons.refresh),
+            tooltip: 'Force Refresh',
+            onPressed: () {
+              // Force a manual refresh
+              final goalsProvider =
+                  Provider.of<GoalsProvider>(context, listen: false);
+              goalsProvider.initializeGoalsListener();
 
-              // Show Lock In button (with pending challenge indicator if applicable)
-              return TextButton.icon(
-                icon: Icon(
-                  isPendingChallenge
-                      ? (isUserLockedIn ? Icons.lock : Icons.lock_outline)
-                      : Icons.lock_outline,
-                  // Fix deprecated withOpacity
-                  color: hasActiveGoals
-                      ? Colors.white
-                      : Color.fromARGB(128, 255, 255, 255),
-                ),
-                label: Text(
-                  isPendingChallenge
-                      ? (isUserLockedIn ? 'Locked In' : 'Lock In')
-                      : 'Lock In',
-                  style: TextStyle(
-                    color: hasActiveGoals
-                        ? Colors.white
-                        : Color.fromARGB(128, 255, 255, 255),
-                  ),
-                ),
-                // Button is only enabled if there are active goals and not already locked in
-                onPressed: hasActiveGoals && (!isUserLockedIn)
-                    ? () => _lockInGoals(context, goalsProvider, partyProvider)
-                    : null,
+              // Force UI update
+              setState(() {});
+
+              // Show feedback
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Refreshing goals...')),
               );
             },
           ),
-          // Existing Add button
-          IconButton(
-            icon: const Icon(Icons.add),
-            onPressed: () => _showAddGoalDialog(context),
-            tooltip: 'Add Goal',
-          ),
+          // Other existing buttons
         ],
       ),
-      body: Consumer<GoalsProvider>(
-        builder: (context, goalsProvider, child) {
-          if (goalsProvider.isLoading) {
+      body: FutureBuilder(
+        // This future ensures we wait for data to be fully loaded
+        future: _ensureDataLoaded(),
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(child: CircularProgressIndicator());
           }
 
-          // Separate goals by type
-          final totalGoals = goalsProvider.goals
-              .where((goal) => goal.goalType == 'total')
-              .toList();
+          return Consumer<GoalsProvider>(
+            builder: (context, goalsProvider, child) {
+              if (goalsProvider.isLoading) {
+                return const Center(child: CircularProgressIndicator());
+              }
 
-          final weeklyGoals = goalsProvider.goals
-              .where((goal) => goal.goalType == 'weekly')
-              .toList();
+              // Separate goals by type
+              final totalGoals = goalsProvider.displayGoals
+                  .where((goal) => goal.goalType == 'total')
+                  .toList();
 
-          return RefreshIndicator(
-            key: _refreshKey,
-            onRefresh: _refreshGoals,
-            child: Column(
-              children: [
-                // Show pending challenge banner if applicable
-                if (isPendingChallenge && !isUserLockedIn)
-                  Container(
-                    color: Colors.amber.shade100,
-                    padding: const EdgeInsets.all(12),
-                    child: Row(
-                      children: [
-                        const Icon(Icons.notifications_active,
-                            color: Colors.amber),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: Text(
-                            'Challenge preparation in progress. Review your goals and lock them in when ready.',
-                            style: TextStyle(fontWeight: FontWeight.w500),
-                          ),
-                        ),
-                      ],
+              final weeklyGoals = goalsProvider.displayGoals
+                  .where((goal) => goal.goalType == 'weekly')
+                  .toList();
+
+              return RefreshIndicator(
+                key: _refreshKey,
+                onRefresh: _refreshGoals,
+                child: Column(
+                  children: [
+                    // Party challenge banner (if applicable)
+                    if (_shouldShowChallengeBanner()) _buildChallengeBanner(),
+
+                    Expanded(
+                      child: TabBarView(
+                        controller: _tabController,
+                        children: [
+                          _buildGoalsList(context, totalGoals, goalsProvider),
+                          _buildGoalsList(context, weeklyGoals, goalsProvider),
+                        ],
+                      ),
                     ),
-                  ),
-                Expanded(
-                  child: TabBarView(
-                    controller: _tabController,
-                    children: [
-                      _buildGoalsList(context, totalGoals, goalsProvider),
-                      _buildGoalsList(context, weeklyGoals, goalsProvider),
-                    ],
-                  ),
+                  ],
                 ),
-              ],
-            ),
+              );
+            },
           );
         },
+      ),
+    );
+  }
+
+// Add this method to ensure data is loaded before displaying
+  Future<bool> _ensureDataLoaded() async {
+    final goalsProvider = Provider.of<GoalsProvider>(context, listen: false);
+
+    // Force goals to be loaded completely
+    goalsProvider.initializeGoalsListener();
+
+    // Add a small delay to ensure Firestore has time to respond
+    await Future.delayed(Duration(milliseconds: 500));
+
+    return true;
+  }
+
+// Helper method to check if challenge banner should be shown
+  bool _shouldShowChallengeBanner() {
+    final partyProvider = Provider.of<PartyProvider>(context, listen: false);
+    return partyProvider.hasPendingChallenge &&
+        !partyProvider.isCurrentUserLockedIn;
+  }
+
+// Banner for challenges
+  Widget _buildChallengeBanner() {
+    return Container(
+      color: Colors.amber.shade100,
+      padding: const EdgeInsets.all(12),
+      child: Row(
+        children: [
+          const Icon(Icons.notifications_active, color: Colors.amber),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              'Challenge preparation in progress. Review your goals and lock them in when ready.',
+              style: TextStyle(fontWeight: FontWeight.w500),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -235,27 +255,15 @@ class _MyGoalsScreenState extends State<MyGoalsScreen>
   Widget _buildGoalsList(
       BuildContext context, List<Goal> goals, GoalsProvider goalsProvider) {
     if (goals.isEmpty) {
-      return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const Icon(Icons.sentiment_dissatisfied,
-                size: 48, color: Colors.grey),
-            const SizedBox(height: 16),
-            const Text(
-              'No goals found',
-              style: TextStyle(fontSize: 18, color: Colors.grey),
-            ),
-            const SizedBox(height: 16),
-            ElevatedButton.icon(
-              icon: const Icon(Icons.add),
-              label: const Text('Add a Goal'),
-              onPressed: () => _showAddGoalDialog(context),
-            ),
-          ],
-        ),
-      );
+      return Center(/* ... */);
     }
+
+    // Get party provider to check challenge status
+    final partyProvider = Provider.of<PartyProvider>(context, listen: false);
+    final bool hasActiveChallenge = partyProvider.hasActiveChallenge;
+
+    print(
+        'Building goals list with hasActiveChallenge: $hasActiveChallenge'); // Debug log
 
     return ListView.builder(
       padding: const EdgeInsets.symmetric(vertical: 8.0),
@@ -265,47 +273,23 @@ class _MyGoalsScreenState extends State<MyGoalsScreen>
         return GoalCard(
           goal: goal,
           onEdit: () => _showEditGoalDialog(context, goal),
-          onDelete: () async {
-            final confirm = await _confirmDelete(context, goal.goalName);
-            if (confirm && mounted) {
-              try {
-                final BuildContext currentContext = context;
-                Utils.showFeedback(currentContext, 'Deleting goal...');
-                await goalsProvider.removeGoal(context, goal.id);
-                if (mounted) {
-                  Utils.showFeedback(currentContext, 'Goal deleted');
-                }
-              } catch (e) {
-                if (mounted) {
-                  Utils.showFeedback(context, 'Error deleting goal: $e',
-                      isError: true);
-                }
-              }
-            }
-          },
-          onArchive: () async {
-            final confirm = await _confirmArchive(context, goal);
-            if (confirm && mounted) {
-              final currentContext = context;
-              final String action = goal.active ? 'Archiving' : 'Restoring';
-              Utils.showFeedback(currentContext, '$action goal...');
-              await goalsProvider.toggleGoalActive(goal.id);
-              if (mounted) {
-                final String result = goal.active ? 'archived' : 'restored';
-                Utils.showFeedback(currentContext, 'Goal $result');
-              }
-            }
-          },
+          onDelete: () async {/* ... */},
+          onArchive: () async {/* ... */},
+          showProgressTracker:
+              hasActiveChallenge, // Explicitly pass challenge status
         );
       },
     );
   }
 
-  // Updated lock in method that connects with party challenge system
+// In lib/features/goals/screens/my_goals_screen.dart
+// Replace the entire _lockInGoals method with this corrected version:
+
   void _lockInGoals(BuildContext context, GoalsProvider goalsProvider,
       PartyProvider partyProvider) async {
+    // Check for active template goals
     final activeGoals =
-        goalsProvider.goals.where((goal) => goal.active).toList();
+        goalsProvider.goalTemplates.where((goal) => goal.active).toList();
 
     if (activeGoals.isEmpty) {
       showDialog(

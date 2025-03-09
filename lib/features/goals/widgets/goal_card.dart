@@ -1,5 +1,6 @@
 //// filepath: /Users/marino/Documents/dev/Projects/accountabilibuddies/lib/features/goals/widgets/goal_card.dart
 import 'package:auth_test/features/goals/widgets/proof_submission_dialog.dart';
+import 'package:auth_test/features/party/providers/party_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../models/goal_model.dart';
@@ -12,13 +13,15 @@ class GoalCard extends StatefulWidget {
   final Goal goal;
   final VoidCallback onEdit;
   final VoidCallback onDelete;
-  final VoidCallback onArchive; // New callback for archiving the goal
+  final VoidCallback onArchive;
+  final bool showProgressTracker; // New parameter
 
   const GoalCard({
     required this.goal,
     required this.onEdit,
     required this.onDelete,
     required this.onArchive,
+    this.showProgressTracker = true, // Default to showing progress
     Key? key,
   }) : super(key: key);
 
@@ -29,34 +32,42 @@ class GoalCard extends StatefulWidget {
 class _GoalCardState extends State<GoalCard> {
   @override
   Widget build(BuildContext context) {
-    // Check screen size for responsive adjustments
-    final screenWidth = MediaQuery.of(context).size.width;
-    final isSmallScreen = screenWidth < 600;
+    // Force a Provider lookup every time
+    return Consumer<PartyProvider>(builder: (context, partyProvider, child) {
+      final bool showTracker =
+          widget.showProgressTracker && partyProvider.hasActiveChallenge;
 
-    return Card(
-      margin: EdgeInsets.symmetric(
-          horizontal: isSmallScreen ? 8.0 : 16.0, vertical: 8.0),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(isSmallScreen ? 12 : 8),
-      ),
-      child: Padding(
-        padding: EdgeInsets.all(isSmallScreen ? 12.0 : 16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _buildHeader(isSmallScreen),
-            const Divider(),
-            ProgressTracker(
-              goal: widget.goal,
-              onDayTap: _handleDayTap,
-              isCompact: isSmallScreen, // Pass the screen size info
-            ),
-            const SizedBox(height: 12),
-            _buildActions(context, isSmallScreen),
-          ],
+      // Check screen size for responsive adjustments
+      final screenWidth = MediaQuery.of(context).size.width;
+      final isSmallScreen = screenWidth < 600;
+
+      return Card(
+        margin: EdgeInsets.symmetric(
+            horizontal: isSmallScreen ? 8.0 : 16.0, vertical: 8.0),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(isSmallScreen ? 12 : 8),
         ),
-      ),
-    );
+        child: Padding(
+          padding: EdgeInsets.all(isSmallScreen ? 12.0 : 16.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _buildHeader(isSmallScreen),
+              const Divider(),
+              // Use the combined condition
+              if (showTracker)
+                ProgressTracker(
+                  goal: widget.goal,
+                  onDayTap: _handleDayTap,
+                  isCompact: isSmallScreen,
+                ),
+              const SizedBox(height: 12),
+              _buildActions(context, isSmallScreen),
+            ],
+          ),
+        ),
+      );
+    });
   }
 
   /// Builds the goal header with name and details

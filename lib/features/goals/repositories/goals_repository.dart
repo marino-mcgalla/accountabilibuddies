@@ -11,8 +11,8 @@ class GoalsRepository {
     return FirebaseAuth.instance.currentUser?.uid;
   }
 
-  // Get a stream of goals for the current user
-  Stream<List<Goal>> getGoalsStream(String userId) {
+  // Get a stream of template goals
+  Stream<List<Goal>> getGoalTemplatesStream(String userId) {
     return _firestore
         .collection('userGoals')
         .doc(userId)
@@ -24,22 +24,15 @@ class GoalsRepository {
     });
   }
 
-// Add to GoalsRepository.dart
+  // Get a stream of challenge goals
   Stream<List<Goal>> getChallengeGoalsStream(String userId) {
     return _firestore
         .collection('userGoals')
         .doc(userId)
         .snapshots()
         .map((doc) {
-      if (!doc.exists) {
-        return [];
-      }
-
-      Map<String, dynamic>? data = doc.data();
-
-      List<dynamic> goalsData = data?['challengeGoals'] ?? [];
-      if (goalsData.isNotEmpty) {}
-
+      if (!doc.exists) return [];
+      List<dynamic> goalsData = doc.data()?['challengeGoals'] ?? [];
       return goalsData.map((data) => Goal.fromMap(data)).toList();
     });
   }

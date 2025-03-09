@@ -388,14 +388,13 @@ class PartyInfoScreen extends StatelessWidget {
     );
   }
 
-  // Lock in member's goals
   void _lockInMemberGoals(BuildContext context) async {
     final goalsProvider = Provider.of<GoalsProvider>(context, listen: false);
     final partyProvider = Provider.of<PartyProvider>(context, listen: false);
 
-    // Check if there are active goals
+    // Check if there are active TEMPLATE goals (not challenge goals)
     final activeGoals =
-        goalsProvider.goals.where((goal) => goal.active).toList();
+        goalsProvider.goalTemplates.where((goal) => goal.active).toList();
 
     if (activeGoals.isEmpty) {
       showDialog(

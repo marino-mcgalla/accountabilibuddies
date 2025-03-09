@@ -25,22 +25,15 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MultiProvider(
       providers: [
-        // Add the ThemeProvider
         ChangeNotifierProvider(create: (context) => ThemeProvider()),
-
         ChangeNotifierProvider(create: (context) => TimeMachineProvider()),
+        ChangeNotifierProvider(create: (context) => PartyProvider()),
         ChangeNotifierProxyProvider<TimeMachineProvider, GoalsProvider>(
           create: (context) => GoalsProvider(
             Provider.of<TimeMachineProvider>(context, listen: false),
           ),
-          update: (context, timeMachineProvider, goalsProvider) =>
-              goalsProvider!..updateTimeMachineProvider(timeMachineProvider),
-        ),
-        ChangeNotifierProvider(create: (context) => PartyProvider()),
-        ChangeNotifierProvider(
-          create: (context) => GoalsProvider(
-            Provider.of<TimeMachineProvider>(context, listen: false),
-          ),
+          update: (context, timeMachine, previousGoalsProvider) =>
+              previousGoalsProvider!..updateTimeMachineProvider(timeMachine),
         ),
       ],
       child: Consumer<ThemeProvider>(

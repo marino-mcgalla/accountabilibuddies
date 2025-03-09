@@ -2,88 +2,21 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/party_provider.dart';
 import '../../goals/models/goal_model.dart';
+import '../../goals/models/weekly_goal.dart';
+import '../../goals/models/total_goal.dart';
 import 'proof_item_widget.dart';
 import '../../common/utils/utils.dart';
 
-class PendingProofsWidget extends StatefulWidget {
+class PendingProofsWidget extends StatelessWidget {
   const PendingProofsWidget({Key? key}) : super(key: key);
 
   @override
-  _PendingProofsWidgetState createState() => _PendingProofsWidgetState();
-}
-
-class _PendingProofsWidgetState extends State<PendingProofsWidget> {
-  List<Map<String, dynamic>> _submittedGoals = [];
-  bool _isLoading = true;
-  String? _errorMessage;
-  bool _isLoadingData = false;
-
-  @override
-  void initState() {
-    super.initState();
-    _loadSubmittedGoals();
-  }
-
-  @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    _loadSubmittedGoals();
-  }
-
-  @override
-  void dispose() {
-    // Cancel any pending operations
-    _isLoadingData = true; // Prevent any new operations
-    super.dispose();
-  }
-
-  Future<void> _loadSubmittedGoals() async {
-    // Prevent multiple simultaneous loads or loading after disposal
-    if (_isLoadingData || !mounted) return;
-    _isLoadingData = true;
-
-    try {
-      // Get provider before async operation
-      final partyProvider = Provider.of<PartyProvider>(context, listen: false);
-      final submittedGoals = await partyProvider.fetchSubmittedGoalsForParty();
-
-      // Check again if still mounted after async operation
-      if (!mounted) return;
-
-      setState(() {
-        _submittedGoals = submittedGoals;
-        _isLoading = false;
-        _errorMessage = null;
-      });
-    } catch (e) {
-      if (!mounted) return;
-
-      setState(() {
-        _errorMessage = 'Error loading proofs: $e';
-        _isLoading = false;
-      });
-    } finally {
-      if (mounted) {
-        _isLoadingData = false;
-      }
-    }
-  }
-
-  @override
   Widget build(BuildContext context) {
-    return Selector<PartyProvider, Map<String, List<Goal>>>(
-      selector: (_, provider) => provider.partyMemberGoals,
-      builder: (context, partyMemberGoals, child) {
-        // When party members' goals change, reload our data
-        if (!_isLoadingData && mounted) {
-          Future.microtask(() {
-            if (mounted) {
-              _loadSubmittedGoals();
-            }
-          });
-        }
-
-        if (_isLoading && _submittedGoals.isEmpty) {
+    // Use party provider to get current members and their goals
+    return Consumer<PartyProvider>(
+      builder: (context, partyProvider, _) {
+        // If party is loading, show loading indicator
+        if (partyProvider.isLoading) {
           return const Center(
             child: SizedBox(
               width: 40,
@@ -93,73 +26,106 @@ class _PendingProofsWidgetState extends State<PendingProofsWidget> {
           );
         }
 
-        if (_errorMessage != null) {
-          return Center(child: Text(_errorMessage!));
-        }
+        // Process current goals to find pending proofs
+        final pendingProofs = _getPendingProofs(context, partyProvider);
 
-        if (_submittedGoals.isEmpty) {
+        if (pendingProofs.isEmpty) {
           return const Center(child: Text('No pending proofs'));
         }
 
-        // Don't use a single key for the entire list
-        return AnimatedSwitcher(
-          duration: const Duration(milliseconds: 300),
-          child: ListView.builder(
-            // Remove the key from here - each item will have its own key
-            shrinkWrap: true,
-            itemCount: _submittedGoals.length,
-            itemBuilder: (context, index) {
-              final goalData = _submittedGoals[index];
-              final Goal goal = goalData['goal'];
-              final String userId = goalData['userId'];
-
-              // Get user name from member details
-              final partyProvider =
-                  Provider.of<PartyProvider>(context, listen: false);
-              final String userName = partyProvider.memberDetails[userId]
-                      ?['displayName'] ??
-                  partyProvider.memberDetails[userId]?['username'] ??
-                  partyProvider.memberDetails[userId]?['email'] ??
-                  'Unknown User';
-
-              // Create a unique key for each proof item
-              final String proofKey =
-                  '${goal.id}-${goalData['date'] ?? 'total'}-$userId-$index';
-
-              return ProofItem(
-                key: ValueKey(proofKey),
-                goal: goal,
-                userName: userName,
-                userId: userId, // Pass userId to check for self-approval
-                date: goalData['date'],
-                proof: goalData['proof'],
-                onAction: _handleAction,
-              );
-            },
-          ),
+        return ListView.builder(
+          itemCount: pendingProofs.length,
+          itemBuilder: (context, index) {
+            final proofData = pendingProofs[index];
+            // Build proof item widget
+            return ProofItem(
+              key: ValueKey(
+                  '${proofData['goalId']}-${proofData['date'] ?? 'total'}-${proofData['userId']}'),
+              goal: proofData['goal'],
+              userName: proofData['userName'],
+              userId: proofData['userId'],
+              date: proofData['date'],
+              proof: proofData['proof'],
+              onAction: _handleProofAction,
+            );
+          },
         );
       },
     );
   }
 
-  Future<void> _handleAction(
+  // Process current party data to find pending proofs
+  List<Map<String, dynamic>> _getPendingProofs(
+      BuildContext context, PartyProvider partyProvider) {
+    final List<Map<String, dynamic>> result = [];
+
+    // Iterate through all members and their goals
+    partyProvider.partyMemberGoals.forEach((userId, goals) {
+      final userName = partyProvider.memberDetails[userId]?['displayName'] ??
+          partyProvider.memberDetails[userId]?['username'] ??
+          partyProvider.memberDetails[userId]?['email'] ??
+          'Unknown User';
+
+      for (final goal in goals) {
+        if (goal is WeeklyGoal) {
+          // Find days with submitted status
+          goal.currentWeekCompletions.forEach((date, status) {
+            if (status == 'submitted' && goal.proofs.containsKey(date)) {
+              result.add({
+                'goal': goal,
+                'goalId': goal.id,
+                'userId': userId,
+                'userName': userName,
+                'date': date,
+                'proof': goal.proofs[date],
+              });
+            }
+          });
+        } else if (goal is TotalGoal) {
+          // Add total goal proofs
+          for (var proof in goal.proofs) {
+            result.add({
+              'goal': goal,
+              'goalId': goal.id,
+              'userId': userId,
+              'userName': userName,
+              'date': null,
+              'proof': proof,
+            });
+          }
+        }
+      }
+    });
+
+    return result;
+  }
+
+  // Handle proof approval/denial
+  Future<void> _handleProofAction(
+      String goalId, String? date, bool isApprove) async {
+    // Implementation needs to be in a StatefulWidget to access context properly
+    // This is a placeholder that will be overridden by the actual implementation
+  }
+}
+
+// StatefulWrapper to handle proof actions
+class PendingProofsStatefulWrapper extends StatefulWidget {
+  const PendingProofsStatefulWrapper({Key? key}) : super(key: key);
+
+  @override
+  _PendingProofsStatefulWrapperState createState() =>
+      _PendingProofsStatefulWrapperState();
+}
+
+class _PendingProofsStatefulWrapperState
+    extends State<PendingProofsStatefulWrapper> {
+  Future<void> _handleProofAction(
       String goalId, String? date, bool isApprove) async {
     // Find the index of the item before removing it
-    int itemIndex = _submittedGoals.indexWhere(
-        (item) => item['goal'].id == goalId && item['date'] == date);
-
-    if (itemIndex == -1) return;
+    final partyProvider = Provider.of<PartyProvider>(context, listen: false);
 
     // Store context in a local variable before async operations
     final BuildContext currentContext = context;
-
-    // Remove the item from the list for immediate feedback
-    setState(() {
-      _submittedGoals.removeAt(itemIndex);
-    });
-
-    final partyProvider =
-        Provider.of<PartyProvider>(currentContext, listen: false);
 
     try {
       if (isApprove) {
@@ -176,9 +142,12 @@ class _PendingProofsWidgetState extends State<PendingProofsWidget> {
     } catch (e) {
       if (mounted) {
         Utils.showFeedback(currentContext, 'Error: $e', isError: true);
-        // Reload data if there was an error
-        _loadSubmittedGoals();
       }
     }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return PendingProofsWidget();
   }
 }

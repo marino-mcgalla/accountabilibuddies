@@ -1,4 +1,7 @@
 import 'dart:async';
+import 'package:auth_test/features/common/utils/utils.dart';
+import 'package:auth_test/features/goals/models/total_goal.dart';
+import 'package:auth_test/features/goals/models/weekly_goal.dart';
 import 'package:auth_test/features/goals/providers/goals_provider.dart';
 import 'package:auth_test/features/party/models/party_model.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -363,12 +366,104 @@ class PartyProvider with ChangeNotifier {
         'initiatedAt': _activeChallenge!['initiatedAt']
       };
 
+      // First, update the party document to mark challenge as active
       await _firestore
           .collection('parties')
           .doc(_partyId)
           .update({'activeChallenge': activeChallenge});
+
+      print("Updated party with active challenge status");
+
+      // Then create challenge goals for ALL party members, even those who haven't locked in
+      for (String memberId in _members) {
+        print("Creating challenge goals for member: $memberId");
+
+        try {
+          // Get member's template goals
+          DocumentSnapshot userGoalsDoc =
+              await _firestore.collection('userGoals').doc(memberId).get();
+
+          if (!userGoalsDoc.exists) {
+            print("No goals document for member: $memberId");
+            continue;
+          }
+
+          // Get active template goals - proper type checking
+          Map<String, dynamic>? userData =
+              userGoalsDoc.data() as Map<String, dynamic>?;
+          if (userData == null) {
+            print("No data for member: $memberId");
+            continue;
+          }
+
+          List<dynamic> templatesData = userData['goalTemplates'] ?? [];
+          List<Goal> templateGoals = templatesData
+              .map((data) => Goal.fromMap(data))
+              .where((goal) => goal.active == true) // Only include active goals
+              .toList();
+
+          if (templateGoals.isEmpty) {
+            print("No active template goals found for member: $memberId");
+            continue;
+          }
+
+          print(
+              "Found ${templateGoals.length} active template goals for member: $memberId");
+
+          // Create fresh copies for challenge
+          List<Goal> freshGoals = templateGoals.map((template) {
+            if (template is TotalGoal) {
+              return TotalGoal(
+                id: template.id,
+                ownerId: template.ownerId,
+                goalName: template.goalName,
+                goalCriteria: template.goalCriteria,
+                goalFrequency: template.goalFrequency,
+                active: template.active,
+                totalCompletions: 0,
+                currentWeekCompletions: {},
+                proofs: [],
+              );
+            } else if (template is WeeklyGoal) {
+              return WeeklyGoal(
+                id: template.id,
+                ownerId: template.ownerId,
+                goalName: template.goalName,
+                goalCriteria: template.goalCriteria,
+                goalFrequency: template.goalFrequency,
+                active: template.active,
+                currentWeekCompletions: {},
+                proofs: {},
+              );
+            }
+            return template;
+          }).toList();
+
+          // Save challenge goals
+          List<Map<String, dynamic>> goalsData =
+              freshGoals.map((goal) => goal.toMap()).toList();
+          await _firestore
+              .collection('userGoals')
+              .doc(memberId)
+              .set({'challengeGoals': goalsData}, SetOptions(merge: true));
+
+          print("Saved challenge goals for member: $memberId");
+        } catch (e) {
+          print("Error creating challenge goals for member $memberId: $e");
+          // Continue with other members even if one fails
+        }
+      }
+
+      // Show success message
+      if (context.mounted) {
+        Utils.showFeedback(context, 'Challenge started successfully!');
+      }
     } catch (e) {
       print('Error confirming challenge: $e');
+      if (context.mounted) {
+        Utils.showFeedback(context, 'Error starting challenge: $e',
+            isError: true);
+      }
     } finally {
       setLoading(false);
     }
@@ -533,7 +628,7 @@ class PartyProvider with ChangeNotifier {
 
   // Subscribe to party member goals
   void _subscribeToPartyMemberGoals() {
-    if (_isDisposed) return; // Skip if already disposed
+    if (_isDisposed) return;
 
     for (String memberId in _members) {
       var subscription = _firestore
@@ -541,27 +636,34 @@ class PartyProvider with ChangeNotifier {
           .doc(memberId)
           .snapshots()
           .listen((doc) {
-        if (_isDisposed) return; // Skip processing if disposed
+        if (_isDisposed) return;
 
         if (doc.exists) {
-          List<dynamic> goalsData = doc.data()?['challengeGoals'] ?? [];
-          final List<Goal> newGoals =
-              goalsData.map((data) => Goal.fromMap(data)).toList();
+          List<Goal> goalsList = [];
+          Map<String, dynamic>? data = doc.data();
 
-          final List<Goal> previousGoals = _partyMemberGoals[memberId] ?? [];
-          final bool hasChanges = _haveGoalsChanged(previousGoals, newGoals);
+          // Try challenge goals first, then fall back to templates if needed
+          if (data != null) {
+            List<dynamic> goalsData = data['challengeGoals'] ?? [];
 
-          if (hasChanges) {
-            batchUpdates(() {
-              _partyMemberGoals[memberId] = newGoals;
-            });
+            if (goalsData.isEmpty && hasActiveChallenge) {
+              // If challenge is active but no challenge goals, use templates
+              goalsData = data['goalTemplates'] ?? [];
+            } else if (goalsData.isEmpty) {
+              // No challenge, use templates
+              goalsData = data['goalTemplates'] ?? [];
+            }
+
+            goalsList = goalsData.map((data) => Goal.fromMap(data)).toList();
           }
+
+          batchUpdates(() {
+            _partyMemberGoals[memberId] = goalsList;
+          });
         } else {
-          if (_partyMemberGoals[memberId]?.isNotEmpty ?? false) {
-            batchUpdates(() {
-              _partyMemberGoals[memberId] = [];
-            });
-          }
+          batchUpdates(() {
+            _partyMemberGoals[memberId] = [];
+          });
         }
       });
       _goalSubscriptions.add(subscription);

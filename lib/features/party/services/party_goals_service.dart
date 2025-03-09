@@ -54,41 +54,48 @@ class PartyGoalsService {
             Goal goal = Goal.fromMap(goalData);
 
             if (goal is WeeklyGoal) {
+              // Check for days with 'submitted' status
               Map<String, String> completions =
                   Map<String, String>.from(goal.currentWeekCompletions);
+
               completions.forEach((day, status) {
                 if (status == 'submitted') {
                   // Check if there's a proof for this day
                   dynamic proofData;
                   if (goal.proofs.containsKey(day)) {
                     proofData = goal.proofs[day]?.toMap();
-                  }
 
-                  submittedGoals.add({
-                    'goal': goal,
-                    'userId': memberId,
-                    'date': day,
-                    'proof': proofData, // Include the proof data if available
-                  });
+                    // Debug logging
+                    print(
+                        'Found submitted weekly proof for ${goal.goalName} on $day');
+
+                    submittedGoals.add({
+                      'goal': goal,
+                      'userId': memberId,
+                      'date': day,
+                      'proof': proofData,
+                    });
+                  }
                 }
               });
             } else if (goal is TotalGoal) {
               for (var proof in goal.proofs) {
-                // Convert Proof object to a Map to avoid type issues
+                // Convert Proof object to a Map
                 Map<String, dynamic> proofMap = {
                   'proofText': proof.proofText,
                   'submissionDate': proof.submissionDate.toIso8601String(),
                   'status': proof.status,
-                  'imageUrl': proof.imageUrl, // Include the image URL
+                  'imageUrl': proof.imageUrl,
                 };
 
-                if (proof.status == 'pending') {
-                  submittedGoals.add({
-                    'goal': goal,
-                    'userId': memberId,
-                    'proof': proofMap, // Use the Map instead of the object
-                  });
-                }
+                // Debug logging
+                print('Found submitted total proof for ${goal.goalName}');
+
+                submittedGoals.add({
+                  'goal': goal,
+                  'userId': memberId,
+                  'proof': proofMap,
+                });
               }
             }
           }
@@ -96,7 +103,6 @@ class PartyGoalsService {
       }
     } catch (e) {
       print('Error in fetchSubmittedGoalsForParty: $e');
-      // Rethrow to let the caller handle it
       rethrow;
     }
 

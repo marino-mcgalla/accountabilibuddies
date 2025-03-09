@@ -14,23 +14,20 @@ class GoalsProvider with ChangeNotifier {
   final GoalsRepository _repository = GoalsRepository();
   late GoalManagementService _goalService;
   late ProofService _proofService;
+  final FirebaseAuth _auth = FirebaseAuth.instance;
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
-  final FirebaseAuth _auth;
 
   TimeMachineProvider _timeMachineProvider;
 
   List<Goal> _goalTemplates = [];
   List<Goal> _goals = [];
   bool _isLoading = false;
+  StreamSubscription<List<Goal>>? _templatesSubscription;
   StreamSubscription<List<Goal>>? _goalsSubscription;
 
-  GoalsProvider(
-    this._timeMachineProvider, {
-    FirebaseAuth? auth,
-  }) : _auth = auth ?? FirebaseAuth.instance {
+  GoalsProvider(this._timeMachineProvider) {
     _initializeServices();
     initializeGoalsListener();
-    loadGoalTemplates();
   }
 
   void _initializeServices() {
@@ -38,28 +35,55 @@ class GoalsProvider with ChangeNotifier {
     _proofService = ProofService(_repository, _timeMachineProvider);
   }
 
-  void updateTimeMachineProvider(TimeMachineProvider timeMachineProvider) {
-    _timeMachineProvider = timeMachineProvider;
-    _initializeServices();
-  }
-
   // Getters
   List<Goal> get goals => _goals;
+  List<Goal> get goalTemplates => _goalTemplates;
   bool get isLoading => _isLoading;
 
-  initializeGoalsListener() {
+  // Return the appropriate goals based on challenge status
+  List<Goal> get displayGoals {
+    if (_goals.isNotEmpty) {
+      return _goals;
+    }
+    return _goalTemplates;
+  }
+
+  void initializeGoalsListener() {
     String? userId = _repository.getCurrentUserId();
     if (userId == null) return;
 
+    _setLoading(true);
+
+    // Cancel existing subscriptions
+    _templatesSubscription?.cancel();
     _goalsSubscription?.cancel();
-    _goalsSubscription =
-        _repository.getChallengeGoalsStream(userId).listen((goals) {
-      if (goals.isNotEmpty) {}
-      _goals = goals;
+
+    // Listen for template goals
+    _templatesSubscription =
+        _repository.getGoalTemplatesStream(userId).listen((templates) {
+      _goalTemplates = templates;
+      _setLoading(false);
       notifyListeners();
     }, onError: (error) {
-      print('Stream error: $error');
+      print('Template goals stream error: $error');
+      _setLoading(false);
     });
+
+    // Listen for challenge goals
+    _goalsSubscription =
+        _repository.getChallengeGoalsStream(userId).listen((goals) {
+      _goals = goals;
+      _setLoading(false);
+      notifyListeners();
+    }, onError: (error) {
+      print('Challenge goals stream error: $error');
+      _setLoading(false);
+    });
+  }
+
+  void updateTimeMachineProvider(TimeMachineProvider timeMachineProvider) {
+    _timeMachineProvider = timeMachineProvider;
+    _initializeServices();
   }
 
   // Goal CRUD Operations
@@ -173,11 +197,10 @@ class GoalsProvider with ChangeNotifier {
     await _proofService.denyProof(goalId, userId, proofDate);
   }
 
-  // New method to lock in goals and update party status
   Future<void> lockInGoalsForChallenge(String partyId) async {
     _setLoading(true);
     try {
-      // Lock in goals
+      // Lock in goals - use _goalTemplates not _goals
       await lockInActiveGoals();
 
       // Update party document
@@ -189,6 +212,7 @@ class GoalsProvider with ChangeNotifier {
       });
     } catch (e) {
       print('Error locking in goals for challenge: $e');
+      throw e; // Rethrow to allow proper error handling
     } finally {
       _setLoading(false);
     }

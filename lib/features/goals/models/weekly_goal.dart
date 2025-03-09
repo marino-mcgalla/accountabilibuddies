@@ -24,14 +24,23 @@ class WeeklyGoal extends Goal {
           currentWeekCompletions: currentWeekCompletions,
         );
 
-  // Type-safe getter for currentWeekCompletions
   Map<String, String> get weeklyCompletions =>
       Map<String, String>.from(currentWeekCompletions);
+
+// In lib/features/goals/models/weekly_goal.dart
+// Replace just the toMap method with this:
 
   @override
   Map<String, dynamic> toMap() {
     final map = super.toMap();
-    map['proofs'] = proofs.map((date, proof) => MapEntry(date, proof.toMap()));
+
+    // Convert the proofs map to a format that Firestore can understand
+    Map<String, dynamic> proofsMap = {};
+    proofs.forEach((date, proof) {
+      proofsMap[date] = proof.toMap();
+    });
+
+    map['proofs'] = proofsMap;
     return map;
   }
 
@@ -51,7 +60,7 @@ class WeeklyGoal extends Goal {
       ownerId: data['ownerId'],
       goalName: data['goalName'],
       goalCriteria: data['goalCriteria'],
-      active: data['active'],
+      active: data['active'] ?? true,
       goalFrequency: data['goalFrequency'],
       currentWeekCompletions:
           Map<String, String>.from(data['currentWeekCompletions'] ?? {}),

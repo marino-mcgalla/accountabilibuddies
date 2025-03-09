@@ -13,15 +13,8 @@ class PartyScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MultiProvider(
-      providers: [
-        ChangeNotifierProvider<PartyProvider>(create: (_) => PartyProvider()),
-        ChangeNotifierProvider<GoalsProvider>(
-          create: (_) => GoalsProvider(TimeMachineProvider()),
-        ),
-      ],
-      child: const PartyScreenContent(),
-    );
+    // Use existing providers from main.dart
+    return const PartyScreenContent();
   }
 }
 

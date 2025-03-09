@@ -8,7 +8,7 @@ class GoalManagementService {
   GoalManagementService(this._repository);
 
   // Add a new goal
-  Future<void> createGoalTemplate(List<Goal> currentGoals, Goal newGoal) async {
+  Future<void> createGoal(List<Goal> currentGoals, Goal newGoal) async {
     String? userId = _repository.getCurrentUserId();
     if (userId == null) return;
 

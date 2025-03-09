@@ -105,7 +105,7 @@ class PartyGoalsService {
 
   /// Approve a proof for a goal
   Future<void> approveProof(
-      String goalId, String userId, String? proofDate) async {
+      String userId, String goalId, String? proofDate) async {
     DocumentSnapshot userGoalsDoc =
         await _firestore.collection('userGoals').doc(userId).get();
 

@@ -19,7 +19,6 @@ class GoalsProvider with ChangeNotifier {
 
   TimeMachineProvider _timeMachineProvider;
 
-  List<Goal> _goalTemplates = [];
   List<Goal> _goals = [];
   bool _isLoading = false;
   StreamSubscription<List<Goal>>? _goalsSubscription;
@@ -30,7 +29,6 @@ class GoalsProvider with ChangeNotifier {
   }) : _auth = auth ?? FirebaseAuth.instance {
     _initializeServices();
     initializeGoalsListener();
-    // loadGoalTemplates();
   }
 
   void _initializeServices() {
@@ -156,13 +154,6 @@ class GoalsProvider with ChangeNotifier {
     notifyListeners();
   }
 
-  //TODO: check that this is actually doing something
-  Future<void> approveProof(
-      String goalId, String userId, String? proofDate) async {
-    print('does this do anything???????');
-    await _proofService.approveProof(goalId, userId, proofDate);
-  }
-
   Future<void> denyProof(
       String goalId, String userId, String? proofDate) async {
     await _proofService.denyProof(goalId, userId, proofDate);
@@ -192,59 +183,48 @@ class GoalsProvider with ChangeNotifier {
   Future<void> lockInActiveGoals() async {
     _setLoading(true);
     try {
-      // Get active template goals
-      final activeTemplates = _goals.where((goal) => goal.active).toList();
-      if (activeTemplates.isEmpty) return;
-
-      String? userId = _repository.getCurrentUserId();
+      final userId = _auth.currentUser?.uid;
       if (userId == null) return;
 
-      // Create fresh copies of the templates
-      List<Goal> freshGoals = activeTemplates.map((template) {
-        if (template is TotalGoal) {
-          return TotalGoal(
-            id: template.id,
-            ownerId: template.ownerId,
-            goalName: template.goalName,
-            goalCriteria: template.goalCriteria,
-            goalFrequency: template.goalFrequency,
-            active: template.active,
-            totalCompletions: 0, // Reset to 0
-            currentWeekCompletions: {}, // Empty map
-            proofs: [], // Empty proofs
-          );
-        } else if (template is WeeklyGoal) {
-          return WeeklyGoal(
-            id: template.id,
-            ownerId: template.ownerId,
-            goalName: template.goalName,
-            goalCriteria: template.goalCriteria,
-            goalFrequency: template.goalFrequency,
-            active: template.active,
-            currentWeekCompletions: {}, // Empty map
-            proofs: {}, // Empty map
-          );
+      // Get the current goals document from Firestore
+      DocumentSnapshot doc =
+          await _firestore.collection('userGoals').doc(userId).get();
+
+      if (!doc.exists) {
+        print('⚠️ No goals document exists for user');
+        return;
+      }
+
+      Map<String, dynamic> userData = doc.data() as Map<String, dynamic>;
+      List<dynamic> goalsData = userData['goals'] ?? [];
+
+      List<dynamic> updatedGoals = [];
+
+      for (var goalData in goalsData) {
+        if (goalData['active'] == true) {
+          // Add challenge field to the goal object
+          goalData['activeChallenge'] = {
+            'challengeFrequency': goalData['goalFrequency'], // copy from goal
+            'challengeCriteria': goalData['goalCriteria'], // copy from goal
+            'completions': {}, // empty for now
+            'proofs': {} // empty for now
+          };
         }
-        return template;
-      }).toList();
+        updatedGoals.add(goalData);
+      }
 
-      // Create a batch for saving both regular goals and challenge goals
-      WriteBatch batch = _firestore.batch();
+      // Update the goals array in Firestore
+      await _firestore
+          .collection('userGoals')
+          .doc(userId)
+          .update({'goals': updatedGoals});
 
-      // Convert goals to map data
-      List<Map<String, dynamic>> goalsData =
-          freshGoals.map((goal) => goal.toMap()).toList();
+      print('🎯 Challenge field added to goals');
 
-      // Also save them as challenge goals
-      batch.set(_firestore.collection('userGoals').doc(userId),
-          {'goals': goalsData}, SetOptions(merge: true));
-
-      // Execute both updates
-      await batch.commit();
-
-      // Update local goals list
-      _goals = freshGoals;
+      // We're not modifying the local goals list for this test
       notifyListeners();
+    } catch (e) {
+      print('❌ Error creating challenge fields: $e');
     } finally {
       _setLoading(false);
     }
@@ -260,7 +240,6 @@ class GoalsProvider with ChangeNotifier {
 
   void resetState() {
     _goals = [];
-    // _goalTemplates = [];
     _isLoading = false;
     notifyListeners();
   }

@@ -130,7 +130,7 @@ class _PendingProofsWidgetState extends State<PendingProofsWidget> {
                 key: ValueKey(proofKey),
                 goal: goal,
                 userName: userName,
-                userId: userId, // Pass userId to check for self-approval
+                userId: userId,
                 date: goalData['date'],
                 proof: goalData['proof'],
                 onAction: _handleAction,
@@ -144,16 +144,15 @@ class _PendingProofsWidgetState extends State<PendingProofsWidget> {
 
   Future<void> _handleAction(
       String goalId, String? date, bool isApprove) async {
-    // Find the index of the item before removing it
     int itemIndex = _submittedGoals.indexWhere(
         (item) => item['goal'].id == goalId && item['date'] == date);
 
     if (itemIndex == -1) return;
 
-    // Store context in a local variable before async operations
+    final String userId = _submittedGoals[itemIndex]['userId'];
+
     final BuildContext currentContext = context;
 
-    // Remove the item from the list for immediate feedback
     setState(() {
       _submittedGoals.removeAt(itemIndex);
     });
@@ -163,7 +162,7 @@ class _PendingProofsWidgetState extends State<PendingProofsWidget> {
 
     try {
       if (isApprove) {
-        await partyProvider.approveProof(goalId, date);
+        await partyProvider.approveProof(userId, goalId, date);
         if (mounted) {
           Utils.showFeedback(currentContext, 'Proof approved');
         }
@@ -176,7 +175,6 @@ class _PendingProofsWidgetState extends State<PendingProofsWidget> {
     } catch (e) {
       if (mounted) {
         Utils.showFeedback(currentContext, 'Error: $e', isError: true);
-        // Reload data if there was an error
         _loadSubmittedGoals();
       }
     }

@@ -13,7 +13,8 @@ class ProofService {
 
   Future<void> submitProof(List<Goal> currentGoals, String goalId,
       String proofText, String? imageUrl, bool yesterday) async {
-    String? userId = _repository.getCurrentUserId();
+    String? userId =
+        _repository.getCurrentUserId(); //TODO: replace this with _auth.userId
     if (userId == null) return;
 
     int index = currentGoals.indexWhere((goal) => goal.id == goalId);
@@ -33,38 +34,6 @@ class ProofService {
 
     // Save to Firebase
     await _repository.saveGoals(userId, updatedGoals);
-  }
-
-  // Approve proof for another user's goal
-  //TODO: check that this is actually doing something
-  Future<void> approveProof(
-      String goalId, String userId, String? proofDate) async {
-    print('does this do anything???????');
-    List<Goal> userGoals = await _repository.getGoalsForUser(userId);
-
-    int goalIndex = userGoals.indexWhere((goal) => goal.id == goalId);
-    if (goalIndex == -1) return;
-
-    Goal goal = userGoals[goalIndex];
-
-    if (goal is WeeklyGoal && proofDate != null) {
-      goal.currentWeekCompletions[proofDate] = 'completed';
-
-      // Remove the proof from the proofs map since it's been approved
-      if (goal.proofs.containsKey(proofDate)) {
-        goal.proofs.remove(proofDate);
-      }
-    } else if (goal is TotalGoal) {
-      final day = _timeMachineProvider.now.toIso8601String().split('T').first;
-      goal.currentWeekCompletions[day] =
-          (goal.currentWeekCompletions[day] ?? 0) + 1;
-      goal.totalCompletions += 1;
-      if (goal.proofs.isNotEmpty) {
-        goal.proofs.removeAt(0); // Remove the first proof
-      }
-    }
-
-    await _repository.updateUserGoals(userId, userGoals);
   }
 
   // Deny proof for another user's goal

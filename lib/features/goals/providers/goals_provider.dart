@@ -19,7 +19,6 @@ class GoalsProvider with ChangeNotifier {
 
   TimeMachineProvider _timeMachineProvider;
 
-  List<Goal> _goalTemplates = [];
   List<Goal> _goals = [];
   bool _isLoading = false;
   StreamSubscription<List<Goal>>? _goalsSubscription;
@@ -30,7 +29,6 @@ class GoalsProvider with ChangeNotifier {
   }) : _auth = auth ?? FirebaseAuth.instance {
     _initializeServices();
     initializeGoalsListener();
-    // loadGoalTemplates();
   }
 
   void _initializeServices() {
@@ -156,13 +154,6 @@ class GoalsProvider with ChangeNotifier {
     notifyListeners();
   }
 
-  //TODO: check that this is actually doing something
-  Future<void> approveProof(
-      String goalId, String userId, String? proofDate) async {
-    print('does this do anything???????');
-    await _proofService.approveProof(goalId, userId, proofDate);
-  }
-
   Future<void> denyProof(
       String goalId, String userId, String? proofDate) async {
     await _proofService.denyProof(goalId, userId, proofDate);
@@ -260,7 +251,6 @@ class GoalsProvider with ChangeNotifier {
 
   void resetState() {
     _goals = [];
-    // _goalTemplates = [];
     _isLoading = false;
     notifyListeners();
   }

@@ -465,24 +465,18 @@ class PartyProvider with ChangeNotifier {
     return null;
   }
 
-  // Approve proof
-  Future<void> approveProof(String goalId, String? proofDate) async {
+  Future<void> approveProof(
+      String userId, String goalId, String? proofDate) async {
     if (_isDisposed) return; // Skip if already disposed
 
-    String? userId = findGoalOwner(goalId);
-    if (userId == null) {
-      throw Exception("Goal owner not found");
-    }
-
     try {
-      await _goalsService.approveProof(goalId, userId, proofDate);
+      await _goalsService.approveProof(userId, goalId, proofDate);
     } catch (e) {
       print('Error approving proof: $e');
       rethrow;
     }
   }
 
-  // Deny proof
   Future<void> denyProof(String goalId, String? proofDate) async {
     if (_isDisposed) return; // Skip if already disposed
 

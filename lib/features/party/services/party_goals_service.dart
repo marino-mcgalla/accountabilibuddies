@@ -35,112 +35,146 @@ class PartyGoalsService {
     return [];
   }
 
-  /// Fetch all pending proofs that need approval across all party members
   Future<List<Map<String, dynamic>>> fetchSubmittedGoalsForParty(
-      List<String> members) async {
-    List<Map<String, dynamic>> submittedGoals = [];
-
+      String partyId) async {
     try {
-      for (String memberId in members) {
-        DocumentSnapshot userGoalsDoc =
-            await _firestore.collection('userGoals').doc(memberId).get();
+      // 1. Get party members
+      //can't we just grab these from a provider somewhere? This should already be in a state variable somewhere
+      final partyDoc =
+          await _firestore.collection('parties').doc(partyId).get();
+      if (!partyDoc.exists) throw Exception("Party not found");
 
-        if (userGoalsDoc.exists && userGoalsDoc.data() != null) {
-          Map<String, dynamic> userData =
-              userGoalsDoc.data() as Map<String, dynamic>;
-          List<dynamic> goalsData = userData['goals'] ?? [];
+      List<String> memberIds = List<String>.from(partyDoc['members'] ?? []);
+      List<Map<String, dynamic>> results = [];
 
-          for (var goalData in goalsData) {
-            Goal goal = Goal.fromMap(goalData);
+      // 2. Process each member's goals in a single pass
+      // same with this? Shouldn't this data already be available from a provider somewhere since it's coming from a subscription?
+      for (String userId in memberIds) {
+        final doc = await _firestore.collection('userGoals').doc(userId).get();
+        if (!doc.exists) continue;
 
-            if (goal is WeeklyGoal) {
-              Map<String, String> completions =
-                  Map<String, String>.from(goal.currentWeekCompletions);
-              completions.forEach((day, status) {
-                if (status == 'submitted') {
-                  // Check if there's a proof for this day
-                  dynamic proofData;
-                  if (goal.proofs.containsKey(day)) {
-                    proofData = goal.proofs[day]?.toMap();
-                  }
+        final goalsData = List<dynamic>.from(doc.data()?['goals'] ?? []);
 
-                  submittedGoals.add({
-                    'goal': goal,
-                    'userId': memberId,
-                    'date': day,
-                    'proof': proofData, // Include the proof data if available
-                  });
-                }
-              });
-            } else if (goal is TotalGoal) {
-              for (var proof in goal.proofs) {
-                // Convert Proof object to a Map to avoid type issues
-                Map<String, dynamic> proofMap = {
-                  'proofText': proof.proofText,
-                  'submissionDate': proof.submissionDate.toIso8601String(),
-                  'status': proof.status,
-                  'imageUrl': proof.imageUrl, // Include the image URL
-                };
+        // 3. Filter for goals with pending proofs
+        // can we avoid all this looping if we add IDs to proofs? This seems ridiculously unnecessary
+        for (var goalData in goalsData) {
+          if (goalData['challenge'] == null ||
+              goalData['challenge']['proofs'] == null) {
+            continue;
+          }
 
-                if (proof.status == 'pending') {
-                  submittedGoals.add({
-                    'goal': goal,
-                    'userId': memberId,
-                    'proof': proofMap, // Use the Map instead of the object
-                  });
-                }
-              }
-            }
+          final goal = Goal.fromMap(goalData);
+
+          // 4. Extract pending proofs based on goal type
+          if (goalData['goalType'] == 'weekly') {
+            _extractWeeklyProofs(
+                goal, userId, goalData['challenge']['proofs'], results);
+          } else if (goalData['goalType'] == 'total') {
+            _extractTotalProofs(
+                goal, userId, goalData['challenge']['proofs'], results);
           }
         }
       }
+
+      return results;
     } catch (e) {
-      print('Error in fetchSubmittedGoalsForParty: $e');
-      // Rethrow to let the caller handle it
+      print('Error fetching submitted goals: $e');
       rethrow;
     }
-
-    return submittedGoals;
   }
 
-  /// Approve a proof for a goal
+// Helper method for weekly goals
+  void _extractWeeklyProofs(Goal goal, String userId,
+      Map<String, dynamic> proofs, List<Map<String, dynamic>> results) {
+    proofs.forEach((date, proof) {
+      if (proof is Map && proof['status'] == 'pending') {
+        results.add({
+          'goal': goal,
+          'userId': userId,
+          'date': date,
+          'proof': proof,
+        });
+      }
+    });
+  }
+
+// Helper method for total goals
+  void _extractTotalProofs(Goal goal, String userId, List proofsList,
+      List<Map<String, dynamic>> results) {
+    for (var proof in proofsList) {
+      if (proof is Map && proof['status'] == 'pending') {
+        results.add({
+          'goal': goal,
+          'userId': userId,
+          'date': null,
+          'proof': proof,
+        });
+      }
+    }
+  }
+
   Future<void> approveProof(
       String userId, String goalId, String? proofDate) async {
     DocumentSnapshot userGoalsDoc =
         await _firestore.collection('userGoals').doc(userId).get();
 
-    if (userGoalsDoc.exists) {
-      List<dynamic> goalsData = userGoalsDoc['goals'] ?? [];
-      for (var goalData in goalsData) {
-        if (goalData['id'] == goalId) {
-          if (goalData['goalType'] == 'weekly' && proofDate != null) {
-            goalData['currentWeekCompletions'][proofDate] = 'completed';
-          } else if (goalData['goalType'] == 'total') {
-            if (goalData['proofs'] != null && goalData['proofs'].isNotEmpty) {
-              // Remove the first proof
-              //TODO: "the first proof" is definitely not correct, check that it's the correct one first
-              goalData['proofs'].removeAt(0);
-
-              // Increment the total completions
-              goalData['totalCompletions'] =
-                  (goalData['totalCompletions'] ?? 0) + 1;
-
-              // Add to current week completions
-              String day = DateTime.now().toIso8601String().split('T').first;
-              goalData['currentWeekCompletions'][day] =
-                  (goalData['currentWeekCompletions'][day] ?? 0) + 1;
-            }
-          }
-          break;
-        }
-      }
-
-      // Update Firestore
-      await _firestore.collection('userGoals').doc(userId).update({
-        'goals': goalsData,
-      });
-    } else {
+    if (!userGoalsDoc.exists)
       throw Exception("User goals document does not exist");
+
+    List<dynamic> goalsData = userGoalsDoc['goals'] ?? [];
+    var goalData =
+        goalsData.firstWhere((g) => g['id'] == goalId, orElse: () => null);
+    if (goalData == null) return;
+
+    if (goalData['challenge'] != null) {
+      _updateChallengeForApproval(goalData, proofDate);
+    }
+
+    await _firestore
+        .collection('userGoals')
+        .doc(userId)
+        .update({'goals': goalsData});
+  }
+
+// Helper method for challenge update
+  void _updateChallengeForApproval(
+      Map<String, dynamic> goalData, String? proofDate) {
+    goalData['challenge']['completions'] ??= {};
+
+    if (goalData['goalType'] == 'weekly' && proofDate != null) {
+      goalData['challenge']['completions'][proofDate] = 'completed';
+      _removeProofFromMap(goalData['challenge']['proofs'], proofDate);
+    } else if (goalData['goalType'] == 'total') {
+      String today = DateTime.now().toIso8601String().split('T').first;
+      int current = goalData['challenge']['completions'][today] ?? 0;
+      goalData['challenge']['completions'][today] = current + 1;
+      _removeProofFromList(goalData['challenge']['proofs']);
+    }
+  }
+
+// Utility functions
+  void _removeProofFromMap(Map<String, dynamic>? proofs, String key) {
+    if (proofs != null && proofs[key] != null) {
+      proofs.remove(key);
+    }
+  }
+
+  void _removeProofFromList(List? proofs) {
+    if (proofs == null || proofs.isEmpty) return;
+
+    // Look for a proof with status 'pending'
+    for (int i = 0; i < proofs.length; i++) {
+      if (proofs[i] is Map && proofs[i]['status'] == 'pending') {
+        proofs.removeAt(i);
+        print('✓ Removed pending proof');
+        return; // Exit after removing one proof
+      }
+    }
+
+    // If no pending proof found, remove the first one as fallback
+    if (proofs.isNotEmpty) {
+      proofs.removeAt(0);
+      print('! No pending proof found, removed first proof');
     }
   }
 

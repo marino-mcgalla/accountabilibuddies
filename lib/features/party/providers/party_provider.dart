@@ -426,13 +426,14 @@ class PartyProvider with ChangeNotifier {
     return _membersService.fetchOutgoingPendingInvites(_partyId!);
   }
 
-  // Fetch submitted goals for party
+// Update this method to pass partyId instead of members list:
   Future<List<Map<String, dynamic>>> fetchSubmittedGoalsForParty(
       [BuildContext? context]) async {
     if (_isDisposed) return []; // Skip if already disposed
+    if (_partyId == null) return []; // Can't fetch without a party ID
 
     try {
-      return await _goalsService.fetchSubmittedGoalsForParty(_members);
+      return await _goalsService.fetchSubmittedGoalsForParty(_partyId!);
     } catch (e) {
       print('Error fetching submitted goals: $e');
       return [];

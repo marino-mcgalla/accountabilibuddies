@@ -52,10 +52,11 @@ class Goal {
 
   void addProof(String proofText, String? imageUrl, DateTime date) {
     // Initialize challenge if needed
-    challenge ??= {
-      'completions': {},
-      'proofs': goalType == 'total' ? [] : {},
-    };
+    //shouldn't ever be needed
+    // challenge ??= {
+    //   'completions': {},
+    //   'proofs': goalType == 'total' ? [] : {},
+    // };
 
     // Call the appropriate implementation
     if (this is WeeklyGoal) {

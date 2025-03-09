@@ -109,6 +109,13 @@ class AppScaffold extends StatelessWidget {
             ),
             _buildDrawerItem(
               context,
+              Icons.chat_bubble_outline,
+              'Chat',
+              '/chat',
+              isSmallScreen,
+            ),
+            _buildDrawerItem(
+              context,
               Icons.person,
               'User Info',
               '/user-info',

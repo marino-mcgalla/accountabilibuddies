@@ -1,3 +1,4 @@
+import 'package:auth_test/features/chat/chat_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:firebase_ui_auth/firebase_ui_auth.dart';
@@ -34,6 +35,10 @@ final GoRouter appRouter = GoRouter(
     GoRoute(
       path: '/party',
       builder: (context, state) => const AppScaffold(child: PartyScreen()),
+    ),
+    GoRoute(
+      path: '/chat',
+      builder: (context, state) => const AppScaffold(child: ChatScreen()),
     ),
     GoRoute(
       path: '/user-info',

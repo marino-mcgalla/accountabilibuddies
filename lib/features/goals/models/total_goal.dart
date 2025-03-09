@@ -30,6 +30,25 @@ class TotalGoal extends Goal {
   Map<String, int> get totalCompletionsMap =>
       Map<String, int>.from(currentWeekCompletions);
 
+  void addTotalProof(String proofText, String? imageUrl, DateTime date) {
+    Map<String, dynamic> proofData = {
+      'proofText': proofText,
+      'imageUrl': imageUrl,
+      'status': 'pending',
+      'submissionDate': date.toIso8601String(),
+    };
+
+    // Add to challenge proofs array
+    (challenge!['proofs'] as List).add(proofData);
+
+    // Add to class-specific proofs list
+    proofs.add(Proof(
+      proofText: proofText,
+      submissionDate: date,
+      imageUrl: imageUrl,
+    ));
+  }
+
   @override
   Map<String, dynamic> toMap() {
     final map = super.toMap();

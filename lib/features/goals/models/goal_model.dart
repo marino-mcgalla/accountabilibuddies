@@ -11,6 +11,9 @@ class Goal {
   final bool active; // Whether the goal is active for the current week
   Map<String, dynamic> currentWeekCompletions; // Adding this back
 
+  // New challenge property for active challenges
+  Map<String, dynamic>? challenge;
+
   Goal({
     required this.id,
     required this.ownerId,
@@ -20,6 +23,7 @@ class Goal {
     required this.goalFrequency,
     required this.active,
     required this.currentWeekCompletions,
+    this.challenge, // Optional in constructor
   });
 
   factory Goal.fromMap(Map<String, dynamic> data) {
@@ -42,7 +46,23 @@ class Goal {
       'goalFrequency': goalFrequency,
       'active': active,
       'currentWeekCompletions': currentWeekCompletions,
+      'challenge': challenge, // Include challenge in serialization
     };
+  }
+
+  void addProof(String proofText, String? imageUrl, DateTime date) {
+    // Initialize challenge if needed
+    challenge ??= {
+      'completions': {},
+      'proofs': goalType == 'total' ? [] : {},
+    };
+
+    // Call the appropriate implementation
+    if (this is WeeklyGoal) {
+      (this as WeeklyGoal).addWeeklyProof(proofText, imageUrl, date);
+    } else if (this is TotalGoal) {
+      (this as TotalGoal).addTotalProof(proofText, imageUrl, date);
+    }
   }
 
   // Compatibility getters for MemberItem widget

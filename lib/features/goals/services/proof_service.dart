@@ -2,10 +2,8 @@
 import '../models/goal_model.dart';
 import '../models/total_goal.dart';
 import '../models/weekly_goal.dart';
-import '../models/proof_model.dart';
 import '../repositories/goals_repository.dart';
 import '../../time_machine/providers/time_machine_provider.dart';
-import 'package:flutter/material.dart';
 
 class ProofService {
   final GoalsRepository _repository;
@@ -15,49 +13,25 @@ class ProofService {
 
   Future<void> submitProof(List<Goal> currentGoals, String goalId,
       String proofText, String? imageUrl, bool yesterday) async {
-    debugPrint(
-        'SubmitProof called with text: $proofText, imageUrl: $imageUrl, yesterday: $yesterday');
-    DateTime submissionDate;
     String? userId = _repository.getCurrentUserId();
     if (userId == null) return;
 
-    final updatedGoals = List<Goal>.from(currentGoals);
-    int index = updatedGoals.indexWhere((goal) => goal.id == goalId);
-
+    int index = currentGoals.indexWhere((goal) => goal.id == goalId);
     if (index == -1) return;
 
+    // Create working copy
+    final updatedGoals = List<Goal>.from(currentGoals);
     Goal goal = updatedGoals[index];
-    if (!yesterday) {
-      submissionDate = _timeMachineProvider.now;
-    } else {
-      submissionDate = _timeMachineProvider.now.subtract(Duration(days: 1));
-    }
-    String currentDay = submissionDate.toIso8601String().split('T').first;
 
-    if (goal is WeeklyGoal) {
-      goal.currentWeekCompletions[currentDay] = 'submitted';
+    // Calculate date
+    DateTime submissionDate = yesterday
+        ? _timeMachineProvider.now.subtract(Duration(days: 1))
+        : _timeMachineProvider.now;
 
-      Proof proof = Proof(
-        proofText: proofText,
-        submissionDate: submissionDate,
-        imageUrl: imageUrl,
-      );
+    // Let the goal handle its own proof logic
+    goal.addProof(proofText, imageUrl, submissionDate);
 
-      goal.proofs[currentDay] = proof;
-
-      debugPrint('Added proof to weekly goal for day: $currentDay');
-    } else if (goal is TotalGoal) {
-      Proof proof = Proof(
-        proofText: proofText,
-        submissionDate: submissionDate,
-        imageUrl: imageUrl,
-      );
-
-      goal.proofs.add(proof);
-
-      debugPrint('Added proof to total goal');
-    }
-
+    // Save to Firebase
     await _repository.saveGoals(userId, updatedGoals);
   }
 

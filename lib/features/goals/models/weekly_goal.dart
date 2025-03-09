@@ -28,6 +28,31 @@ class WeeklyGoal extends Goal {
   Map<String, String> get weeklyCompletions =>
       Map<String, String>.from(currentWeekCompletions);
 
+  void addWeeklyProof(String proofText, String? imageUrl, DateTime date) {
+    String day = date.toIso8601String().split('T').first;
+
+    Map<String, dynamic> proofData = {
+      'proofText': proofText,
+      'imageUrl': imageUrl,
+      'status': 'pending',
+      'submissionDate': date.toIso8601String(),
+    };
+
+    // Update challenge data
+    challenge!['proofs'][day] = proofData;
+    challenge!['completions'][day] = 'submitted';
+
+    // Update legacy data
+    currentWeekCompletions[day] = 'submitted';
+
+    // Add to class-specific proofs map
+    proofs[day] = Proof(
+      proofText: proofText,
+      submissionDate: date,
+      imageUrl: imageUrl,
+    );
+  }
+
   @override
   Map<String, dynamic> toMap() {
     final map = super.toMap();

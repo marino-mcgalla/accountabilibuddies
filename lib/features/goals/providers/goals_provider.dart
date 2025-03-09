@@ -30,7 +30,7 @@ class GoalsProvider with ChangeNotifier {
   }) : _auth = auth ?? FirebaseAuth.instance {
     _initializeServices();
     initializeGoalsListener();
-    loadGoalTemplates();
+    // loadGoalTemplates();
   }
 
   void _initializeServices() {
@@ -52,8 +52,7 @@ class GoalsProvider with ChangeNotifier {
     if (userId == null) return;
 
     _goalsSubscription?.cancel();
-    _goalsSubscription =
-        _repository.getChallengeGoalsStream(userId).listen((goals) {
+    _goalsSubscription = _repository.getGoalsStream(userId).listen((goals) {
       if (goals.isNotEmpty) {}
       _goals = goals;
       notifyListeners();
@@ -63,14 +62,14 @@ class GoalsProvider with ChangeNotifier {
   }
 
   // Goal CRUD Operations
-  Future<void> createGoalTemplate(Goal goal) async {
+  Future<void> createGoal(Goal goal) async {
     _setLoading(true);
     try {
       // Only add to templates, not to active goals
-      _goalTemplates.add(goal);
+      _goals.add(goal);
       String? userId = _repository.getCurrentUserId();
       if (userId != null) {
-        await _repository.saveGoalTemplates(userId, _goalTemplates);
+        await _repository.saveGoals(userId, _goals);
       }
     } finally {
       _setLoading(false);
@@ -90,12 +89,12 @@ class GoalsProvider with ChangeNotifier {
       // await _goalService.editGoal(_goals, updatedGoal);
 
       // Also update template
-      int index = _goalTemplates.indexWhere((g) => g.id == updatedGoal.id);
+      int index = _goals.indexWhere((g) => g.id == updatedGoal.id);
       if (index != -1) {
-        _goalTemplates[index] = updatedGoal;
+        _goals[index] = updatedGoal;
         String? userId = _repository.getCurrentUserId();
         if (userId != null) {
-          await _repository.saveGoalTemplates(userId, _goalTemplates);
+          await _repository.saveGoals(userId, _goals);
         }
       }
     } finally {
@@ -125,10 +124,6 @@ class GoalsProvider with ChangeNotifier {
       // Update local state - important!
       _goals = _goals.where((goal) => goal.id != goalId).toList();
 
-      // Also update templates if needed
-      _goalTemplates =
-          _goalTemplates.where((goal) => goal.id != goalId).toList();
-
       // Ensure UI updates
       notifyListeners();
     } catch (e) {
@@ -148,7 +143,7 @@ class GoalsProvider with ChangeNotifier {
       goal.currentWeekCompletions[day] = status;
       String? userId = _repository.getCurrentUserId();
       if (userId != null) {
-        await _repository.saveChallengeGoals(userId, updatedGoals);
+        await _repository.saveGoals(userId, updatedGoals);
       }
     }
   }
@@ -198,8 +193,7 @@ class GoalsProvider with ChangeNotifier {
     _setLoading(true);
     try {
       // Get active template goals
-      final activeTemplates =
-          _goalTemplates.where((goal) => goal.active).toList();
+      final activeTemplates = _goals.where((goal) => goal.active).toList();
       if (activeTemplates.isEmpty) return;
 
       String? userId = _repository.getCurrentUserId();
@@ -243,7 +237,7 @@ class GoalsProvider with ChangeNotifier {
 
       // Also save them as challenge goals
       batch.set(_firestore.collection('userGoals').doc(userId),
-          {'challengeGoals': goalsData}, SetOptions(merge: true));
+          {'goals': goalsData}, SetOptions(merge: true));
 
       // Execute both updates
       await batch.commit();
@@ -256,17 +250,17 @@ class GoalsProvider with ChangeNotifier {
     }
   }
 
-  Future<void> loadGoalTemplates() async {
+  Future<void> loadGoals() async {
     String? userId = _repository.getCurrentUserId();
     if (userId == null) return;
 
-    _goalTemplates = await _repository.getgoalTemplatesForUser(userId);
+    _goals = await _repository.getGoalsForUser(userId);
     notifyListeners();
   }
 
   void resetState() {
     _goals = [];
-    _goalTemplates = [];
+    // _goalTemplates = [];
     _isLoading = false;
     notifyListeners();
   }

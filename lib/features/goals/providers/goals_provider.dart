@@ -50,9 +50,11 @@ class GoalsProvider with ChangeNotifier {
     if (userId == null) return;
 
     _goalsSubscription?.cancel();
+    // THIS IS A LISTENER DOING THINGS CORRECTLY WOOOOOOOOOOOOOOOOOOOOOW
     _goalsSubscription = _repository.getGoalsStream(userId).listen((goals) {
       if (goals.isNotEmpty) {}
       _goals = goals;
+      print('woooooooooow');
       notifyListeners();
     }, onError: (error) {
       print('Stream error: $error');
@@ -203,7 +205,7 @@ class GoalsProvider with ChangeNotifier {
       for (var goalData in goalsData) {
         if (goalData['active'] == true) {
           // Add challenge field to the goal object
-          goalData['activeChallenge'] = {
+          goalData['challenge'] = {
             'challengeFrequency': goalData['goalFrequency'], // copy from goal
             'challengeCriteria': goalData['goalCriteria'], // copy from goal
             'completions': {}, // empty for now

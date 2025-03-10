@@ -1,21 +1,25 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../../goals/models/goal_model.dart';
-import '../../goals/models/total_goal.dart';
-import '../../goals/models/weekly_goal.dart';
-import '../../goals/models/proof_model.dart'; // Import the Proof model
-import '../../time_machine/providers/time_machine_provider.dart';
+// import '../../goals/models/total_goal.dart';
+// import '../../goals/models/weekly_goal.dart';
+// import '../../goals/models/proof_model.dart';
+// import '../../time_machine/providers/time_machine_provider.dart';
+import '../providers/party_provider.dart';
 
 /// Service for handling goal-related operations in parties
 class PartyGoalsService {
   final FirebaseAuth _auth;
   final FirebaseFirestore _firestore;
+  final PartyProvider? _partyProvider;
 
   PartyGoalsService({
     FirebaseAuth? auth,
     FirebaseFirestore? firestore,
+    PartyProvider? partyProvider,
   })  : _auth = auth ?? FirebaseAuth.instance,
-        _firestore = firestore ?? FirebaseFirestore.instance;
+        _firestore = firestore ?? FirebaseFirestore.instance,
+        _partyProvider = partyProvider;
 
   /// Get the current user ID
   String? get currentUserId => _auth.currentUser?.uid;
@@ -35,11 +39,21 @@ class PartyGoalsService {
     return [];
   }
 
-  Future<List<Map<String, dynamic>>> fetchSubmittedGoalsForParty(
+  Future<List<Map<String, dynamic>>> fetchSubmittedProofs(
       String partyId) async {
+    if (_partyProvider != null) {
+      print("Party Member Goals from Provider:");
+      _partyProvider.partyMemberGoals.forEach((userId, goals) {
+        print("User $userId has ${goals.length} goals");
+        for (var goal in goals) {
+          print("  - ${goal.title}: ${goal.id}");
+        }
+      });
+    } else {
+      print("PartyProvider not available");
+    }
     try {
-      // 1. Get party members
-      //can't we just grab these from a provider somewhere? This should already be in a state variable somewhere
+      //should already be subscribed, just use a getter
       final partyDoc =
           await _firestore.collection('parties').doc(partyId).get();
       if (!partyDoc.exists) throw Exception("Party not found");
@@ -47,7 +61,6 @@ class PartyGoalsService {
       List<String> memberIds = List<String>.from(partyDoc['members'] ?? []);
       List<Map<String, dynamic>> results = [];
 
-      // 2. Process each member's goals in a single pass
       // same with this? Shouldn't this data already be available from a provider somewhere since it's coming from a subscription?
       for (String userId in memberIds) {
         final doc = await _firestore.collection('userGoals').doc(userId).get();
@@ -58,6 +71,7 @@ class PartyGoalsService {
         // 3. Filter for goals with pending proofs
         // can we avoid all this looping if we add IDs to proofs? This seems ridiculously unnecessary
         for (var goalData in goalsData) {
+          // print(goalData);
           if (goalData['challenge'] == null ||
               goalData['challenge']['proofs'] == null) {
             continue;
@@ -66,12 +80,20 @@ class PartyGoalsService {
           final goal = Goal.fromMap(goalData);
 
           // 4. Extract pending proofs based on goal type
-          if (goalData['goalType'] == 'weekly') {
+          if (goalData['challenge']['proofs'] is Map) {
+            // Weekly goals have map-based proofs
             _extractWeeklyProofs(
-                goal, userId, goalData['challenge']['proofs'], results);
-          } else if (goalData['goalType'] == 'total') {
+                goal,
+                userId,
+                goalData['challenge']['proofs'] as Map<String, dynamic>,
+                results);
+          } else if (goalData['challenge']['proofs'] is List) {
+            // Total goals have list-based proofs
             _extractTotalProofs(
-                goal, userId, goalData['challenge']['proofs'], results);
+                goal, userId, goalData['challenge']['proofs'] as List, results);
+          } else {
+            print(
+                'Warning: Unknown proof structure type: ${goalData['challenge']['proofs'].runtimeType}');
           }
         }
       }

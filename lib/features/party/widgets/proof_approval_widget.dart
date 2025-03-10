@@ -45,7 +45,7 @@ class _PendingProofsWidgetState extends State<PendingProofsWidget> {
     try {
       // Get provider before async operation
       final partyProvider = Provider.of<PartyProvider>(context, listen: false);
-      final submittedGoals = await partyProvider.fetchSubmittedGoalsForParty();
+      final submittedGoals = await partyProvider.fetchSubmittedProofs();
 
       // Check again if still mounted after async operation
       if (!mounted) return;
@@ -71,74 +71,55 @@ class _PendingProofsWidgetState extends State<PendingProofsWidget> {
 
   @override
   Widget build(BuildContext context) {
-    return Selector<PartyProvider, Map<String, List<Goal>>>(
-      selector: (_, provider) => provider.partyMemberGoals,
-      builder: (context, partyMemberGoals, child) {
-        // When party members' goals change, reload our data
-        if (!_isLoadingData && mounted) {
-          Future.microtask(() {
-            if (mounted) {
-              _loadSubmittedGoals();
-            }
-          });
-        }
+    // Remove the Selector completely - it's creating a feedback loop
+    if (_isLoading && _submittedGoals.isEmpty) {
+      return const Center(child: CircularProgressIndicator());
+    }
 
-        if (_isLoading && _submittedGoals.isEmpty) {
-          return const Center(
-            child: SizedBox(
-              width: 40,
-              height: 40,
-              child: CircularProgressIndicator(),
-            ),
+    if (_errorMessage != null) {
+      return Center(child: Text(_errorMessage!));
+    }
+
+    if (_submittedGoals.isEmpty) {
+      return const Center(child: Text('No pending proofs'));
+    }
+
+    // Don't use a single key for the entire list
+    return AnimatedSwitcher(
+      duration: const Duration(milliseconds: 300),
+      child: ListView.builder(
+        // Remove the key from here - each item will have its own key
+        shrinkWrap: true,
+        itemCount: _submittedGoals.length,
+        itemBuilder: (context, index) {
+          final goalData = _submittedGoals[index];
+          final Goal goal = goalData['goal'];
+          final String userId = goalData['userId'];
+
+          // Get user name from member details
+          final partyProvider =
+              Provider.of<PartyProvider>(context, listen: false);
+          final String userName = partyProvider.memberDetails[userId]
+                  ?['displayName'] ??
+              partyProvider.memberDetails[userId]?['username'] ??
+              partyProvider.memberDetails[userId]?['email'] ??
+              'Unknown User';
+
+          // Create a unique key for each proof item
+          final String proofKey =
+              '${goal.id}-${goalData['date'] ?? 'total'}-$userId-$index';
+
+          return ProofItem(
+            key: ValueKey(proofKey),
+            goal: goal,
+            userName: userName,
+            userId: userId,
+            date: goalData['date'],
+            proof: goalData['proof'],
+            onAction: _handleAction,
           );
-        }
-
-        if (_errorMessage != null) {
-          return Center(child: Text(_errorMessage!));
-        }
-
-        if (_submittedGoals.isEmpty) {
-          return const Center(child: Text('No pending proofs'));
-        }
-
-        // Don't use a single key for the entire list
-        return AnimatedSwitcher(
-          duration: const Duration(milliseconds: 300),
-          child: ListView.builder(
-            // Remove the key from here - each item will have its own key
-            shrinkWrap: true,
-            itemCount: _submittedGoals.length,
-            itemBuilder: (context, index) {
-              final goalData = _submittedGoals[index];
-              final Goal goal = goalData['goal'];
-              final String userId = goalData['userId'];
-
-              // Get user name from member details
-              final partyProvider =
-                  Provider.of<PartyProvider>(context, listen: false);
-              final String userName = partyProvider.memberDetails[userId]
-                      ?['displayName'] ??
-                  partyProvider.memberDetails[userId]?['username'] ??
-                  partyProvider.memberDetails[userId]?['email'] ??
-                  'Unknown User';
-
-              // Create a unique key for each proof item
-              final String proofKey =
-                  '${goal.id}-${goalData['date'] ?? 'total'}-$userId-$index';
-
-              return ProofItem(
-                key: ValueKey(proofKey),
-                goal: goal,
-                userName: userName,
-                userId: userId,
-                date: goalData['date'],
-                proof: goalData['proof'],
-                onAction: _handleAction,
-              );
-            },
-          ),
-        );
-      },
+        },
+      ),
     );
   }
 

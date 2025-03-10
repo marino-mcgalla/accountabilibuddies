@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:auth_test/features/goals/models/goal_model.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../models/party_model.dart';
@@ -69,6 +70,18 @@ class PartyRepository {
     };
 
     return controller.stream;
+  }
+
+  Stream<List<Goal>> getMemberGoalsStream(String memberId) {
+    return _firestore
+        .collection('userGoals')
+        .doc(memberId)
+        .snapshots()
+        .map((doc) {
+      if (!doc.exists) return [];
+      List<dynamic> goalsData = doc.data()?['goals'] ?? [];
+      return goalsData.map((data) => Goal.fromMap(data)).toList();
+    });
   }
 
   /// Create a new party with the given name and set the current user as owner

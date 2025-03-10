@@ -15,6 +15,7 @@ class TotalGoal extends Goal {
     required Map<String, int> currentWeekCompletions,
     this.totalCompletions = 0,
     this.proofs = const [],
+    Map<String, dynamic>? challenge,
   }) : super(
           id: id,
           ownerId: ownerId,
@@ -24,6 +25,7 @@ class TotalGoal extends Goal {
           active: active,
           goalFrequency: goalFrequency,
           currentWeekCompletions: currentWeekCompletions,
+          challenge: challenge,
         );
 
   // Type-safe getter for currentWeekCompletions
@@ -72,6 +74,7 @@ class TotalGoal extends Goal {
               ?.map((proofData) => Proof.fromMap(proofData))
               .toList() ??
           [],
+      challenge: data['challenge'], // ADD THIS LINE
     );
   }
 }

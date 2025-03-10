@@ -21,16 +21,14 @@ class ProgressTracker extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Create a unique key based on the goal ID and completions
-    final keyString = '${goal.id}-${goal.currentWeekCompletions.hashCode}';
+    final keyString = '${goal.id}-${(goal.challenge ?? {}).hashCode}';
     final valueKey = ValueKey(keyString);
 
-    // Get screen dimensions
     final screenWidth = MediaQuery.of(context).size.width;
     final isMobileScreen = screenWidth < 600;
 
     if (goal is TotalGoal) {
-      return _buildTotalGoalTracker(context, valueKey, isMobileScreen);
+      return _buildTotalGoalTracker(context, isMobileScreen);
     } else if (goal is WeeklyGoal) {
       return _buildWeeklyGoalTracker(context, valueKey, isMobileScreen);
     }
@@ -39,75 +37,68 @@ class ProgressTracker extends StatelessWidget {
   }
 
   /// Builds a tracker for total goals
-  Widget _buildTotalGoalTracker(
-      BuildContext context, Key key, bool isMobileScreen) {
+// Update just _buildTotalGoalTracker:
+
+  Widget _buildTotalGoalTracker(BuildContext context, bool isMobileScreen) {
     final totalGoal = goal as TotalGoal;
 
-    // Calculate progress
-    int approvedCompletions = totalGoal.currentWeekCompletions.values
-        .fold(0, (sum, value) => sum + (value as int));
-    int pendingCompletions = totalGoal.proofs.length;
+    // Get completed progress (green)
+    final Map<String, dynamic> completions =
+        (goal.challenge?['completions'] as Map<String, dynamic>?) ?? {};
+    final int completed =
+        completions.values.fold(0, (sum, val) => sum + (val as int? ?? 0));
 
-    // Calculate progress percentage (capped at 100%)
-    double approvedProgress = totalGoal.goalFrequency > 0
-        ? (approvedCompletions / totalGoal.goalFrequency).clamp(0.0, 1.0)
-        : 0;
-    double pendingProgress = totalGoal.goalFrequency > 0
-        ? ((approvedCompletions + pendingCompletions) / totalGoal.goalFrequency)
-            .clamp(0.0, 1.0)
-        : 0;
+    // Get pending proofs (yellow)
+    int pendingCount = 0;
+    final proofs = goal.challenge?['proofs'];
+    if (proofs is List) {
+      pendingCount =
+          proofs.where((proof) => proof['status'] == 'pending').length;
+    }
 
-    return Container(
-      key: key,
-      margin: EdgeInsets.symmetric(vertical: isMobileScreen ? 8 : 8),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          if (!isCompact)
-            Text(
-              goal.goalName,
-              style: TextStyle(
-                  fontWeight: FontWeight.bold,
-                  fontSize: isMobileScreen ? 16 : 16),
-            ),
-          const SizedBox(height: 4),
-          Stack(
-            children: [
-              // Background progress (includes pending)
-              ClipRRect(
-                borderRadius: BorderRadius.circular(6),
-                child: LinearProgressIndicator(
-                  value: pendingProgress,
-                  backgroundColor: Colors.grey[300],
-                  valueColor:
-                      const AlwaysStoppedAnimation<Color>(Colors.yellow),
-                  minHeight: isMobileScreen ? 12 : 10,
-                ),
+    // Calculate progress values
+    final double completedProgress = totalGoal.goalFrequency > 0
+        ? (completed / totalGoal.goalFrequency).clamp(0.0, 1.0)
+        : 0.0;
+    final double totalProgress = totalGoal.goalFrequency > 0
+        ? ((completed + pendingCount) / totalGoal.goalFrequency).clamp(0.0, 1.0)
+        : 0.0;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        if (!isCompact)
+          Text(goal.goalName,
+              style:
+                  const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+        const SizedBox(height: 8),
+        // Use a Stack for layered progress indicators
+        Stack(
+          children: [
+            // Bottom layer - pending + completed (yellow)
+            ClipRRect(
+              borderRadius: BorderRadius.circular(4),
+              child: LinearProgressIndicator(
+                value: totalProgress,
+                backgroundColor: Colors.grey[300],
+                color: Colors.amber,
+                minHeight: 10,
               ),
-              // Foreground progress (approved only)
-              ClipRRect(
-                borderRadius: BorderRadius.circular(6),
-                child: LinearProgressIndicator(
-                  value: approvedProgress,
-                  backgroundColor: Colors.transparent,
-                  valueColor: const AlwaysStoppedAnimation<Color>(Colors.green),
-                  minHeight: isMobileScreen ? 12 : 10,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          Text(
-            'Progress: $approvedCompletions / ${totalGoal.goalFrequency}',
-            style: TextStyle(
-              fontSize: isMobileScreen ? 14 : 14,
-              color: Theme.of(context).brightness == Brightness.dark
-                  ? Colors.white
-                  : Colors.black87,
             ),
-          ),
-        ],
-      ),
+            ClipRRect(
+              borderRadius: BorderRadius.circular(4),
+              child: LinearProgressIndicator(
+                value: completedProgress,
+                backgroundColor: Colors.transparent,
+                color: Colors.green,
+                minHeight: 10,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 4),
+        Text('Progress: $completed / ${totalGoal.goalFrequency}'),
+      ],
     );
   }
 
@@ -119,9 +110,12 @@ class ProgressTracker extends StatelessWidget {
     final daysOfWeek = Utils.getCurrentWeekDays(timeMachineProvider.now);
 
     // Count completed days
-    final completedDays = weeklyGoal.currentWeekCompletions.values
-        .where((status) => status == 'completed')
-        .length;
+    final completedDays =
+        (weeklyGoal.challenge?['completions'] as Map<String, dynamic>?)
+                ?.values
+                .where((status) => status == 'completed')
+                .length ??
+            0;
 
     return Container(
       key: key,
@@ -139,8 +133,10 @@ class ProgressTracker extends StatelessWidget {
           const SizedBox(height: 8),
           Row(
             children: daysOfWeek.map((day) {
-              final status =
-                  weeklyGoal.currentWeekCompletions[day] ?? 'default';
+              final status = ((weeklyGoal.challenge?['completions']
+                          as Map<String, dynamic>?) ??
+                      {})[day] ??
+                  'default';
 
               // Use shorter labels on mobile
               final dayAbbr = isMobileScreen

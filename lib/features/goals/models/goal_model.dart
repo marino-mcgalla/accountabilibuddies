@@ -52,17 +52,28 @@ class Goal {
 
   void addProof(String proofText, String? imageUrl, DateTime date) {
     // Initialize challenge if needed
-    //shouldn't ever be needed
-    // challenge ??= {
-    //   'completions': {},
-    //   'proofs': goalType == 'total' ? [] : {},
-    // };
+    challenge ??= {
+      'completions': {},
+      'proofs': goalType == 'total' ? [] : {},
+    };
 
-    // Call the appropriate implementation
-    if (this is WeeklyGoal) {
-      (this as WeeklyGoal).addWeeklyProof(proofText, imageUrl, date);
-    } else if (this is TotalGoal) {
-      (this as TotalGoal).addTotalProof(proofText, imageUrl, date);
+    // Create proof data
+    Map<String, dynamic> proofData = {
+      'proofText': proofText,
+      'imageUrl': imageUrl,
+      'status': 'pending',
+      'submissionDate': date.toIso8601String(),
+    };
+
+    // Add to appropriate data structure based on goal type
+    if (goalType == 'weekly') {
+      String day = date.toIso8601String().split('T')[0];
+      if (challenge!['proofs'] == null) challenge!['proofs'] = {};
+      (challenge!['proofs'] as Map)[day] = proofData;
+    } else {
+      // Total goal
+      if (challenge!['proofs'] == null) challenge!['proofs'] = [];
+      (challenge!['proofs'] as List).add(proofData);
     }
   }
 

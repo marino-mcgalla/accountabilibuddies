@@ -1,3 +1,4 @@
+import 'package:auth_test/features/common/utils/utils.dart';
 import 'package:flutter/material.dart';
 import '../../goals/models/goal_model.dart';
 import 'package:provider/provider.dart';
@@ -24,12 +25,10 @@ class CompactProgressTracker extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            goal.goalName,
+            '${goal.goalName} (x${goal.challenge?['challengeFrequency']})',
             style: const TextStyle(fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 4),
-
-          // Different progress displays based on goal type
           if (goal.goalType == 'total')
             _buildTotalGoalProgress(context)
           else
@@ -40,13 +39,11 @@ class CompactProgressTracker extends StatelessWidget {
   }
 
   Widget _buildTotalGoalProgress(BuildContext context) {
-    // Get completed progress (green)
     final completions =
         (goal.challenge?['completions'] as Map<String, dynamic>?) ?? {};
     final int completed =
         completions.values.fold(0, (sum, val) => sum + (val as int? ?? 0));
 
-    // Get pending proofs (yellow)
     int pendingCount = 0;
     final proofs = goal.challenge?['proofs'];
     if (proofs is List) {
@@ -54,7 +51,6 @@ class CompactProgressTracker extends StatelessWidget {
           proofs.where((proof) => proof['status'] == 'pending').length;
     }
 
-    // Calculate progress values
     final double completedProgress = goal.goalFrequency > 0
         ? (completed / goal.goalFrequency).clamp(0.0, 1.0)
         : 0.0;
@@ -118,7 +114,7 @@ class CompactProgressTracker extends StatelessWidget {
                 height: 24,
                 margin: const EdgeInsets.symmetric(horizontal: 1.0),
                 decoration: BoxDecoration(
-                  color: _getStatusColor(status),
+                  color: Utils.getStatusColor(status),
                   borderRadius: BorderRadius.circular(2),
                 ),
                 alignment: Alignment.center,
@@ -134,27 +130,11 @@ class CompactProgressTracker extends StatelessWidget {
             );
           }).toList(),
         ),
-        Text(
-          'Target: ${goal.goalFrequency} days/week',
-          style: const TextStyle(fontSize: 12),
-        ),
+        // Text(
+        //   'Target: ${goal.goalFrequency} days/week',
+        //   style: const TextStyle(fontSize: 12),
+        // ),
       ],
     );
-  }
-
-  // Simple status color helper
-  Color _getStatusColor(String status) {
-    switch (status) {
-      case 'completed':
-        return Colors.green;
-      case 'pending':
-        return Colors.amber;
-      case 'skipped':
-        return Colors.red;
-      case 'planned':
-        return Colors.blue;
-      default:
-        return Colors.grey[300]!;
-    }
   }
 }

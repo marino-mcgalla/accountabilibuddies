@@ -59,6 +59,8 @@ class Utils {
     switch (status) {
       case 'submitted':
         return Colors.yellow;
+      case 'pending':
+        return Colors.yellow;
       case 'completed':
         return Colors.green;
       case 'skipped':

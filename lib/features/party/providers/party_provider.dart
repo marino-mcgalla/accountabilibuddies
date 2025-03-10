@@ -539,65 +539,6 @@ class PartyProvider with ChangeNotifier {
     return true;
   }
 
-  // // Subscribe to party member goals
-  // void _subscribeToPartyMemberGoals() {
-  //   if (_isDisposed) return; // Skip if already disposed
-
-  //   for (String memberId in _members) {
-  //     var subscription = _firestore
-  //         .collection('userGoals')
-  //         .doc(memberId)
-  //         .snapshots()
-  //         .listen((doc) {
-  //       if (_isDisposed) return; // Skip processing if disposed
-
-  //       if (doc.exists) {
-  //         List<dynamic> goalsData = doc.data()?['goals'] ?? [];
-  //         final List<Goal> newGoals =
-  //             goalsData.map((data) => Goal.fromMap(data)).toList();
-
-  //         final List<Goal> previousGoals = _partyMemberGoals[memberId] ?? [];
-  //         final bool hasChanges = _haveGoalsChanged(previousGoals, newGoals);
-
-  //         if (hasChanges) {
-  //           batchUpdates(() {
-  //             _partyMemberGoals[memberId] = newGoals;
-  //           });
-  //         }
-  //       } else {
-  //         if (_partyMemberGoals[memberId]?.isNotEmpty ?? false) {
-  //           batchUpdates(() {
-  //             _partyMemberGoals[memberId] = [];
-  //           });
-  //         }
-  //       }
-  //     });
-  //     _goalSubscriptions.add(subscription);
-  //   }
-  // }
-
-  // Check if goals have changed
-  // bool _haveGoalsChanged(List<Goal> oldGoals, List<Goal> newGoals) {
-  //   if (oldGoals.length != newGoals.length) return true;
-
-  //   for (int i = 0; i < oldGoals.length; i++) {
-  //     if (oldGoals[i].id != newGoals[i].id) return true;
-
-  //     final oldCompletions = oldGoals[i].currentWeekCompletions;
-  //     final newCompletions = newGoals[i].currentWeekCompletions;
-
-  //     if (oldCompletions.length != newCompletions.length) return true;
-
-  //     for (final key in oldCompletions.keys) {
-  //       if (!newCompletions.containsKey(key) ||
-  //           oldCompletions[key].toString() != newCompletions[key].toString()) {
-  //         return true;
-  //       }
-  //     }
-  //   }
-  //   return false;
-  // }
-
   // Cancel goal subscriptions
   void _cancelGoalSubscriptions() {
     for (var subscription in _goalSubscriptions) {

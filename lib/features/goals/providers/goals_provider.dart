@@ -50,11 +50,9 @@ class GoalsProvider with ChangeNotifier {
     if (userId == null) return;
 
     _goalsSubscription?.cancel();
-    // THIS IS A LISTENER DOING THINGS CORRECTLY WOOOOOOOOOOOOOOOOOOOOOW
     _goalsSubscription = _repository.getGoalsStream(userId).listen((goals) {
       if (goals.isNotEmpty) {}
       _goals = goals;
-      print('woooooooooow');
       notifyListeners();
     }, onError: (error) {
       print('Stream error: $error');
@@ -81,18 +79,25 @@ class GoalsProvider with ChangeNotifier {
     await _goalService.createWeek(_goals, goal);
     _setLoading(false);
   }
+// Replace the editGoal method with this simpler version:
 
   Future<void> editGoal(Goal updatedGoal) async {
     _setLoading(true);
     try {
-      // Update regular goal
-      // await _goalService.editGoal(_goals, updatedGoal);
-
-      // Also update template
       int index = _goals.indexWhere((g) => g.id == updatedGoal.id);
       if (index != -1) {
-        _goals[index] = updatedGoal;
-        String? userId = _repository.getCurrentUserId();
+        Map<String, dynamic>? existingChallenge = _goals[index].challenge;
+
+        _goals[index].goalName = updatedGoal.goalName;
+        _goals[index].goalCriteria = updatedGoal.goalCriteria;
+        _goals[index].goalFrequency = updatedGoal.goalFrequency;
+
+        if (existingChallenge != null) {
+          _goals[index].challenge = existingChallenge;
+        }
+
+        // Save to repository
+        final userId = _auth.currentUser?.uid;
         if (userId != null) {
           await _repository.saveGoals(userId, _goals);
         }
@@ -133,14 +138,17 @@ class GoalsProvider with ChangeNotifier {
     }
   }
 
-  // Goal Progress Operations
-
   Future<void> toggleSkipPlan(String goalId, String day, String status) async {
     int index = _goals.indexWhere((goal) => goal.id == goalId);
     if (index != -1 && _goals[index] is WeeklyGoal) {
       final updatedGoals = List<Goal>.from(_goals);
       final goal = updatedGoals[index] as WeeklyGoal;
-      goal.currentWeekCompletions[day] = status;
+
+      Map<String, dynamic> completions =
+          goal.challenge!['completions'] as Map<String, dynamic>? ?? {};
+      completions[day] = status;
+      goal.challenge!['completions'] = completions;
+
       String? userId = _repository.getCurrentUserId();
       if (userId != null) {
         await _repository.saveGoals(userId, updatedGoals);

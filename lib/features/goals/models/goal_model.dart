@@ -4,10 +4,10 @@ import 'package:auth_test/features/goals/models/weekly_goal.dart';
 class Goal {
   final String id;
   final String ownerId;
-  final String goalName;
-  final String goalType; // 'weekly' or 'total'
-  final String goalCriteria;
-  final int goalFrequency;
+  String goalName;
+  String goalType; // 'weekly' or 'total'
+  String goalCriteria;
+  int goalFrequency;
   final bool active; // Whether the goal is active for the current week
   Map<String, dynamic> currentWeekCompletions; // Adding this back
 
@@ -51,13 +51,11 @@ class Goal {
   }
 
   void addProof(String proofText, String? imageUrl, DateTime date) {
-    // Initialize challenge if needed
     challenge ??= {
       'completions': {},
       'proofs': goalType == 'total' ? [] : {},
     };
 
-    // Create proof data
     Map<String, dynamic> proofData = {
       'proofText': proofText,
       'imageUrl': imageUrl,
@@ -65,24 +63,34 @@ class Goal {
       'submissionDate': date.toIso8601String(),
     };
 
-    // Add to appropriate data structure based on goal type
     if (goalType == 'weekly') {
       String day = date.toIso8601String().split('T')[0];
       if (challenge!['proofs'] == null) challenge!['proofs'] = {};
       (challenge!['proofs'] as Map)[day] = proofData;
+
+      Map<String, dynamic> completions =
+          challenge!['completions'] as Map<String, dynamic>? ?? {};
+      if (completions[day] != 'completed') {
+        completions[day] = 'pending';
+      }
+      challenge!['completions'] = completions;
     } else {
-      // Total goal
-      if (challenge!['proofs'] == null) challenge!['proofs'] = [];
+      // FIX: Handle case where proofs is a Map instead of List for total goals
+      if (challenge!['proofs'] == null) {
+        challenge!['proofs'] = [];
+      } else if (challenge!['proofs'] is Map) {
+        // Convert map to list if incorrectly stored
+        challenge!['proofs'] = [];
+        print(
+            "Warning: Total goal had 'proofs' as Map instead of List - fixed");
+      }
       (challenge!['proofs'] as List).add(proofData);
     }
   }
 
-  // Compatibility getters for MemberItem widget
   bool get isCompleted {
-    // Get the number of completions recorded for this week
     int completionsCount = 0;
 
-    // Sum up the values in the completions map
     if (currentWeekCompletions.isNotEmpty) {
       currentWeekCompletions.forEach((date, value) {
         if (value is int) {

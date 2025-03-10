@@ -33,11 +33,8 @@ class ProgressTracker extends StatelessWidget {
       return _buildWeeklyGoalTracker(context, valueKey, isMobileScreen);
     }
 
-    return const SizedBox.shrink(); // Fallback
+    return const SizedBox.shrink();
   }
-
-  /// Builds a tracker for total goals
-// Update just _buildTotalGoalTracker:
 
   Widget _buildTotalGoalTracker(BuildContext context, bool isMobileScreen) {
     final totalGoal = goal as TotalGoal;
@@ -102,20 +99,26 @@ class ProgressTracker extends StatelessWidget {
     );
   }
 
-  /// Builds a tracker for weekly goals
   Widget _buildWeeklyGoalTracker(
       BuildContext context, Key key, bool isMobileScreen) {
     final weeklyGoal = goal as WeeklyGoal;
     final timeMachineProvider = Provider.of<TimeMachineProvider>(context);
     final daysOfWeek = Utils.getCurrentWeekDays(timeMachineProvider.now);
 
-    // Count completed days
     final completedDays =
         (weeklyGoal.challenge?['completions'] as Map<String, dynamic>?)
                 ?.values
                 .where((status) => status == 'completed')
                 .length ??
             0;
+
+    int pendingDays = 0;
+    if (weeklyGoal.challenge?['proofs'] is Map) {
+      final Map<String, dynamic> proofs =
+          (weeklyGoal.challenge!['proofs'] as Map<String, dynamic>);
+      pendingDays =
+          proofs.values.where((proof) => proof['status'] == 'pending').length;
+    }
 
     return Container(
       key: key,
@@ -172,7 +175,7 @@ class ProgressTracker extends StatelessWidget {
           ),
           const SizedBox(height: 8),
           Text(
-            'Completed: $completedDays / ${weeklyGoal.goalFrequency} days',
+            'Completed: $completedDays / ${weeklyGoal.challenge?['challengeFrequency']} days',
             style: TextStyle(
               fontSize: isMobileScreen ? 14 : 14,
               color: Theme.of(context).brightness == Brightness.dark

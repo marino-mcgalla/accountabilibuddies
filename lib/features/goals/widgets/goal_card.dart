@@ -185,6 +185,7 @@ class _GoalCardState extends State<GoalCard> {
 
   /// Handles tapping on a day for weekly goals
   void _handleDayTap(String goalId, String day, String status) {
+    print(day);
     if (widget.goal is! WeeklyGoal) return;
 
     String newStatus;

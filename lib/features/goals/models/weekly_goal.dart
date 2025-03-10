@@ -13,6 +13,7 @@ class WeeklyGoal extends Goal {
     required int goalFrequency,
     required Map<String, String> currentWeekCompletions,
     this.proofs = const {},
+    Map<String, dynamic>? challenge,
   }) : super(
           id: id,
           ownerId: ownerId,
@@ -22,6 +23,7 @@ class WeeklyGoal extends Goal {
           active: active,
           goalFrequency: goalFrequency,
           currentWeekCompletions: currentWeekCompletions,
+          challenge: challenge,
         );
 
   // Type-safe getter for currentWeekCompletions
@@ -99,6 +101,7 @@ class WeeklyGoal extends Goal {
       currentWeekCompletions:
           Map<String, String>.from(data['currentWeekCompletions'] ?? {}),
       proofs: proofMap,
+      challenge: data['challenge'],
     );
   }
 }

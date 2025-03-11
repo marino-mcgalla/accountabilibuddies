@@ -41,98 +41,52 @@ class PartyGoalsService {
 
   Future<List<Map<String, dynamic>>> fetchSubmittedProofs(
       String partyId) async {
-    if (_partyProvider != null) {
-      print("Party Member Goals from Provider:");
-      _partyProvider.partyMemberGoals.forEach((userId, goals) {
-        print("User $userId has ${goals.length} goals");
-        for (var goal in goals) {
-          print("  - ${goal.title}: ${goal.id}");
-        }
-      });
-    } else {
-      print("PartyProvider not available");
+    List<Map<String, dynamic>> results = [];
+
+    if (_partyProvider == null) {
+      print("Error: PartyProvider not available for proof extraction");
+      return [];
     }
-    try {
-      //should already be subscribed, just use a getter
-      final partyDoc =
-          await _firestore.collection('parties').doc(partyId).get();
-      if (!partyDoc.exists) throw Exception("Party not found");
 
-      List<String> memberIds = List<String>.from(partyDoc['members'] ?? []);
-      List<Map<String, dynamic>> results = [];
+    _partyProvider.partyMemberGoals.forEach((userId, goals) {
+      for (var goal in goals) {
+        if (goal.challenge == null || goal.challenge!['proofs'] == null) {
+          continue;
+        }
 
-      // same with this? Shouldn't this data already be available from a provider somewhere since it's coming from a subscription?
-      for (String userId in memberIds) {
-        final doc = await _firestore.collection('userGoals').doc(userId).get();
-        if (!doc.exists) continue;
+        if (goal.goalType == 'weekly' && goal.challenge!['proofs'] is Map) {
+          Map<String, dynamic> proofs =
+              goal.challenge!['proofs'] as Map<String, dynamic>;
 
-        final goalsData = List<dynamic>.from(doc.data()?['goals'] ?? []);
+          proofs.forEach((date, proof) {
+            if (proof is Map && proof['status'] == 'pending') {
+              results.add({
+                'goal': goal,
+                'userId': userId,
+                'date': date,
+                'proof': proof,
+              });
+            }
+          });
+        } else if (goal.goalType == 'total' &&
+            goal.challenge!['proofs'] is List) {
+          List<dynamic> proofs = goal.challenge!['proofs'] as List<dynamic>;
 
-        // 3. Filter for goals with pending proofs
-        // can we avoid all this looping if we add IDs to proofs? This seems ridiculously unnecessary
-        for (var goalData in goalsData) {
-          // print(goalData);
-          if (goalData['challenge'] == null ||
-              goalData['challenge']['proofs'] == null) {
-            continue;
-          }
-
-          final goal = Goal.fromMap(goalData);
-
-          // 4. Extract pending proofs based on goal type
-          if (goalData['challenge']['proofs'] is Map) {
-            // Weekly goals have map-based proofs
-            _extractWeeklyProofs(
-                goal,
-                userId,
-                goalData['challenge']['proofs'] as Map<String, dynamic>,
-                results);
-          } else if (goalData['challenge']['proofs'] is List) {
-            // Total goals have list-based proofs
-            _extractTotalProofs(
-                goal, userId, goalData['challenge']['proofs'] as List, results);
-          } else {
-            print(
-                'Warning: Unknown proof structure type: ${goalData['challenge']['proofs'].runtimeType}');
+          for (var proof in proofs) {
+            if (proof is Map && proof['status'] == 'pending') {
+              results.add({
+                'goal': goal,
+                'userId': userId,
+                'date': null,
+                'proof': proof,
+              });
+            }
           }
         }
-      }
-
-      return results;
-    } catch (e) {
-      print('Error fetching submitted goals: $e');
-      rethrow;
-    }
-  }
-
-// Helper method for weekly goals
-  void _extractWeeklyProofs(Goal goal, String userId,
-      Map<String, dynamic> proofs, List<Map<String, dynamic>> results) {
-    proofs.forEach((date, proof) {
-      if (proof is Map && proof['status'] == 'pending') {
-        results.add({
-          'goal': goal,
-          'userId': userId,
-          'date': date,
-          'proof': proof,
-        });
       }
     });
-  }
 
-// Helper method for total goals
-  void _extractTotalProofs(Goal goal, String userId, List proofsList,
-      List<Map<String, dynamic>> results) {
-    for (var proof in proofsList) {
-      if (proof is Map && proof['status'] == 'pending') {
-        results.add({
-          'goal': goal,
-          'userId': userId,
-          'date': null,
-          'proof': proof,
-        });
-      }
-    }
+    return results;
   }
 
   Future<void> approveProof(
@@ -174,48 +128,6 @@ class PartyGoalsService {
     }
   }
 
-  /// Deny a proof for a goal
-  // Future<void> denyProof(
-  //     String userId, String goalId, String? proofDate) async {
-  //   DocumentSnapshot userGoalsDoc =
-  //       await _firestore.collection('userGoals').doc(userId).get();
-
-  //   if (!userGoalsDoc.exists)
-  //     throw Exception("User goals document does not exist");
-
-  //   List<dynamic> goalsData = userGoalsDoc['goals'] ?? [];
-  //   var goalData =
-  //       goalsData.firstWhere((g) => g['id'] == goalId, orElse: () => null);
-  //   if (goalData == null) return;
-
-  //   if (goalData['challenge'] != null) {
-  //     _updateChallengeForDenial(goalData, proofDate);
-  //   }
-
-  //   // Update Firestore
-  //   await _firestore
-  //       .collection('userGoals')
-  //       .doc(userId)
-  //       .update({'goals': goalsData});
-  // }
-
-// Helper method for challenge update on denial
-  void _updateChallengeForDenial(
-      Map<String, dynamic> goalData, String? proofDate) {
-    goalData['challenge']['completions'] ??= {};
-
-    if (goalData['goalType'] == 'weekly' && proofDate != null) {
-      // Set status to denied
-      goalData['challenge']['completions'][proofDate] = 'denied';
-      // Remove proof from map
-      _removeProofFromMap(goalData['challenge']['proofs'], proofDate);
-    } else if (goalData['goalType'] == 'total') {
-      // For total goals, just remove the pending proof
-      // No need to update completions for denial
-      _removeProofFromList(goalData['challenge']['proofs']);
-    }
-  }
-
 // Utility functions
   void _removeProofFromMap(Map<String, dynamic>? proofs, String key) {
     if (proofs != null && proofs[key] != null) {
@@ -226,19 +138,17 @@ class PartyGoalsService {
   void _removeProofFromList(List? proofs) {
     if (proofs == null || proofs.isEmpty) return;
 
-    // Look for a proof with status 'pending'
     for (int i = 0; i < proofs.length; i++) {
       if (proofs[i] is Map && proofs[i]['status'] == 'pending') {
         proofs.removeAt(i);
-        print('✓ Removed pending proof');
-        return; // Exit after removing one proof
+        return;
       }
     }
 
-    // If no pending proof found, remove the first one as fallback
+    // If no pending proof found, return
     if (proofs.isNotEmpty) {
-      proofs.removeAt(0);
-      print('! No pending proof found, removed first proof');
+      print('something broke in removeProofFromList');
+      return;
     }
   }
 

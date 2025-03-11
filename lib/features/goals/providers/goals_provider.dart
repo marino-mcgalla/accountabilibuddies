@@ -243,7 +243,6 @@ class GoalsProvider with ChangeNotifier {
           await _firestore.collection('userGoals').doc(userId).get();
 
       if (!doc.exists) {
-        print('⚠️ No goals document exists for user');
         return;
       }
 
@@ -270,8 +269,6 @@ class GoalsProvider with ChangeNotifier {
           .collection('userGoals')
           .doc(userId)
           .update({'goals': updatedGoals});
-
-      print('🎯 Challenge field added to goals');
 
       // We're not modifying the local goals list for this test
       notifyListeners();

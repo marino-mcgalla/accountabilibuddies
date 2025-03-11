@@ -23,8 +23,6 @@ class FirebaseStorageService {
       String timestamp = DateTime.now().millisecondsSinceEpoch.toString();
       String storagePath = 'proofs/$userId/$goalId/${timestamp}_$fileName';
 
-      debugPrint('Uploading image to: $storagePath');
-
       // Create storage reference
       final storageRef = _storage.ref().child(storagePath);
 
@@ -37,11 +35,9 @@ class FirebaseStorageService {
 
       // Wait for the upload to complete
       final taskSnapshot = await uploadTask;
-      debugPrint('Upload complete: ${taskSnapshot.bytesTransferred} bytes');
 
       // Get download URL
       final downloadUrl = await storageRef.getDownloadURL();
-      debugPrint('Download URL: $downloadUrl');
 
       return downloadUrl;
     } catch (e) {

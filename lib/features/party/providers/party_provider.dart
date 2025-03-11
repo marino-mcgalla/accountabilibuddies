@@ -482,6 +482,23 @@ class PartyProvider with ChangeNotifier {
     return null;
   }
 
+  Stream<List<Map<String, dynamic>>> streamSubmittedProofs() {
+    if (_partyId == null) return Stream.value([]);
+
+    return _firestore
+        .collection('parties')
+        .doc(_partyId)
+        .snapshots()
+        .asyncMap((_) async {
+      try {
+        return await fetchSubmittedProofs();
+      } catch (e) {
+        print('Error fetching submitted proofs: $e');
+        return <Map<String, dynamic>>[];
+      }
+    });
+  }
+
   Future<void> approveProof(
       String userId, String goalId, String? proofDate) async {
     if (_isDisposed) return; // Skip if already disposed

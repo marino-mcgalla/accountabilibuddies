@@ -81,8 +81,6 @@ class Goal {
       } else if (challenge!['proofs'] is Map) {
         // Convert map to list if incorrectly stored
         challenge!['proofs'] = [];
-        print(
-            "Warning: Total goal had 'proofs' as Map instead of List - fixed");
       }
       (challenge!['proofs'] as List).add(proofData);
     }

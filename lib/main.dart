@@ -1,3 +1,4 @@
+// fix for main.dart:
 import 'package:auth_test/features/core/themes/app_theme.dart';
 import 'package:auth_test/features/core/themes/theme_provider.dart';
 import 'package:flutter/material.dart';
@@ -28,7 +29,10 @@ class MyApp extends StatelessWidget {
         // Add the ThemeProvider
         ChangeNotifierProvider(create: (context) => ThemeProvider()),
 
+        // TimeMachineProvider first (dependency of GoalsProvider)
         ChangeNotifierProvider(create: (context) => TimeMachineProvider()),
+
+        // Set up GoalsProvider with TimeMachineProvider dependency
         ChangeNotifierProxyProvider<TimeMachineProvider, GoalsProvider>(
           create: (context) => GoalsProvider(
             Provider.of<TimeMachineProvider>(context, listen: false),
@@ -36,11 +40,14 @@ class MyApp extends StatelessWidget {
           update: (context, timeMachineProvider, goalsProvider) =>
               goalsProvider!..updateTimeMachineProvider(timeMachineProvider),
         ),
-        ChangeNotifierProvider(create: (context) => PartyProvider()),
-        ChangeNotifierProvider(
-          create: (context) => GoalsProvider(
-            Provider.of<TimeMachineProvider>(context, listen: false),
+
+        // Set up PartyProvider with GoalsProvider dependency
+        ChangeNotifierProxyProvider<GoalsProvider, PartyProvider>(
+          create: (context) => PartyProvider(
+            goalsProvider: Provider.of<GoalsProvider>(context, listen: false),
           ),
+          update: (context, goalsProvider, partyProvider) =>
+              partyProvider ?? PartyProvider(goalsProvider: goalsProvider),
         ),
       ],
       child: Consumer<ThemeProvider>(

@@ -1,21 +1,25 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../../goals/models/goal_model.dart';
-import '../../goals/models/total_goal.dart';
-import '../../goals/models/weekly_goal.dart';
-import '../../goals/models/proof_model.dart'; // Import the Proof model
-import '../../time_machine/providers/time_machine_provider.dart';
+// import '../../goals/models/total_goal.dart';
+// import '../../goals/models/weekly_goal.dart';
+// import '../../goals/models/proof_model.dart';
+// import '../../time_machine/providers/time_machine_provider.dart';
+import '../providers/party_provider.dart';
 
 /// Service for handling goal-related operations in parties
 class PartyGoalsService {
   final FirebaseAuth _auth;
   final FirebaseFirestore _firestore;
+  final PartyProvider? _partyProvider;
 
   PartyGoalsService({
     FirebaseAuth? auth,
     FirebaseFirestore? firestore,
+    PartyProvider? partyProvider,
   })  : _auth = auth ?? FirebaseAuth.instance,
-        _firestore = firestore ?? FirebaseFirestore.instance;
+        _firestore = firestore ?? FirebaseFirestore.instance,
+        _partyProvider = partyProvider;
 
   /// Get the current user ID
   String? get currentUserId => _auth.currentUser?.uid;
@@ -35,82 +39,54 @@ class PartyGoalsService {
     return [];
   }
 
-  Future<List<Map<String, dynamic>>> fetchSubmittedGoalsForParty(
+  Future<List<Map<String, dynamic>>> fetchSubmittedProofs(
       String partyId) async {
-    try {
-      // 1. Get party members
-      //can't we just grab these from a provider somewhere? This should already be in a state variable somewhere
-      final partyDoc =
-          await _firestore.collection('parties').doc(partyId).get();
-      if (!partyDoc.exists) throw Exception("Party not found");
+    List<Map<String, dynamic>> results = [];
 
-      List<String> memberIds = List<String>.from(partyDoc['members'] ?? []);
-      List<Map<String, dynamic>> results = [];
+    if (_partyProvider == null) {
+      print("Error: PartyProvider not available for proof extraction");
+      return [];
+    }
 
-      // 2. Process each member's goals in a single pass
-      // same with this? Shouldn't this data already be available from a provider somewhere since it's coming from a subscription?
-      for (String userId in memberIds) {
-        final doc = await _firestore.collection('userGoals').doc(userId).get();
-        if (!doc.exists) continue;
+    _partyProvider.partyMemberGoals.forEach((userId, goals) {
+      for (var goal in goals) {
+        if (goal.challenge == null || goal.challenge!['proofs'] == null) {
+          continue;
+        }
 
-        final goalsData = List<dynamic>.from(doc.data()?['goals'] ?? []);
+        if (goal.goalType == 'weekly' && goal.challenge!['proofs'] is Map) {
+          Map<String, dynamic> proofs =
+              goal.challenge!['proofs'] as Map<String, dynamic>;
 
-        // 3. Filter for goals with pending proofs
-        // can we avoid all this looping if we add IDs to proofs? This seems ridiculously unnecessary
-        for (var goalData in goalsData) {
-          if (goalData['challenge'] == null ||
-              goalData['challenge']['proofs'] == null) {
-            continue;
-          }
+          proofs.forEach((date, proof) {
+            if (proof is Map && proof['status'] == 'pending') {
+              results.add({
+                'goal': goal,
+                'userId': userId,
+                'date': date,
+                'proof': proof,
+              });
+            }
+          });
+        } else if (goal.goalType == 'total' &&
+            goal.challenge!['proofs'] is List) {
+          List<dynamic> proofs = goal.challenge!['proofs'] as List<dynamic>;
 
-          final goal = Goal.fromMap(goalData);
-
-          // 4. Extract pending proofs based on goal type
-          if (goalData['goalType'] == 'weekly') {
-            _extractWeeklyProofs(
-                goal, userId, goalData['challenge']['proofs'], results);
-          } else if (goalData['goalType'] == 'total') {
-            _extractTotalProofs(
-                goal, userId, goalData['challenge']['proofs'], results);
+          for (var proof in proofs) {
+            if (proof is Map && proof['status'] == 'pending') {
+              results.add({
+                'goal': goal,
+                'userId': userId,
+                'date': null,
+                'proof': proof,
+              });
+            }
           }
         }
       }
-
-      return results;
-    } catch (e) {
-      print('Error fetching submitted goals: $e');
-      rethrow;
-    }
-  }
-
-// Helper method for weekly goals
-  void _extractWeeklyProofs(Goal goal, String userId,
-      Map<String, dynamic> proofs, List<Map<String, dynamic>> results) {
-    proofs.forEach((date, proof) {
-      if (proof is Map && proof['status'] == 'pending') {
-        results.add({
-          'goal': goal,
-          'userId': userId,
-          'date': date,
-          'proof': proof,
-        });
-      }
     });
-  }
 
-// Helper method for total goals
-  void _extractTotalProofs(Goal goal, String userId, List proofsList,
-      List<Map<String, dynamic>> results) {
-    for (var proof in proofsList) {
-      if (proof is Map && proof['status'] == 'pending') {
-        results.add({
-          'goal': goal,
-          'userId': userId,
-          'date': null,
-          'proof': proof,
-        });
-      }
-    }
+    return results;
   }
 
   Future<void> approveProof(
@@ -162,50 +138,17 @@ class PartyGoalsService {
   void _removeProofFromList(List? proofs) {
     if (proofs == null || proofs.isEmpty) return;
 
-    // Look for a proof with status 'pending'
     for (int i = 0; i < proofs.length; i++) {
       if (proofs[i] is Map && proofs[i]['status'] == 'pending') {
         proofs.removeAt(i);
-        print('✓ Removed pending proof');
-        return; // Exit after removing one proof
+        return;
       }
     }
 
-    // If no pending proof found, remove the first one as fallback
+    // If no pending proof found, return
     if (proofs.isNotEmpty) {
-      proofs.removeAt(0);
-      print('! No pending proof found, removed first proof');
-    }
-  }
-
-  /// Deny a proof for a goal
-  Future<void> denyProof(
-      String goalId, String userId, String? proofDate) async {
-    DocumentSnapshot userGoalsDoc =
-        await _firestore.collection('userGoals').doc(userId).get();
-
-    if (userGoalsDoc.exists) {
-      List<dynamic> goalsData = userGoalsDoc['goals'] ?? [];
-      for (var goalData in goalsData) {
-        if (goalData['id'] == goalId) {
-          if (goalData['goalType'] == 'weekly' && proofDate != null) {
-            goalData['currentWeekCompletions'][proofDate] = 'denied';
-          } else if (goalData['goalType'] == 'total') {
-            if (goalData['proofs'] != null && goalData['proofs'].isNotEmpty) {
-              // Remove the first proof
-              goalData['proofs'].removeAt(0);
-            }
-          }
-          break;
-        }
-      }
-
-      // Update Firestore
-      await _firestore.collection('userGoals').doc(userId).update({
-        'goals': goalsData,
-      });
-    } else {
-      throw Exception("User goals document does not exist");
+      print('something broke in removeProofFromList');
+      return;
     }
   }
 

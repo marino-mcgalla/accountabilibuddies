@@ -79,18 +79,25 @@ class GoalsProvider with ChangeNotifier {
     await _goalService.createWeek(_goals, goal);
     _setLoading(false);
   }
+// Replace the editGoal method with this simpler version:
 
   Future<void> editGoal(Goal updatedGoal) async {
     _setLoading(true);
     try {
-      // Update regular goal
-      // await _goalService.editGoal(_goals, updatedGoal);
-
-      // Also update template
       int index = _goals.indexWhere((g) => g.id == updatedGoal.id);
       if (index != -1) {
-        _goals[index] = updatedGoal;
-        String? userId = _repository.getCurrentUserId();
+        Map<String, dynamic>? existingChallenge = _goals[index].challenge;
+
+        _goals[index].goalName = updatedGoal.goalName;
+        _goals[index].goalCriteria = updatedGoal.goalCriteria;
+        _goals[index].goalFrequency = updatedGoal.goalFrequency;
+
+        if (existingChallenge != null) {
+          _goals[index].challenge = existingChallenge;
+        }
+
+        // Save to repository
+        final userId = _auth.currentUser?.uid;
         if (userId != null) {
           await _repository.saveGoals(userId, _goals);
         }
@@ -131,14 +138,17 @@ class GoalsProvider with ChangeNotifier {
     }
   }
 
-  // Goal Progress Operations
-
   Future<void> toggleSkipPlan(String goalId, String day, String status) async {
     int index = _goals.indexWhere((goal) => goal.id == goalId);
     if (index != -1 && _goals[index] is WeeklyGoal) {
       final updatedGoals = List<Goal>.from(_goals);
       final goal = updatedGoals[index] as WeeklyGoal;
-      goal.currentWeekCompletions[day] = status;
+
+      Map<String, dynamic> completions =
+          goal.challenge!['completions'] as Map<String, dynamic>? ?? {};
+      completions[day] = status;
+      goal.challenge!['completions'] = completions;
+
       String? userId = _repository.getCurrentUserId();
       if (userId != null) {
         await _repository.saveGoals(userId, updatedGoals);
@@ -154,9 +164,51 @@ class GoalsProvider with ChangeNotifier {
     notifyListeners();
   }
 
-  Future<void> denyProof(
-      String goalId, String userId, String? proofDate) async {
-    await _proofService.denyProof(goalId, userId, proofDate);
+  Future<void> denyProof(String goalId, String userId, String? proofDate,
+      {List<Goal>? existingGoals}) async {
+    _setLoading(true);
+    try {
+      // Use provided goals or fetch them if needed
+      //TODO: why in the wet fuck do we always have to do this shit? IF WE ARE AT THIS POINT IN THE CODE THEN IT'S NOT GOING TO BE FUCKING NULL
+      //TLDR: figure out null shit, way too many unnecessary checks
+      List<Goal> userGoals =
+          existingGoals ?? await _repository.getGoalsForUser(userId);
+
+      int goalIndex = userGoals.indexWhere((goal) => goal.id == goalId);
+      if (goalIndex == -1) return;
+
+      Goal goal = userGoals[goalIndex];
+
+      if (goal.goalType == 'weekly' && proofDate != null) {
+        Map<String, dynamic> completions =
+            goal.challenge!['completions'] as Map<String, dynamic>? ?? {};
+        completions[proofDate] = 'denied';
+        goal.challenge!['completions'] = completions;
+
+        if (goal.challenge!['proofs'] is Map) {
+          (goal.challenge!['proofs'] as Map).remove(proofDate);
+        }
+      } else if (goal.goalType == 'total') {
+        if (goal.challenge!['proofs'] is List) {
+          List proofs = goal.challenge!['proofs'] as List;
+          int pendingIndex = proofs.indexWhere((p) => p['status'] == 'pending');
+          if (pendingIndex != -1) {
+            proofs.removeAt(pendingIndex);
+          }
+        }
+      }
+
+      await _repository.updateUserGoals(userId, userGoals);
+
+      // Update local goals if needed
+      if (userId == _auth.currentUser?.uid) {
+        _goals = userGoals;
+      }
+
+      notifyListeners();
+    } finally {
+      _setLoading(false);
+    }
   }
 
   // New method to lock in goals and update party status
@@ -191,7 +243,6 @@ class GoalsProvider with ChangeNotifier {
           await _firestore.collection('userGoals').doc(userId).get();
 
       if (!doc.exists) {
-        print('⚠️ No goals document exists for user');
         return;
       }
 
@@ -203,7 +254,7 @@ class GoalsProvider with ChangeNotifier {
       for (var goalData in goalsData) {
         if (goalData['active'] == true) {
           // Add challenge field to the goal object
-          goalData['activeChallenge'] = {
+          goalData['challenge'] = {
             'challengeFrequency': goalData['goalFrequency'], // copy from goal
             'challengeCriteria': goalData['goalCriteria'], // copy from goal
             'completions': {}, // empty for now
@@ -218,8 +269,6 @@ class GoalsProvider with ChangeNotifier {
           .collection('userGoals')
           .doc(userId)
           .update({'goals': updatedGoals});
-
-      print('🎯 Challenge field added to goals');
 
       // We're not modifying the local goals list for this test
       notifyListeners();

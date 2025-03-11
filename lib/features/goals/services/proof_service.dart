@@ -36,29 +36,33 @@ class ProofService {
     await _repository.saveGoals(userId, updatedGoals);
   }
 
-  // Deny proof for another user's goal
-  Future<void> denyProof(
-      String goalId, String userId, String? proofDate) async {
-    List<Goal> userGoals = await _repository.getGoalsForUser(userId);
+// In ProofService
+  Future<void> denyProof(Goal goal, String? proofDate) async {
+    // Just update the model - business logic only
+    if (goal.goalType == 'weekly' && proofDate != null) {
+      goal.challenge ??= {'completions': {}, 'proofs': {}};
 
-    int goalIndex = userGoals.indexWhere((goal) => goal.id == goalId);
-    if (goalIndex == -1) return;
+      // Update completions to denied
+      Map<String, dynamic> completions =
+          goal.challenge!['completions'] as Map<String, dynamic>? ?? {};
+      completions[proofDate] = 'denied';
+      goal.challenge!['completions'] = completions;
 
-    Goal goal = userGoals[goalIndex];
-
-    if (goal is WeeklyGoal && proofDate != null) {
-      goal.currentWeekCompletions[proofDate] = 'denied';
-
-      // Remove the proof from the proofs map since it's been denied
-      if (goal.proofs.containsKey(proofDate)) {
-        goal.proofs.remove(proofDate);
+      // Remove the proof
+      if (goal.challenge!['proofs'] is Map) {
+        (goal.challenge!['proofs'] as Map).remove(proofDate);
       }
-    } else if (goal is TotalGoal) {
-      if (goal.proofs.isNotEmpty) {
-        goal.proofs.removeAt(0); // Remove the first proof
+    } else if (goal.goalType == 'total') {
+      goal.challenge ??= {'completions': {}, 'proofs': []};
+
+      // Remove first pending proof
+      if (goal.challenge!['proofs'] is List) {
+        List proofs = goal.challenge!['proofs'] as List;
+        int pendingIndex = proofs.indexWhere((p) => p['status'] == 'pending');
+        if (pendingIndex != -1) {
+          proofs.removeAt(pendingIndex);
+        }
       }
     }
-
-    await _repository.updateUserGoals(userId, userGoals);
   }
 }

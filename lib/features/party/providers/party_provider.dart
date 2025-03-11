@@ -14,10 +14,11 @@ import '../repositories/party_repository.dart';
 class PartyProvider with ChangeNotifier {
   // Services
   final PartyMembersService _membersService;
-  final PartyGoalsService _goalsService;
+  late final PartyGoalsService _goalsService;
   final FirebaseAuth _auth;
   final FirebaseFirestore _firestore;
   final PartyRepository _repository;
+  final GoalsProvider _goalsProvider;
 
   // Controllers
   final TextEditingController partyNameController = TextEditingController();
@@ -46,7 +47,7 @@ class PartyProvider with ChangeNotifier {
 
   // Subscription management
   StreamSubscription<Map<String, dynamic>?>? _partySubscription;
-  List<StreamSubscription<DocumentSnapshot>?> _goalSubscriptions = [];
+  List<StreamSubscription<dynamic>?> _goalSubscriptions = [];
 
   // Batching updates
   bool _isBatchingUpdates = false;
@@ -88,11 +89,14 @@ class PartyProvider with ChangeNotifier {
     FirebaseAuth? auth,
     FirebaseFirestore? firestore,
     PartyRepository? repository,
+    required GoalsProvider goalsProvider,
   })  : _membersService = membersService ?? PartyMembersService(),
-        _goalsService = goalsService ?? PartyGoalsService(),
         _auth = auth ?? FirebaseAuth.instance,
         _firestore = firestore ?? FirebaseFirestore.instance,
-        _repository = repository ?? PartyRepository() {
+        _repository = repository ?? PartyRepository(),
+        _goalsProvider = goalsProvider {
+    // Initialize PartyGoalsService with this provider instance
+    _goalsService = goalsService ?? PartyGoalsService(partyProvider: this);
     initializePartyState();
   }
 
@@ -134,6 +138,18 @@ class PartyProvider with ChangeNotifier {
         setLoading(false);
       });
     });
+  }
+// DOING STUFF HERE ------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+  void _subscribeToPartyMemberGoals() {
+    for (String memberId in _members) {
+      var subscription =
+          _repository.getMemberGoalsStream(memberId).listen((goals) {
+        _partyMemberGoals[memberId] = goals;
+        notifyListeners();
+      });
+      _goalSubscriptions.add(subscription);
+    }
   }
 
 // PARTY MANAGEMENT SECTION ------------------------------------------------------------------------------------------------------------------------------------
@@ -427,13 +443,13 @@ class PartyProvider with ChangeNotifier {
   }
 
 // Update this method to pass partyId instead of members list:
-  Future<List<Map<String, dynamic>>> fetchSubmittedGoalsForParty(
+  Future<List<Map<String, dynamic>>> fetchSubmittedProofs(
       [BuildContext? context]) async {
     if (_isDisposed) return []; // Skip if already disposed
     if (_partyId == null) return []; // Can't fetch without a party ID
 
     try {
-      return await _goalsService.fetchSubmittedGoalsForParty(_partyId!);
+      return await _goalsService.fetchSubmittedProofs(_partyId!);
     } catch (e) {
       print('Error fetching submitted goals: $e');
       return [];
@@ -466,6 +482,23 @@ class PartyProvider with ChangeNotifier {
     return null;
   }
 
+  Stream<List<Map<String, dynamic>>> streamSubmittedProofs() {
+    if (_partyId == null) return Stream.value([]);
+
+    return _firestore
+        .collection('parties')
+        .doc(_partyId)
+        .snapshots()
+        .asyncMap((_) async {
+      try {
+        return await fetchSubmittedProofs();
+      } catch (e) {
+        print('Error fetching submitted proofs: $e');
+        return <Map<String, dynamic>>[];
+      }
+    });
+  }
+
   Future<void> approveProof(
       String userId, String goalId, String? proofDate) async {
     if (_isDisposed) return; // Skip if already disposed
@@ -478,16 +511,15 @@ class PartyProvider with ChangeNotifier {
     }
   }
 
-  Future<void> denyProof(String goalId, String? proofDate) async {
-    if (_isDisposed) return; // Skip if already disposed
-
-    String? userId = findGoalOwner(goalId);
-    if (userId == null) {
-      throw Exception("Goal owner not found");
-    }
+  Future<void> denyProof(
+      String userId, String goalId, String? proofDate) async {
+    if (_isDisposed) return;
 
     try {
-      await _goalsService.denyProof(goalId, userId, proofDate);
+      await _goalsProvider.denyProof(goalId, userId, proofDate,
+          existingGoals: partyMemberGoals[userId] ?? []);
+
+      await fetchSubmittedProofs();
     } catch (e) {
       print('Error denying proof: $e');
       rethrow;
@@ -524,65 +556,6 @@ class PartyProvider with ChangeNotifier {
       }
     }
     return true;
-  }
-
-  // Subscribe to party member goals
-  void _subscribeToPartyMemberGoals() {
-    if (_isDisposed) return; // Skip if already disposed
-
-    for (String memberId in _members) {
-      var subscription = _firestore
-          .collection('userGoals')
-          .doc(memberId)
-          .snapshots()
-          .listen((doc) {
-        if (_isDisposed) return; // Skip processing if disposed
-
-        if (doc.exists) {
-          List<dynamic> goalsData = doc.data()?['challengeGoals'] ?? [];
-          final List<Goal> newGoals =
-              goalsData.map((data) => Goal.fromMap(data)).toList();
-
-          final List<Goal> previousGoals = _partyMemberGoals[memberId] ?? [];
-          final bool hasChanges = _haveGoalsChanged(previousGoals, newGoals);
-
-          if (hasChanges) {
-            batchUpdates(() {
-              _partyMemberGoals[memberId] = newGoals;
-            });
-          }
-        } else {
-          if (_partyMemberGoals[memberId]?.isNotEmpty ?? false) {
-            batchUpdates(() {
-              _partyMemberGoals[memberId] = [];
-            });
-          }
-        }
-      });
-      _goalSubscriptions.add(subscription);
-    }
-  }
-
-  // Check if goals have changed
-  bool _haveGoalsChanged(List<Goal> oldGoals, List<Goal> newGoals) {
-    if (oldGoals.length != newGoals.length) return true;
-
-    for (int i = 0; i < oldGoals.length; i++) {
-      if (oldGoals[i].id != newGoals[i].id) return true;
-
-      final oldCompletions = oldGoals[i].currentWeekCompletions;
-      final newCompletions = newGoals[i].currentWeekCompletions;
-
-      if (oldCompletions.length != newCompletions.length) return true;
-
-      for (final key in oldCompletions.keys) {
-        if (!newCompletions.containsKey(key) ||
-            oldCompletions[key].toString() != newCompletions[key].toString()) {
-          return true;
-        }
-      }
-    }
-    return false;
   }
 
   // Cancel goal subscriptions

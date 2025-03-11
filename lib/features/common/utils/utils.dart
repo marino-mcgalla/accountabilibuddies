@@ -59,10 +59,12 @@ class Utils {
     switch (status) {
       case 'submitted':
         return Colors.yellow;
+      case 'pending':
+        return Colors.yellow;
       case 'completed':
         return Colors.green;
       case 'skipped':
-        return Colors.red;
+        return const Color.fromARGB(255, 80, 80, 80);
       case 'denied':
         return const Color.fromARGB(255, 118, 14, 7); // Dark red
       case 'planned':

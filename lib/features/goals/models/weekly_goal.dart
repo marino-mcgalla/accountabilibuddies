@@ -13,6 +13,7 @@ class WeeklyGoal extends Goal {
     required int goalFrequency,
     required Map<String, String> currentWeekCompletions,
     this.proofs = const {},
+    Map<String, dynamic>? challenge,
   }) : super(
           id: id,
           ownerId: ownerId,
@@ -22,6 +23,7 @@ class WeeklyGoal extends Goal {
           active: active,
           goalFrequency: goalFrequency,
           currentWeekCompletions: currentWeekCompletions,
+          challenge: challenge,
         );
 
   // Type-safe getter for currentWeekCompletions
@@ -29,28 +31,46 @@ class WeeklyGoal extends Goal {
       Map<String, String>.from(currentWeekCompletions);
 
   void addWeeklyProof(String proofText, String? imageUrl, DateTime date) {
-    String day = date.toIso8601String().split('T').first;
-
-    Map<String, dynamic> proofData = {
-      'proofText': proofText,
-      'imageUrl': imageUrl,
-      'status': 'pending',
-      'submissionDate': date.toIso8601String(),
+    // First initialize the challenge object if it doesn't exist
+    challenge ??= {
+      'challengeFrequency': goalFrequency,
+      'challengeCriteria': goalCriteria,
+      'completions': {},
+      'proofs': {}, // Initialize as empty MAP for weekly goals
     };
 
-    // Update challenge data
-    challenge!['proofs'][day] = proofData;
-    challenge!['completions'][day] = 'submitted';
+    // Ensure the proofs map exists
+    if (challenge!['proofs'] == null) {
+      challenge!['proofs'] = {};
+    }
 
-    // Update legacy data
-    currentWeekCompletions[day] = 'submitted';
+    // Ensure the completions map exists
+    if (challenge!['completions'] == null) {
+      challenge!['completions'] = {};
+    }
 
-    // Add to class-specific proofs map
-    proofs[day] = Proof(
-      proofText: proofText,
-      submissionDate: date,
-      imageUrl: imageUrl,
-    );
+    String day = date.toIso8601String().split('T').first;
+
+    // Map<String, dynamic> proofData = {
+    //   'proofText': proofText,
+    //   'imageUrl': imageUrl,
+    //   'status': 'pending',
+    //   'submissionDate': date.toIso8601String(),
+    // };
+
+    // // Now safely access challenge fields
+    // challenge!['proofs'][day] = proofData;
+    // challenge!['completions'][day] = 'submitted';
+
+    // // Update legacy data
+    // currentWeekCompletions[day] = 'submitted';
+
+    // // Add to class-specific proofs map
+    // proofs[day] = Proof(
+    //   proofText: proofText,
+    //   submissionDate: date,
+    //   imageUrl: imageUrl,
+    // );
   }
 
   @override
@@ -81,6 +101,7 @@ class WeeklyGoal extends Goal {
       currentWeekCompletions:
           Map<String, String>.from(data['currentWeekCompletions'] ?? {}),
       proofs: proofMap,
+      challenge: data['challenge'],
     );
   }
 }

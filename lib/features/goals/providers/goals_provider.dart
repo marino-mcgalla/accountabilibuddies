@@ -164,9 +164,51 @@ class GoalsProvider with ChangeNotifier {
     notifyListeners();
   }
 
-  Future<void> denyProof(
-      String goalId, String userId, String? proofDate) async {
-    await _proofService.denyProof(goalId, userId, proofDate);
+  Future<void> denyProof(String goalId, String userId, String? proofDate,
+      {List<Goal>? existingGoals}) async {
+    _setLoading(true);
+    try {
+      // Use provided goals or fetch them if needed
+      //TODO: why in the wet fuck do we always have to do this shit? IF WE ARE AT THIS POINT IN THE CODE THEN IT'S NOT GOING TO BE FUCKING NULL
+      //TLDR: figure out null shit, way too many unnecessary checks
+      List<Goal> userGoals =
+          existingGoals ?? await _repository.getGoalsForUser(userId);
+
+      int goalIndex = userGoals.indexWhere((goal) => goal.id == goalId);
+      if (goalIndex == -1) return;
+
+      Goal goal = userGoals[goalIndex];
+
+      if (goal.goalType == 'weekly' && proofDate != null) {
+        Map<String, dynamic> completions =
+            goal.challenge!['completions'] as Map<String, dynamic>? ?? {};
+        completions[proofDate] = 'denied';
+        goal.challenge!['completions'] = completions;
+
+        if (goal.challenge!['proofs'] is Map) {
+          (goal.challenge!['proofs'] as Map).remove(proofDate);
+        }
+      } else if (goal.goalType == 'total') {
+        if (goal.challenge!['proofs'] is List) {
+          List proofs = goal.challenge!['proofs'] as List;
+          int pendingIndex = proofs.indexWhere((p) => p['status'] == 'pending');
+          if (pendingIndex != -1) {
+            proofs.removeAt(pendingIndex);
+          }
+        }
+      }
+
+      await _repository.updateUserGoals(userId, userGoals);
+
+      // Update local goals if needed
+      if (userId == _auth.currentUser?.uid) {
+        _goals = userGoals;
+      }
+
+      notifyListeners();
+    } finally {
+      _setLoading(false);
+    }
   }
 
   // New method to lock in goals and update party status

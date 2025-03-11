@@ -174,6 +174,48 @@ class PartyGoalsService {
     }
   }
 
+  /// Deny a proof for a goal
+  // Future<void> denyProof(
+  //     String userId, String goalId, String? proofDate) async {
+  //   DocumentSnapshot userGoalsDoc =
+  //       await _firestore.collection('userGoals').doc(userId).get();
+
+  //   if (!userGoalsDoc.exists)
+  //     throw Exception("User goals document does not exist");
+
+  //   List<dynamic> goalsData = userGoalsDoc['goals'] ?? [];
+  //   var goalData =
+  //       goalsData.firstWhere((g) => g['id'] == goalId, orElse: () => null);
+  //   if (goalData == null) return;
+
+  //   if (goalData['challenge'] != null) {
+  //     _updateChallengeForDenial(goalData, proofDate);
+  //   }
+
+  //   // Update Firestore
+  //   await _firestore
+  //       .collection('userGoals')
+  //       .doc(userId)
+  //       .update({'goals': goalsData});
+  // }
+
+// Helper method for challenge update on denial
+  void _updateChallengeForDenial(
+      Map<String, dynamic> goalData, String? proofDate) {
+    goalData['challenge']['completions'] ??= {};
+
+    if (goalData['goalType'] == 'weekly' && proofDate != null) {
+      // Set status to denied
+      goalData['challenge']['completions'][proofDate] = 'denied';
+      // Remove proof from map
+      _removeProofFromMap(goalData['challenge']['proofs'], proofDate);
+    } else if (goalData['goalType'] == 'total') {
+      // For total goals, just remove the pending proof
+      // No need to update completions for denial
+      _removeProofFromList(goalData['challenge']['proofs']);
+    }
+  }
+
 // Utility functions
   void _removeProofFromMap(Map<String, dynamic>? proofs, String key) {
     if (proofs != null && proofs[key] != null) {
@@ -197,37 +239,6 @@ class PartyGoalsService {
     if (proofs.isNotEmpty) {
       proofs.removeAt(0);
       print('! No pending proof found, removed first proof');
-    }
-  }
-
-  /// Deny a proof for a goal
-  Future<void> denyProof(
-      String goalId, String userId, String? proofDate) async {
-    DocumentSnapshot userGoalsDoc =
-        await _firestore.collection('userGoals').doc(userId).get();
-
-    if (userGoalsDoc.exists) {
-      List<dynamic> goalsData = userGoalsDoc['goals'] ?? [];
-      for (var goalData in goalsData) {
-        if (goalData['id'] == goalId) {
-          if (goalData['goalType'] == 'weekly' && proofDate != null) {
-            goalData['currentWeekCompletions'][proofDate] = 'denied';
-          } else if (goalData['goalType'] == 'total') {
-            if (goalData['proofs'] != null && goalData['proofs'].isNotEmpty) {
-              // Remove the first proof
-              goalData['proofs'].removeAt(0);
-            }
-          }
-          break;
-        }
-      }
-
-      // Update Firestore
-      await _firestore.collection('userGoals').doc(userId).update({
-        'goals': goalsData,
-      });
-    } else {
-      throw Exception("User goals document does not exist");
     }
   }
 

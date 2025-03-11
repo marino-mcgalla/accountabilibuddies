@@ -18,6 +18,7 @@ class PartyProvider with ChangeNotifier {
   final FirebaseAuth _auth;
   final FirebaseFirestore _firestore;
   final PartyRepository _repository;
+  final GoalsProvider _goalsProvider;
 
   // Controllers
   final TextEditingController partyNameController = TextEditingController();
@@ -88,10 +89,12 @@ class PartyProvider with ChangeNotifier {
     FirebaseAuth? auth,
     FirebaseFirestore? firestore,
     PartyRepository? repository,
+    required GoalsProvider goalsProvider,
   })  : _membersService = membersService ?? PartyMembersService(),
         _auth = auth ?? FirebaseAuth.instance,
         _firestore = firestore ?? FirebaseFirestore.instance,
-        _repository = repository ?? PartyRepository() {
+        _repository = repository ?? PartyRepository(),
+        _goalsProvider = goalsProvider {
     // Initialize PartyGoalsService with this provider instance
     _goalsService = goalsService ?? PartyGoalsService(partyProvider: this);
     initializePartyState();
@@ -491,16 +494,15 @@ class PartyProvider with ChangeNotifier {
     }
   }
 
-  Future<void> denyProof(String goalId, String? proofDate) async {
-    if (_isDisposed) return; // Skip if already disposed
-
-    String? userId = findGoalOwner(goalId);
-    if (userId == null) {
-      throw Exception("Goal owner not found");
-    }
+  Future<void> denyProof(
+      String userId, String goalId, String? proofDate) async {
+    if (_isDisposed) return;
 
     try {
-      await _goalsService.denyProof(goalId, userId, proofDate);
+      await _goalsProvider.denyProof(goalId, userId, proofDate,
+          existingGoals: partyMemberGoals[userId] ?? []);
+
+      await fetchSubmittedProofs();
     } catch (e) {
       print('Error denying proof: $e');
       rethrow;

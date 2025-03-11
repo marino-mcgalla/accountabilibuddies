@@ -6,7 +6,7 @@ import 'proof_item_widget.dart';
 import '../../common/utils/utils.dart';
 
 class PendingProofsWidget extends StatefulWidget {
-  const PendingProofsWidget({Key? key}) : super(key: key);
+  const PendingProofsWidget({super.key});
 
   @override
   _PendingProofsWidgetState createState() => _PendingProofsWidgetState();
@@ -148,7 +148,7 @@ class _PendingProofsWidgetState extends State<PendingProofsWidget> {
           Utils.showFeedback(currentContext, 'Proof approved');
         }
       } else {
-        await partyProvider.denyProof(goalId, date);
+        await partyProvider.denyProof(userId, goalId, date);
         if (mounted) {
           Utils.showFeedback(currentContext, 'Proof denied');
         }

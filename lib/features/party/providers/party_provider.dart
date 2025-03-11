@@ -697,94 +697,42 @@ class PartyProvider with ChangeNotifier {
     }
   }
 
-  // End the current challenge
   Future<void> endCurrentChallenge() async {
-    if (_isDisposed) return;
-    if (_partyId == null) return;
-    if (!isCurrentUserPartyLeader) return; // Only leader can end challenge
-    if (!hasActiveChallenge) return; // Can't end if none is active
+    if (_isDisposed ||
+        _partyId == null ||
+        !isCurrentUserPartyLeader ||
+        !hasActiveChallenge) return;
 
     setLoading(true);
 
     try {
-      // Get the current challenge ID
-      final String currentChallengeId = challengeId!;
-
-      // Store challenge history
-      final completedChallenge = {
+      // 1. Archive current challenge in history
+      await _repository.archiveChallengeHistory(_partyId!, {
         ..._activeChallenge!,
         'completedAt': Timestamp.fromDate(DateTime.now()),
         'status': 'completed'
-      };
-
-      // Update the challenge history
-      await _firestore
-          .collection('parties')
-          .doc(_partyId)
-          .collection('challengeHistory')
-          .doc(currentChallengeId)
-          .set(completedChallenge);
-
-      // Clear the active challenge
-      await _firestore.collection('parties').doc(_partyId).update({
-        'activeChallenge': null,
       });
 
-      // Reset all members' goals for the new week using batch writes
-      await _endChallenge();
+      // 2. Clear all challenge data from member goals
+      for (String memberId in _members) {
+        List<Goal> memberGoals = _partyMemberGoals[memberId] ?? [];
+        if (memberGoals.isEmpty) continue;
+
+        // Clear challenge data from each goal
+        for (var goal in memberGoals) {
+          goal.challenge = null;
+        }
+
+        // Update goals in database through GoalsProvider
+        await _goalsProvider.updateUserGoals(memberId, memberGoals);
+      }
+
+      // 3. Remove active challenge from party
+      await _repository.clearActiveChallenge(_partyId!);
     } catch (e) {
       print('Error ending challenge: $e');
     } finally {
-      if (!_isDisposed) {
-        setLoading(false);
-      }
-    }
-  }
-
-  // Reset all member goals for a new week (using batch writes)
-  Future<void> _endChallenge() async {
-    try {
-      WriteBatch batch = _firestore.batch();
-      final now = DateTime.now();
-
-      for (String memberId in _members) {
-        DocumentSnapshot userGoalsDoc =
-            await _firestore.collection('userGoals').doc(memberId).get();
-
-        if (userGoalsDoc.exists && userGoalsDoc.data() != null) {
-          Map<String, dynamic> userData =
-              userGoalsDoc.data() as Map<String, dynamic>;
-          List<dynamic> goalsData = userData['challengeGoals'] ?? [];
-
-          if (goalsData.isNotEmpty) {
-            // Reset each goal's progress tracking
-            for (var goalData in goalsData) {
-              // Reset weekly completions tracking
-              goalData['currentWeekCompletions'] = {};
-
-              // For total goals, clear proofs
-              if (goalData['goalType'] == 'total' &&
-                  goalData.containsKey('proofs')) {
-                goalData['proofs'] = [];
-              }
-
-              // Update week start date
-              // goalData['weekStartDate'] = now.toIso8601String();
-            }
-
-            // Add to batch instead of immediate update
-            batch.update(_firestore.collection('userGoals').doc(memberId),
-                {'challengeGoals': goalsData});
-          }
-        }
-      }
-
-      // Execute all updates in a single batch
-      await batch.commit();
-      debugPrint('Successfully reset all member goals');
-    } catch (e) {
-      debugPrint('Error resetting member goals: $e');
-      rethrow;
+      setLoading(false);
     }
   }
 }

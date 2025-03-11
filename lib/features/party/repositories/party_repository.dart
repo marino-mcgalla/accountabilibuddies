@@ -124,4 +124,22 @@ class PartyRepository {
 
     await batch.commit();
   }
+
+  Future<void> archiveChallengeHistory(
+      String partyId, Map<String, dynamic> challenge) async {
+    final challengeId = challenge['id'];
+    await _firestore
+        .collection('parties')
+        .doc(partyId)
+        .collection('challengeHistory')
+        .doc(challengeId)
+        .set(challenge);
+  }
+
+  Future<void> clearActiveChallenge(String partyId) async {
+    await _firestore
+        .collection('parties')
+        .doc(partyId)
+        .update({'activeChallenge': null});
+  }
 }

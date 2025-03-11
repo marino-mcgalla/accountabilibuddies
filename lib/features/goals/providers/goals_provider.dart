@@ -279,6 +279,22 @@ class GoalsProvider with ChangeNotifier {
     }
   }
 
+// Add to GoalsProvider
+  Future<void> updateUserGoals(String userId, List<Goal> goals) async {
+    _setLoading(true);
+    try {
+      await _repository.updateUserGoals(userId, goals);
+
+      // Update local state if it's for current user
+      if (userId == _auth.currentUser?.uid) {
+        _goals = goals;
+        notifyListeners();
+      }
+    } finally {
+      _setLoading(false);
+    }
+  }
+
   Future<void> loadGoals() async {
     String? userId = _repository.getCurrentUserId();
     if (userId == null) return;

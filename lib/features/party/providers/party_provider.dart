@@ -68,11 +68,23 @@ class PartyProvider with ChangeNotifier {
   DateTime? get challengeStartDate => _activeChallenge != null
       ? (_activeChallenge!['startDate'] as Timestamp).toDate()
       : null;
-  DateTime? get challengeEndDate => _activeChallenge != null
-      ? (_activeChallenge!['endDate'] as Timestamp).toDate()
-      : null;
+  DateTime? get challengeEndDate {
+    if (_activeChallenge == null ||
+        !_activeChallenge!.containsKey('endDate') ||
+        _activeChallenge!['endDate'] == null) {
+      return null;
+    }
+
+    try {
+      final endDateTimestamp = _activeChallenge!['endDate'] as Timestamp;
+      return endDateTimestamp.toDate();
+    } catch (e) {
+      print('Error converting challenge end date: $e');
+      return null;
+    }
+  }
+
   String? get challengeId => _activeChallenge?['id'];
-  // Add new getters
   bool get hasPendingChallenge =>
       hasActiveChallenge && _activeChallenge?['state'] == 'pending';
 
@@ -82,6 +94,9 @@ class PartyProvider with ChangeNotifier {
 
   bool get isCurrentUserLockedIn =>
       lockedInMembers.contains(_auth.currentUser?.uid);
+  Map<String, dynamic> get memberWagers => _activeChallenge != null
+      ? (_activeChallenge!['wagers'] as Map<String, dynamic>? ?? {})
+      : {};
 
   PartyProvider({
     PartyMembersService? membersService,
@@ -140,6 +155,29 @@ class PartyProvider with ChangeNotifier {
     });
   }
 // DOING STUFF HERE ------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+  double getCurrentUserWager() {
+    if (!hasActiveChallenge) return 0;
+    final userId = _auth.currentUser?.uid;
+    if (userId == null) return 0;
+
+    return memberWagers[userId]?.toDouble() ?? 0;
+  }
+
+  double getMemberWager(String userId) {
+    if (!hasActiveChallenge) return 0;
+    return memberWagers[userId]?.toDouble() ?? 0;
+  }
+
+  double getTotalWagerPool() {
+    if (!hasActiveChallenge) return 0;
+
+    double total = 0;
+    memberWagers.forEach((userId, amount) {
+      total += (amount is num) ? amount.toDouble() : 0;
+    });
+    return total;
+  }
 
   void _subscribeToPartyMemberGoals() {
     for (String memberId in _members) {
@@ -345,7 +383,8 @@ class PartyProvider with ChangeNotifier {
         'startDate': null, // Will be set when actually started
         'endDate': null, // Will be set when actually started
         'lockedInMembers': [], // Initially empty
-        'initiatedAt': Timestamp.fromDate(now)
+        'initiatedAt': Timestamp.fromDate(now),
+        'wagers': {}
       };
 
       await _firestore
@@ -376,7 +415,8 @@ class PartyProvider with ChangeNotifier {
         'startDate': Timestamp.fromDate(now),
         'endDate': Timestamp.fromDate(endDate),
         'lockedInMembers': _activeChallenge!['lockedInMembers'],
-        'initiatedAt': _activeChallenge!['initiatedAt']
+        'initiatedAt': _activeChallenge!['initiatedAt'],
+        'wagers': _activeChallenge!['wagers'] ?? {}
       };
 
       await _firestore

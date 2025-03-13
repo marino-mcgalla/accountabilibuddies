@@ -23,6 +23,11 @@ class MemberItem extends StatelessWidget {
     final isLeader = memberId == partyProvider.partyLeaderId;
     final isCurrentUser = memberId == FirebaseAuth.instance.currentUser?.uid;
 
+    double memberWager = 0;
+    if (partyProvider.hasActiveChallenge) {
+      memberWager = partyProvider.getMemberWager(memberId);
+    }
+
     return Card(
       margin: const EdgeInsets.only(bottom: 16),
       child: Padding(
@@ -30,8 +35,6 @@ class MemberItem extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-// Replace the existing admin buttons with this popup menu approach
-
             Row(
               children: [
                 Expanded(
@@ -42,7 +45,7 @@ class MemberItem extends StatelessWidget {
                 ),
                 if (isLeader)
                   const Icon(
-                    Icons.workspace_premium, // Crown/trophy icon
+                    Icons.workspace_premium,
                     color: Colors.amber,
                     size: 24,
                     semanticLabel: 'Party Leader',
@@ -86,6 +89,37 @@ class MemberItem extends StatelessWidget {
                   ),
               ],
             ),
+            if (partyProvider.hasActiveChallenge) ...[
+              const SizedBox(height: 4),
+              Row(
+                children: [
+                  Icon(
+                    Icons.attach_money,
+                    size: 16,
+                    color: memberWager > 0 ? Colors.green : Colors.grey[400],
+                  ),
+                  const SizedBox(width: 4),
+                  Text(
+                    "Wager: \$${memberWager.toStringAsFixed(2)}",
+                    style: TextStyle(
+                      fontStyle:
+                          memberWager > 0 ? FontStyle.normal : FontStyle.italic,
+                      color: memberWager > 0
+                          ? Theme.of(context)
+                              .textTheme
+                              .bodyMedium
+                              ?.color // Primary text color
+                          : Theme.of(context)
+                              .textTheme
+                              .bodyMedium
+                              ?.color
+                              ?.withOpacity(0.6),
+                      fontSize: 14,
+                    ),
+                  ),
+                ],
+              ),
+            ],
             const SizedBox(height: 8),
             if (goals.isNotEmpty)
               ...goals.map((goal) => CompactProgressTracker(goal: goal)),

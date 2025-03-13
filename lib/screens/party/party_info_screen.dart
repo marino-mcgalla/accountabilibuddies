@@ -330,7 +330,6 @@ class PartyInfoScreen extends StatelessWidget {
     );
   }
 
-  // Build the active challenge card
   Widget _buildActiveChallengeCard(BuildContext context) {
     final partyProvider = Provider.of<PartyProvider>(context);
 
@@ -371,12 +370,41 @@ class PartyInfoScreen extends StatelessWidget {
               ),
             ],
           ),
+
+          const SizedBox(height: 12),
+          const Divider(),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              const Icon(Icons.account_balance_wallet, size: 16),
+              const SizedBox(width: 8),
+              Text(
+                "Your Wager: \$${partyProvider.getCurrentUserWager().toStringAsFixed(2)}",
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      fontWeight: FontWeight.bold,
+                    ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 4),
+          Row(
+            children: [
+              const Icon(Icons.attach_money, size: 16),
+              const SizedBox(width: 8),
+              Text(
+                "Total Pot: \$${partyProvider.getTotalWagerPool().toStringAsFixed(2)}",
+                style: Theme.of(context).textTheme.bodyMedium,
+              ),
+            ],
+          ),
+
+          // End challenge button (if leader)
           if (partyProvider.isCurrentUserPartyLeader)
             Padding(
               padding: const EdgeInsets.only(top: 16),
               child: OutlinedButton.icon(
-                icon: Icon(Icons.stop),
-                label: Text('End Challenge'),
+                icon: const Icon(Icons.stop),
+                label: const Text('End Challenge'),
                 style: OutlinedButton.styleFrom(
                   foregroundColor: Colors.orange,
                 ),

@@ -2,6 +2,7 @@ import 'package:auth_test/features/goals/screens/create_party_screen.dart';
 import 'package:auth_test/screens/party/party_info_screen.dart';
 import 'package:auth_test/features/party/widgets/invite_list.dart';
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import '../providers/party_provider.dart';
 import '../../goals/providers/goals_provider.dart';
@@ -51,18 +52,217 @@ class _PartyScreenContentState extends State<PartyScreenContent>
 
         if (isLoading) {
           return Scaffold(
-            appBar: AppBar(title: const Text("Party")),
+            appBar: AppBar(title: const Text("Accountabilibuddies")),
             body: const Center(child: CircularProgressIndicator()),
           );
         }
 
+// Replace the existing "no party" view with this updated version:
+
         if (partyId == null) {
-          // No party view
+          // No party view - with goal setup option
           return Scaffold(
-            appBar: AppBar(title: const Text("Party 2.0")),
-            body: const Padding(
-              padding: EdgeInsets.all(16.0),
-              child: CreatePartyView(),
+            appBar: AppBar(title: const Text("Accountabilibuddies")),
+            body: Padding(
+              padding: const EdgeInsets.all(24.0),
+              child: SingleChildScrollView(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    const SizedBox(height: 40),
+                    Icon(
+                      Icons.group_outlined,
+                      size: 100,
+                      color: Theme.of(context)
+                          .colorScheme
+                          .primary
+                          .withOpacity(0.7),
+                    ),
+                    const SizedBox(height: 24),
+                    Text(
+                      "Let's get set up!",
+                      style:
+                          Theme.of(context).textTheme.headlineSmall?.copyWith(
+                                fontWeight: FontWeight.bold,
+                              ),
+                      textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(height: 16),
+                    Text(
+                      "Create a party, join one with friends, or start by setting up your personal goals.",
+                      style: Theme.of(context).textTheme.bodyLarge,
+                      textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(height: 40),
+
+                    // Two action buttons side by side
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Expanded(
+                          child: ElevatedButton.icon(
+                            onPressed: () {
+                              showDialog(
+                                context: context,
+                                builder: (context) => CreatePartyDialog(),
+                              );
+                            },
+                            icon: const Icon(Icons.add),
+                            label: const Text("Create a Party"),
+                            style: ElevatedButton.styleFrom(
+                              padding: const EdgeInsets.symmetric(vertical: 16),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 16),
+                        Expanded(
+                          child: ElevatedButton.icon(
+                            onPressed: () {
+                              // Navigate to the goals page
+                              GoRouter.of(context).go('/goals');
+                            },
+                            icon: const Icon(Icons.flag),
+                            label: const Text("Set Up My Goals"),
+                            style: ElevatedButton.styleFrom(
+                              padding: const EdgeInsets.symmetric(vertical: 16),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+
+                    const SizedBox(height: 32),
+
+                    // Explanation section
+                    Container(
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: Theme.of(context).colorScheme.surfaceVariant,
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(
+                          color: Theme.of(context)
+                              .colorScheme
+                              .outline
+                              .withOpacity(0.5),
+                          width: 1,
+                        ),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            "Getting Started",
+                            style: Theme.of(context)
+                                .textTheme
+                                .titleMedium
+                                ?.copyWith(
+                                  fontWeight: FontWeight.bold,
+                                ),
+                          ),
+                          const SizedBox(height: 12),
+                          const Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Icon(Icons.looks_one, size: 20),
+                              SizedBox(width: 8),
+                              Expanded(
+                                child: Text(
+                                  "Set up your personal goals that you want to track",
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 8),
+                          const Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Icon(Icons.looks_two, size: 20),
+                              SizedBox(width: 8),
+                              Expanded(
+                                child: Text(
+                                  "Create or join a party with friends",
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 8),
+                          const Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Icon(Icons.looks_3, size: 20),
+                              SizedBox(width: 8),
+                              Expanded(
+                                child: Text(
+                                  "Challenge each other to stay accountable",
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+
+                    const SizedBox(height: 32),
+
+                    // Pending invites section (unchanged)
+                    StreamBuilder(
+                      stream: Provider.of<PartyProvider>(context, listen: false)
+                          .fetchIncomingPendingInvites(),
+                      builder: (context, snapshot) {
+                        if (snapshot.connectionState ==
+                            ConnectionState.waiting) {
+                          return const Center(
+                              child: CircularProgressIndicator());
+                        }
+
+                        final List<Map<String, dynamic>> invites =
+                            snapshot.data?.docs
+                                    .map((doc) => {
+                                          ...doc.data() as Map<String, dynamic>,
+                                          'id': doc.id,
+                                        })
+                                    .toList() ??
+                                [];
+
+                        if (invites.isEmpty) {
+                          return const SizedBox.shrink();
+                        }
+
+                        return Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              "You have pending invites!",
+                              style: Theme.of(context).textTheme.titleMedium,
+                              textAlign: TextAlign.left,
+                            ),
+                            const SizedBox(height: 12),
+                            ...invites.map((invite) {
+                              final partyProvider = Provider.of<PartyProvider>(
+                                  context,
+                                  listen: false);
+                              return Card(
+                                margin: const EdgeInsets.only(bottom: 8),
+                                child: ListTile(
+                                  title: Text(
+                                      invite['partyName'] ?? 'Unknown party'),
+                                  subtitle: Text(
+                                      "From: ${invite['senderEmail'] ?? 'Unknown'}"),
+                                  trailing: ElevatedButton(
+                                    onPressed: () => partyProvider.acceptInvite(
+                                        invite['id'], invite['partyId']),
+                                    child: const Text("Accept"),
+                                  ),
+                                ),
+                              );
+                            }).toList(),
+                          ],
+                        );
+                      },
+                    ),
+                  ],
+                ),
+              ),
             ),
           );
         }
@@ -70,8 +270,8 @@ class _PartyScreenContentState extends State<PartyScreenContent>
         // Party exists view with tabs
         return Scaffold(
           appBar: AppBar(
-            title: Text(
-                Provider.of<PartyProvider>(context).partyName ?? "Party 2.0"),
+            title: Text(Provider.of<PartyProvider>(context).partyName ??
+                "Accountabilibuddies"),
             bottom: TabBar(
               controller: _tabController,
               tabs: const [
@@ -93,30 +293,49 @@ class _PartyScreenContentState extends State<PartyScreenContent>
   }
 }
 
-// Separate widget for create party view
-class CreatePartyView extends StatelessWidget {
-  const CreatePartyView({Key? key}) : super(key: key);
+// Create Party Dialog
+class CreatePartyDialog extends StatelessWidget {
+  CreatePartyDialog({Key? key}) : super(key: key);
+
+  final TextEditingController _partyNameController = TextEditingController();
 
   @override
   Widget build(BuildContext context) {
     final partyProvider = Provider.of<PartyProvider>(context, listen: false);
 
-    return SingleChildScrollView(
-      child: Column(
-        key: const ValueKey<String>('create-party'),
-        crossAxisAlignment: CrossAxisAlignment.start,
+    return AlertDialog(
+      title: const Text('Create New Party'),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
         children: [
-          CreatePartyScreen(),
-          const SizedBox(height: 20),
-          InviteList(
-            inviteStream: partyProvider.fetchIncomingPendingInvites(),
-            title: "Incoming Pending Invites",
-            onAction: (inviteId, partyId) =>
-                partyProvider.acceptInvite(inviteId, partyId),
-            isOutgoing: false,
+          const Text('Enter a name for your new party'),
+          const SizedBox(height: 16),
+          TextField(
+            controller: _partyNameController,
+            autofocus: true,
+            decoration: const InputDecoration(
+              labelText: 'Party Name',
+              border: OutlineInputBorder(),
+            ),
           ),
         ],
       ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Cancel'),
+        ),
+        ElevatedButton(
+          onPressed: () {
+            final partyName = _partyNameController.text.trim();
+            if (partyName.isNotEmpty) {
+              Navigator.pop(context);
+              partyProvider.createParty(partyName);
+            }
+          },
+          child: const Text('Create'),
+        ),
+      ],
     );
   }
 }
@@ -200,7 +419,6 @@ class PendingApprovalsTab extends StatelessWidget {
   }
 }
 
-// Helper class for multiple return values
 class Tuple2<T1, T2> {
   final T1 item1;
   final T2 item2;

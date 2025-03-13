@@ -194,151 +194,171 @@ class _ProofSubmissionDialogState extends State<ProofSubmissionDialog> {
         Provider.of<TimeMachineProvider>(context, listen: false);
     final now = timeMachineProvider.now;
 
-    return AlertDialog(
-      title: const Text('Submit Proof'),
-      content: SingleChildScrollView(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('Goal: ${widget.goal.goalName}'),
-            const SizedBox(height: 16),
-            TextField(
-              controller: _proofController,
-              decoration: const InputDecoration(
-                labelText: 'Proof Details',
-                border: OutlineInputBorder(),
+    return Scaffold(
+      // Full screen dialog
+      backgroundColor: Theme.of(context).dialogBackgroundColor,
+      appBar: AppBar(
+        title: const Text('Submit Proof'),
+        leading: IconButton(
+          icon: const Icon(Icons.close),
+          onPressed: () => Navigator.of(context).pop(false),
+        ),
+        actions: [
+          // Submit button in app bar
+          _isUploading
+              ? const Padding(
+                  padding: EdgeInsets.all(16.0),
+                  child: SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  ),
+                )
+              : TextButton(
+                  onPressed: _submitProof,
+                  child: const Text(
+                    'SUBMIT',
+                    style: TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                ),
+        ],
+      ),
+      // SafeArea prevents overlap with system UI
+      body: SafeArea(
+        // Use a Column to organize the content
+        child: Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Goal name
+              Text(
+                'Goal: ${widget.goal.goalName}',
+                style: Theme.of(context).textTheme.titleMedium,
               ),
-              maxLines: 3,
-              autofocus: true,
-            ),
-            const SizedBox(height: 16),
+              const SizedBox(height: 16),
 
-            // Yesterday/Today radio buttons, centered, with today on the right side and padding at the bottom
-            // Only show this if it is not Monday.
-            // TODO: CHANGE DAY TO START DAY PARAMETER
+              // Proof details input - only take what's needed
+              TextField(
+                controller: _proofController,
+                decoration: const InputDecoration(
+                  labelText: 'Proof Details',
+                  border: OutlineInputBorder(),
+                  hintText: 'Describe how you completed this goal',
+                ),
+                maxLines: 2, // Limited to save space
+              ),
 
-            if (now.weekday != DateTime.monday)
-              Center(
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
+              // Yesterday/Today selection with radio buttons
+              if (now.weekday != DateTime.monday) ...[
+                const SizedBox(height: 8),
+                Row(
                   children: [
+                    const Text('When:'),
+                    const SizedBox(width: 8),
                     Radio<bool>(
                       value: true,
                       groupValue: yesterday,
-                      onChanged: (value) {
-                        setState(() {
-                          yesterday = value!;
-                        });
-                      },
+                      onChanged: (value) => setState(() => yesterday = value!),
                     ),
                     const Text('Yesterday'),
                     Radio<bool>(
                       value: false,
                       groupValue: yesterday,
-                      onChanged: (value) {
-                        setState(() {
-                          yesterday = value!;
-                        });
-                      },
+                      onChanged: (value) => setState(() => yesterday = value!),
                     ),
                     const Text('Today'),
                   ],
                 ),
-              ),
+              ],
 
-            // Image selection button
-            Center(
-              child: ElevatedButton.icon(
-                onPressed: _isUploading ? null : _showImageOptions,
-                icon: const Icon(Icons.add_a_photo),
-                label: const Text('Add Photo'),
-              ),
-            ),
-
-            // Selected image preview
-            if (_selectedImageData != null) ...[
-              const SizedBox(height: 16),
-              Center(
-                child: Stack(
-                  children: [
-                    ClipRRect(
-                      borderRadius: BorderRadius.circular(8),
-                      child: Image.memory(
-                        _selectedImageData!,
-                        height: 200,
-                        fit: BoxFit.cover,
+              // Compact error/status display
+              if (_errorMessage != null)
+                Padding(
+                  padding: const EdgeInsets.only(top: 8),
+                  child: Text(
+                    _errorMessage!,
+                    style:
+                        TextStyle(color: Theme.of(context).colorScheme.error),
+                  ),
+                ),
+              if (_statusMessage != null && !_isUploading)
+                Padding(
+                  padding: const EdgeInsets.only(top: 8),
+                  child: Text(
+                    _statusMessage!,
+                    style: const TextStyle(color: Colors.blue),
+                  ),
+                ),
+              if (_isUploading)
+                Padding(
+                  padding: const EdgeInsets.only(top: 8),
+                  child: Row(
+                    children: [
+                      SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(strokeWidth: 2),
                       ),
-                    ),
-                    if (!_isUploading)
-                      Positioned(
-                        top: 0,
-                        right: 0,
-                        child: IconButton(
-                          icon: const Icon(
-                            Icons.cancel,
-                            color: Colors.white,
-                            shadows: [Shadow(blurRadius: 5)],
-                          ),
-                          onPressed: () {
-                            setState(() {
-                              _selectedImageData = null;
-                              _selectedImageName = null;
-                            });
-                          },
+                      const SizedBox(width: 8),
+                      Text(_statusMessage ?? 'Uploading...'),
+                    ],
+                  ),
+                ),
+
+              // Spacer pushes the photo section to the bottom
+              const Spacer(),
+
+              // Image preview section - if image is selected
+              if (_selectedImageData != null) ...[
+                Center(
+                  child: Stack(
+                    children: [
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(8),
+                        child: Image.memory(
+                          _selectedImageData!,
+                          height: 120, // Smaller to save space
+                          fit: BoxFit.cover,
                         ),
                       ),
-                  ],
+                      if (!_isUploading)
+                        Positioned(
+                          top: 0,
+                          right: 0,
+                          child: IconButton(
+                            icon: const Icon(
+                              Icons.cancel,
+                              color: Colors.white,
+                              shadows: [Shadow(blurRadius: 5)],
+                            ),
+                            onPressed: () => setState(() {
+                              _selectedImageData = null;
+                              _selectedImageName = null;
+                            }),
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 16),
+              ],
+
+              // Add photo button at bottom
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton.icon(
+                  onPressed: _isUploading ? null : _showImageOptions,
+                  icon: const Icon(Icons.add_a_photo),
+                  label: Text(_selectedImageData == null
+                      ? 'Add Photo'
+                      : 'Change Photo'),
                 ),
               ),
             ],
-
-            // Status message (upload progress, etc.)
-            if (_statusMessage != null) ...[
-              const SizedBox(height: 8),
-              Center(
-                child: Text(
-                  _statusMessage!,
-                  style: const TextStyle(color: Colors.blue),
-                ),
-              ),
-            ],
-
-            // Progress indicator for uploads
-            if (_isUploading) ...[
-              const SizedBox(height: 8),
-              const LinearProgressIndicator(),
-            ],
-
-            // Error message
-            if (_errorMessage != null) ...[
-              const SizedBox(height: 8),
-              Text(
-                _errorMessage!,
-                style: TextStyle(color: Theme.of(context).colorScheme.error),
-              ),
-            ],
-          ],
+          ),
         ),
       ),
-      actions: [
-        TextButton(
-          onPressed:
-              _isUploading ? null : () => Navigator.of(context).pop(false),
-          child: const Text('Cancel'),
-        ),
-        ElevatedButton(
-          onPressed: _isUploading ? null : _submitProof,
-          child: _isUploading
-              ? const SizedBox(
-                  width: 20,
-                  height: 20,
-                  child: CircularProgressIndicator(strokeWidth: 2),
-                )
-              : const Text('Submit'),
-        ),
-      ],
     );
   }
 }

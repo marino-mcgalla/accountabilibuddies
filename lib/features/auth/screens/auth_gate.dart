@@ -1,3 +1,4 @@
+import 'package:auth_test/features/party/screens/party_screen.dart';
 import 'package:firebase_auth/firebase_auth.dart' hide EmailAuthProvider;
 import 'package:firebase_ui_auth/firebase_ui_auth.dart';
 import 'package:flutter/material.dart';
@@ -96,7 +97,7 @@ class _AuthenticatedFlowState extends State<_AuthenticatedFlow> {
       }
     });
 
-    return const AppScaffold(child: HomeScreen());
+    return const AppScaffold(child: PartyScreen());
   }
 }
 

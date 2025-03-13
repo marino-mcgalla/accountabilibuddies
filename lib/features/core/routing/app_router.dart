@@ -29,12 +29,12 @@ final GoRouter appRouter = GoRouter(
     ),
     GoRoute(
       path: '/home',
-      builder: (context, state) => const AppScaffold(child: HomeScreen()),
-    ),
-    GoRoute(
-      path: '/party',
       builder: (context, state) => const AppScaffold(child: PartyScreen()),
     ),
+    // GoRoute(
+    //   path: '/party',
+    //   builder: (context, state) => const AppScaffold(child: PartyScreen()),
+    // ),
     GoRoute(
       path: '/user-info',
       builder: (context, state) => const AppScaffold(child: UserInfoScreen()),

@@ -212,18 +212,18 @@ class GoalsProvider with ChangeNotifier {
   }
 
   // New method to lock in goals and update party status
-  Future<void> lockInGoalsForChallenge(String partyId) async {
+  Future<void> lockInGoalsForChallenge(String partyId,
+      {double wagerAmount = 0}) async {
     _setLoading(true);
     try {
-      // Lock in goals
       await lockInActiveGoals();
 
-      // Update party document
       final userId = _auth.currentUser?.uid;
       if (userId == null) return;
 
       await _firestore.collection('parties').doc(partyId).update({
-        'activeChallenge.lockedInMembers': FieldValue.arrayUnion([userId])
+        'activeChallenge.lockedInMembers': FieldValue.arrayUnion([userId]),
+        'activeChallenge.wagers.$userId': wagerAmount
       });
     } catch (e) {
       print('Error locking in goals for challenge: $e');

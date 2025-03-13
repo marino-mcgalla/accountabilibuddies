@@ -1,4 +1,5 @@
 import 'package:auth_test/features/core/themes/theme_provider.dart';
+import 'package:auth_test/features/notifications/notifications_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -36,16 +37,46 @@ class AppScaffold extends StatelessWidget {
         titleSpacing: isSmallScreen ? 0 : NavigationToolbar.kMiddleSpacing,
         // Add theme toggle button to the app bar
         actions: [
-          IconButton(
-            icon: Icon(
-              isDarkMode ? Icons.light_mode : Icons.dark_mode,
-              color: Colors.white,
-            ),
-            onPressed: () {
-              themeProvider.toggleTheme();
+          Consumer<NotificationsProvider>(
+            builder: (context, notificationsProvider, child) {
+              final unreadCount = notificationsProvider.unreadCount;
+              return Stack(
+                children: [
+                  IconButton(
+                    icon: const Icon(Icons.notifications),
+                    tooltip: 'Notifications',
+                    onPressed: () {
+                      // For now, just mark all as read
+                      notificationsProvider.markAllAsRead();
+                    },
+                  ),
+                  if (unreadCount > 0)
+                    Positioned(
+                      right: 8,
+                      top: 8,
+                      child: Container(
+                        padding: const EdgeInsets.all(2),
+                        decoration: BoxDecoration(
+                          color: Colors.red,
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        constraints: const BoxConstraints(
+                          minWidth: 16,
+                          minHeight: 16,
+                        ),
+                        child: Text(
+                          unreadCount > 9 ? '9+' : unreadCount.toString(),
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 10,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                      ),
+                    ),
+                ],
+              );
             },
-            tooltip:
-                isDarkMode ? 'Switch to light theme' : 'Switch to dark theme',
           ),
         ],
       ),
@@ -100,13 +131,13 @@ class AppScaffold extends StatelessWidget {
               '/goals',
               isSmallScreen,
             ),
-            _buildDrawerItem(
-              context,
-              Icons.group,
-              'Party',
-              '/party',
-              isSmallScreen,
-            ),
+            // _buildDrawerItem(
+            //   context,
+            //   Icons.group,
+            //   'Party',
+            //   '/party',
+            //   isSmallScreen,
+            // ),
             _buildDrawerItem(
               context,
               Icons.person,

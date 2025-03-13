@@ -1,6 +1,7 @@
 // fix for main.dart:
 import 'package:auth_test/features/core/themes/app_theme.dart';
 import 'package:auth_test/features/core/themes/theme_provider.dart';
+import 'package:auth_test/features/notifications/notifications_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'firebase_options.dart';
@@ -26,8 +27,9 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MultiProvider(
       providers: [
-        // Add the ThemeProvider
         ChangeNotifierProvider(create: (context) => ThemeProvider()),
+
+        ChangeNotifierProvider(create: (context) => NotificationsProvider()),
 
         // TimeMachineProvider first (dependency of GoalsProvider)
         ChangeNotifierProvider(create: (context) => TimeMachineProvider()),

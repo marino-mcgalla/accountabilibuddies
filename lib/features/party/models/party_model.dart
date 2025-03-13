@@ -9,7 +9,6 @@ class Party {
   final String partyName;
   final DateTime? createdAt;
   final int challengeStartDay;
-  final Map<String, dynamic>? activeChallenge;
 
   Party({
     this.id = '',
@@ -19,7 +18,6 @@ class Party {
     required this.partyName,
     this.createdAt,
     this.challengeStartDay = 1,
-    this.activeChallenge,
   });
 
   // Factory method to easily create new parties
@@ -40,7 +38,6 @@ class Party {
       'partyName': partyName,
       'createdAt': FieldValue.serverTimestamp(),
       'challengeStartDay': challengeStartDay,
-      'activeChallenge': activeChallenge,
     };
   }
 }

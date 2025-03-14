@@ -136,17 +136,14 @@ class _MyGoalsScreenState extends State<MyGoalsScreen>
           Consumer<GoalsProvider>(
             //TODO: don't really need this here, the one in the party screen is good enough
             builder: (context, goalsProvider, _) {
-              // Check if there are any active goals
               final hasActiveGoals =
                   goalsProvider.goals.any((goal) => goal.active);
 
-              // Show Lock In button (with pending challenge indicator if applicable)
               return TextButton.icon(
                 icon: Icon(
                   isPendingChallenge
                       ? (isUserLockedIn ? Icons.lock : Icons.lock_outline)
                       : Icons.lock_outline,
-                  // Fix deprecated withOpacity
                   color: hasActiveGoals
                       ? Colors.white
                       : Color.fromARGB(128, 255, 255, 255),
@@ -196,10 +193,9 @@ class _MyGoalsScreenState extends State<MyGoalsScreen>
             onRefresh: _refreshGoals,
             child: Column(
               children: [
-                // Show pending challenge banner if applicable
                 if (isPendingChallenge && !isUserLockedIn)
                   Container(
-                    color: Colors.amber.shade100,
+                    color: Colors.blue,
                     padding: const EdgeInsets.all(12),
                     child: Row(
                       children: [
@@ -301,77 +297,8 @@ class _MyGoalsScreenState extends State<MyGoalsScreen>
     );
   }
 
-  // Updated lock in method that connects with party challenge system
   void _lockInGoals(BuildContext context, GoalsProvider goalsProvider,
-      PartyProvider partyProvider) async {
-    final wagerController = TextEditingController(text: '0');
-
-    final result = await showDialog<Map<String, dynamic>>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Lock In Goals'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(partyProvider.hasPendingChallenge
-                ? 'This will lock in your goals for the upcoming challenge.'
-                : 'Are you sure you want to lock in these goals?'),
-            const SizedBox(height: 24),
-            const Text('Set your wager amount:',
-                style: TextStyle(fontWeight: FontWeight.bold)),
-            const Text(
-              'This is what you\'ll pay if you don\'t complete your goals.',
-              style: TextStyle(fontSize: 12, color: Colors.grey),
-            ),
-            const SizedBox(height: 8),
-            TextField(
-              controller: wagerController,
-              decoration: const InputDecoration(
-                prefixText: '\$',
-                hintText: '0',
-                border: OutlineInputBorder(),
-              ),
-              keyboardType: TextInputType.numberWithOptions(decimal: true),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              // Convert wager to double, default to 0 if invalid
-              double wager = 0;
-              try {
-                wager = double.parse(wagerController.text);
-              } catch (_) {}
-
-              Navigator.pop(context, {'lockIn': true, 'wager': wager});
-            },
-            child: const Text('Lock In'),
-          ),
-        ],
-      ),
-    );
-
-    if (result == null || result['lockIn'] != true) return;
-
-    double wagerAmount = result['wager'] ?? 0;
-
-    Utils.showFeedback(context, 'Locking in goals...');
-
-    try {
-      if (partyProvider.hasPendingChallenge && partyProvider.partyId != null) {
-        await goalsProvider.lockInGoalsForChallenge(partyProvider.partyId!,
-            wagerAmount: wagerAmount);
-      } else {
-        await goalsProvider.lockInActiveGoals();
-      }
-    } catch (e) {
-      // Error handling
-    }
+      PartyProvider partyProvider) {
+    goalsProvider.showLockInDialogAndLockGoals(context, partyProvider.partyId);
   }
 }

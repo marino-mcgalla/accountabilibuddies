@@ -1,7 +1,10 @@
 import 'dart:async';
+import 'package:auth_test/features/common/utils/utils.dart';
+import 'package:auth_test/features/party/providers/party_provider.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import '../models/goal_model.dart';
 import '../models/total_goal.dart';
 import '../models/weekly_goal.dart';
@@ -211,7 +214,6 @@ class GoalsProvider with ChangeNotifier {
     }
   }
 
-  // New method to lock in goals and update party status
   Future<void> lockInGoalsForChallenge(String partyId,
       {double wagerAmount = 0}) async {
     _setLoading(true);
@@ -229,6 +231,108 @@ class GoalsProvider with ChangeNotifier {
       print('Error locking in goals for challenge: $e');
     } finally {
       _setLoading(false);
+    }
+  }
+
+  Future<void> showLockInDialogAndLockGoals(BuildContext context,
+      [String? partyId]) async {
+    final activeGoals = _goals.where((goal) => goal.active).toList();
+
+    if (activeGoals.isEmpty) {
+      showDialog(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('No Goals to Lock In'),
+          content: const Text(
+              'You need at least one active goal to participate in the challenge.'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('OK'),
+            ),
+          ],
+        ),
+      );
+      return;
+    }
+
+    final wagerController = TextEditingController();
+
+    final partyProvider = Provider.of<PartyProvider>(context, listen: false);
+    final isPendingChallenge = partyProvider.hasPendingChallenge;
+
+    final result = await showDialog<Map<String, dynamic>>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Lock In Goals'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(isPendingChallenge
+                ? 'This will lock in your goals for the upcoming challenge.'
+                : 'Are you sure you want to lock in these goals?'),
+            const SizedBox(height: 16),
+            Text(
+              'Active goals that will be included:\n${activeGoals.map((g) => '• ${g.goalName}').join('\n')}',
+            ),
+            const SizedBox(height: 24),
+            const Text('Set your wager amount:',
+                style: TextStyle(fontWeight: FontWeight.bold)),
+            const Text(
+              'This is what you\'ll pay if you don\'t complete your goals.',
+              style: TextStyle(fontSize: 12, color: Colors.grey),
+            ),
+            const SizedBox(height: 8),
+            TextField(
+              controller: wagerController,
+              decoration: const InputDecoration(
+                prefixIcon: Padding(
+                  padding: EdgeInsets.all(15.0),
+                  child: Text('\$', style: TextStyle(fontSize: 16)),
+                ),
+                hintText: '0',
+                border: OutlineInputBorder(),
+              ),
+              keyboardType:
+                  const TextInputType.numberWithOptions(decimal: true),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              double wager = 0;
+              try {
+                wager = double.parse(wagerController.text);
+              } catch (_) {}
+              Navigator.pop(context, {'lockIn': true, 'wager': wager});
+            },
+            child: const Text('Lock In'),
+          ),
+        ],
+      ),
+    );
+
+    if (result == null || result['lockIn'] != true) return;
+
+    double wagerAmount = result['wager'] ?? 0;
+
+    Utils.showFeedback(context, 'Locking in goals...');
+
+    try {
+      if (isPendingChallenge && partyId != null) {
+        await lockInGoalsForChallenge(partyId, wagerAmount: wagerAmount);
+      } else {
+        await lockInActiveGoals();
+      }
+      Utils.showFeedback(context, 'Goals locked in successfully');
+    } catch (e) {
+      Utils.showFeedback(context, 'Error locking in goals: $e', isError: true);
     }
   }
 

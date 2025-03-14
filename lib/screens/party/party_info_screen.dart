@@ -35,6 +35,11 @@ class PartyInfoScreen extends StatelessWidget {
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            ...members.map((memberId) => MemberItem(
+                  memberId: memberId,
+                  memberDetails: partyProvider.memberDetails[memberId],
+                  goals: partyMemberGoals[memberId] ?? [],
+                )),
             Text("Party: $partyName",
                 style: Theme.of(context).textTheme.titleLarge),
             const SizedBox(height: 20),
@@ -52,16 +57,6 @@ class PartyInfoScreen extends StatelessWidget {
                 partyProvider.hasPendingChallenge)
               const SizedBox(height: 20),
 
-            Text(
-              "Members",
-              style: Theme.of(context).textTheme.titleMedium,
-            ),
-            const SizedBox(height: 8),
-            ...members.map((memberId) => MemberItem(
-                  memberId: memberId,
-                  memberDetails: partyProvider.memberDetails[memberId],
-                  goals: partyMemberGoals[memberId] ?? [],
-                )),
             const SizedBox(height: 20),
             Align(
               alignment: Alignment.center,
@@ -243,7 +238,8 @@ class PartyInfoScreen extends StatelessWidget {
                   SizedBox(height: 8),
                   ...members.map((memberId) {
                     final name = partyProvider.memberDetails[memberId]
-                            ?['displayName'] ??
+                            ?['username'] ??
+                        partyProvider.memberDetails[memberId]?['email'] ??
                         'Unknown';
                     final isLockedIn =
                         partyProvider.lockedInMembers.contains(memberId);
@@ -416,67 +412,11 @@ class PartyInfoScreen extends StatelessWidget {
     );
   }
 
-  // Lock in member's goals
-  void _lockInMemberGoals(BuildContext context) async {
+  void _lockInMemberGoals(BuildContext context) {
     final goalsProvider = Provider.of<GoalsProvider>(context, listen: false);
     final partyProvider = Provider.of<PartyProvider>(context, listen: false);
 
-    // Check if there are active goals
-    final activeGoals =
-        goalsProvider.goals.where((goal) => goal.active).toList();
-
-    if (activeGoals.isEmpty) {
-      showDialog(
-        context: context,
-        builder: (context) => AlertDialog(
-          title: Text('No Goals to Lock In'),
-          content: Text(
-              'You need at least one active goal to participate in the challenge.'),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: Text('OK'),
-            ),
-          ],
-        ),
-      );
-      return;
-    }
-
-    final shouldLockIn = await showDialog<bool>(
-          context: context,
-          builder: (context) => AlertDialog(
-            title: Text('Lock In Goals'),
-            content: Text(
-                'Once locked in, your goals will be ready for the challenge.\n\n'
-                'Active goals that will be included:\n'
-                '${activeGoals.map((g) => '• ${g.goalName}').join('\n')}\n\n'
-                'Ready to lock in?'),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(context, false),
-                child: Text('Cancel'),
-              ),
-              ElevatedButton(
-                onPressed: () => Navigator.pop(context, true),
-                child: Text('Lock In'),
-              ),
-            ],
-          ),
-        ) ??
-        false;
-
-    if (shouldLockIn) {
-      Utils.showFeedback(context, 'Locking in goals...');
-
-      try {
-        await goalsProvider.lockInGoalsForChallenge(partyId);
-        Utils.showFeedback(context, 'Goals locked in successfully');
-      } catch (e) {
-        Utils.showFeedback(context, 'Error locking in goals: $e',
-            isError: true);
-      }
-    }
+    goalsProvider.showLockInDialogAndLockGoals(context, partyProvider.partyId);
   }
 
   // Confirm starting the challenge

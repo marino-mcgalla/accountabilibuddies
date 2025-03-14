@@ -22,6 +22,7 @@ class MemberItem extends StatelessWidget {
     final partyProvider = Provider.of<PartyProvider>(context);
     final isLeader = memberId == partyProvider.partyLeaderId;
     final isCurrentUser = memberId == FirebaseAuth.instance.currentUser?.uid;
+    final canManage = !isCurrentUser && partyProvider.isCurrentUserPartyLeader;
 
     double memberWager = 0;
     if (partyProvider.hasActiveChallenge) {
@@ -30,53 +31,48 @@ class MemberItem extends StatelessWidget {
 
     return Card(
       margin: const EdgeInsets.only(bottom: 16),
-      child: Padding(
-        padding: const EdgeInsets.all(12),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    memberDetails?['email'] ?? 'Unknown User',
-                    style: const TextStyle(fontWeight: FontWeight.bold),
-                  ),
-                ),
-                if (isLeader)
-                  const Icon(
-                    Icons.workspace_premium,
-                    color: Colors.amber,
-                    size: 24,
-                    semanticLabel: 'Party Leader',
-                  ),
-                if (!isCurrentUser && partyProvider.isCurrentUserPartyLeader)
-                  PopupMenuButton<String>(
-                    icon: const Icon(Icons.more_vert),
-                    tooltip: 'Manage Member',
-                    onSelected: (value) {
-                      if (value == 'transfer' && !isLeader) {
-                        _showTransferDialog(context, partyProvider);
-                      } else if (value == 'remove') {
-                        _showRemoveDialog(context, partyProvider);
-                      }
-                    },
-                    itemBuilder: (context) => [
+      clipBehavior: Clip.antiAlias, // Fix corner clipping issue
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12.0),
+      ),
+      child: Theme(
+        // Ensure ExpansionTile doesn't change background
+        data: Theme.of(context).copyWith(
+          dividerColor: Colors.transparent,
+        ),
+        child: GestureDetector(
+          onLongPress: canManage
+              ? () {
+                  // Show the popup menu on long press
+                  final RenderBox renderBox =
+                      context.findRenderObject() as RenderBox;
+                  final position = renderBox.localToGlobal(Offset.zero);
+                  final size = renderBox.size;
+
+                  showMenu(
+                    context: context,
+                    position: RelativeRect.fromLTRB(
+                      position.dx,
+                      position.dy,
+                      position.dx + size.width,
+                      position.dy + size.height,
+                    ),
+                    items: [
                       if (!isLeader)
-                        const PopupMenuItem<String>(
+                        PopupMenuItem<String>(
                           value: 'transfer',
                           child: Row(
-                            children: [
+                            children: const [
                               Icon(Icons.change_circle, size: 20),
                               SizedBox(width: 10),
                               Text('Transfer Leadership'),
                             ],
                           ),
                         ),
-                      const PopupMenuItem<String>(
+                      PopupMenuItem<String>(
                         value: 'remove',
                         child: Row(
-                          children: [
+                          children: const [
                             Icon(Icons.person_remove,
                                 size: 20, color: Colors.red),
                             SizedBox(width: 10),
@@ -86,47 +82,70 @@ class MemberItem extends StatelessWidget {
                         ),
                       ),
                     ],
+                  ).then((value) {
+                    if (value == 'transfer' && !isLeader) {
+                      _showTransferDialog(context, partyProvider);
+                    } else if (value == 'remove') {
+                      _showRemoveDialog(context, partyProvider);
+                    }
+                  });
+                }
+              : null,
+          child: ExpansionTile(
+            title: Row(
+              children: [
+                Expanded(
+                  child: Row(
+                    children: [
+                      Text(
+                        memberDetails?['email'] ?? 'Unknown User',
+                        style: const TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                      if (isLeader)
+                        const Padding(
+                          padding: EdgeInsets.only(left: 5),
+                          child: Icon(
+                            Icons.workspace_premium,
+                            color: Colors.amber,
+                            size: 18,
+                            semanticLabel: 'Party Leader',
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+                if (partyProvider.hasActiveChallenge)
+                  Text(
+                    "\$${memberWager.toStringAsFixed(2)}",
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: Theme.of(context).textTheme.bodyMedium?.color,
+                      fontStyle:
+                          memberWager > 0 ? FontStyle.normal : FontStyle.italic,
+                    ),
                   ),
               ],
             ),
-            if (partyProvider.hasActiveChallenge) ...[
-              const SizedBox(height: 4),
-              Row(
-                children: [
-                  Icon(
-                    Icons.attach_money,
-                    size: 16,
-                    color: memberWager > 0 ? Colors.green : Colors.grey[400],
-                  ),
-                  const SizedBox(width: 4),
-                  Text(
-                    "Wager: \$${memberWager.toStringAsFixed(2)}",
-                    style: TextStyle(
-                      fontStyle:
-                          memberWager > 0 ? FontStyle.normal : FontStyle.italic,
-                      color: memberWager > 0
-                          ? Theme.of(context)
-                              .textTheme
-                              .bodyMedium
-                              ?.color // Primary text color
-                          : Theme.of(context)
-                              .textTheme
-                              .bodyMedium
-                              ?.color
-                              ?.withOpacity(0.6),
-                      fontSize: 14,
-                    ),
-                  ),
-                ],
+            backgroundColor: Colors.transparent,
+            children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    if (goals.isNotEmpty)
+                      ...goals.map((goal) => Padding(
+                            padding: const EdgeInsets.only(bottom: 8.0),
+                            child: CompactProgressTracker(goal: goal),
+                          )),
+                    if (goals.isEmpty)
+                      const Text('No goals',
+                          style: TextStyle(fontStyle: FontStyle.italic)),
+                  ],
+                ),
               ),
             ],
-            const SizedBox(height: 8),
-            if (goals.isNotEmpty)
-              ...goals.map((goal) => CompactProgressTracker(goal: goal)),
-            if (goals.isEmpty)
-              const Text('No goals',
-                  style: TextStyle(fontStyle: FontStyle.italic)),
-          ],
+          ),
         ),
       ),
     );

@@ -61,20 +61,26 @@ class CompactProgressTracker extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Stack(
-          children: [
-            LinearProgressIndicator(
-              value: totalProgress,
-              backgroundColor: Colors.grey[300],
-              valueColor: const AlwaysStoppedAnimation<Color>(Colors.amber),
-            ),
-            LinearProgressIndicator(
-              value: completedProgress,
-              backgroundColor: Colors.transparent,
-              valueColor: const AlwaysStoppedAnimation<Color>(Colors.green),
-            ),
-          ],
+        Container(
+          height: 4,
+          child: Stack(
+            children: [
+              LinearProgressIndicator(
+                value: totalProgress,
+                backgroundColor: Colors.grey[300],
+                minHeight: 4,
+                valueColor: const AlwaysStoppedAnimation<Color>(Colors.amber),
+              ),
+              LinearProgressIndicator(
+                value: completedProgress,
+                backgroundColor: Colors.transparent,
+                minHeight: 4,
+                valueColor: const AlwaysStoppedAnimation<Color>(Colors.green),
+              ),
+            ],
+          ),
         ),
+        const SizedBox(height: 4),
         Text(
           'Progress: $completed / ${goal.goalFrequency}',
           style: const TextStyle(fontSize: 12),
@@ -101,37 +107,32 @@ class CompactProgressTracker extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Row(
-          children: daysOfWeek.map((day) {
-            final status = (completions[day] ?? 'default');
-
-            // Get day abbreviation
-            final dayOfWeek = DateTime.parse(day).weekday;
-            final dayAbbr = ['', 'M', 'T', 'W', 'T', 'F', 'S', 'S'][dayOfWeek];
-
-            return Expanded(
-              child: Container(
-                height: 24,
-                margin: const EdgeInsets.symmetric(horizontal: 1.0),
-                decoration: BoxDecoration(
-                  color: Utils.getStatusColor(status),
-                  borderRadius: BorderRadius.circular(2),
-                ),
-                alignment: Alignment.center,
-                child: Text(
-                  dayAbbr,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 10,
-                    fontWeight: FontWeight.bold,
+        Container(
+          height: 4,
+          child: Row(
+            children: daysOfWeek.map((day) {
+              final status = (completions[day] ?? 'default');
+              return Expanded(
+                child: Container(
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: Utils.getStatusColor(status),
+                    // Add tiny separators between days
+                    border: Border(
+                      right: BorderSide(
+                        color: Colors.white,
+                        width: 0.5,
+                      ),
+                    ),
                   ),
                 ),
-              ),
-            );
-          }).toList(),
+              );
+            }).toList(),
+          ),
         ),
+        // const SizedBox(height: 4),
         // Text(
-        //   'Target: ${goal.goalFrequency} days/week',
+        //   'Progress: $completedCount / ${goal.goalFrequency} days',
         //   style: const TextStyle(fontSize: 12),
         // ),
       ],

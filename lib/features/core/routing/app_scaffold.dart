@@ -145,13 +145,13 @@ class AppScaffold extends StatelessWidget {
               '/user-info',
               isSmallScreen,
             ),
-            _buildDrawerItem(
-              context,
-              Icons.warning,
-              'Time Machine',
-              '/time-machine',
-              isSmallScreen,
-            ),
+            // _buildDrawerItem(
+            //   context,
+            //   Icons.warning,
+            //   'Time Machine',
+            //   '/time-machine',
+            //   isSmallScreen,
+            // ),
 
             // Theme toggle in drawer
             ListTile(

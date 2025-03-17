@@ -66,7 +66,6 @@ class _GoalCardState extends State<GoalCard> {
     final partyProvider = Provider.of<PartyProvider>(context, listen: false);
     final endDate = partyProvider.challengeEndDate;
 
-    // Only check for warnings if we have an end date and an active challenge
     final needsWarning = endDate != null &&
         widget.goal.challenge != null &&
         isCloseToDeadline(widget.goal, endDate);
@@ -221,6 +220,11 @@ class _GoalCardState extends State<GoalCard> {
   void _handleDayTap(String goalId, String day, String status) {
     if (widget.goal is! WeeklyGoal) return;
 
+    if (status == 'completed') {
+      _showProofDetails(day);
+      return;
+    }
+
     String newStatus;
     switch (status) {
       case 'default':
@@ -237,6 +241,143 @@ class _GoalCardState extends State<GoalCard> {
 
     Provider.of<GoalsProvider>(context, listen: false)
         .toggleSkipPlan(goalId, day, newStatus);
+  }
+
+  void _showProofDetails(String day) {
+    // Get the proof for this day from the challenge data
+    final goal = widget.goal;
+    if (goal.challenge == null || goal.challenge!['proofs'] == null) return;
+
+    final proofs = goal.challenge!['proofs'] as Map<String, dynamic>?;
+    if (proofs == null || !proofs.containsKey(day)) return;
+
+    final proof = proofs[day];
+    final proofText = proof['proofText'] ?? 'No details provided';
+    final imageUrl = proof['imageUrl'];
+    final status = proof['status'] ?? 'pending';
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Row(
+          children: [
+            const Text('Completion Proof'),
+            const Spacer(),
+            // Show a badge indicating the status
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              decoration: BoxDecoration(
+                color: status == 'approved' ? Colors.green : Colors.amber,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Text(
+                status == 'approved' ? 'Approved' : 'Pending',
+                style: const TextStyle(color: Colors.white, fontSize: 12),
+              ),
+            ),
+          ],
+        ),
+        content: SingleChildScrollView(
+          child: ConstrainedBox(
+            // Add constraints to fix the layout issue
+            constraints: BoxConstraints(
+              maxWidth: MediaQuery.of(context).size.width * 0.8,
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('Date: ${day.substring(5).replaceAll('-', '/')}'),
+                const SizedBox(height: 8),
+                Text('Details: $proofText'),
+                if (imageUrl != null && imageUrl.isNotEmpty) ...[
+                  const SizedBox(height: 16),
+                  Center(
+                    child: GestureDetector(
+                      onTap: () {
+                        // Show full screen image when clicked
+                        Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (context) => Scaffold(
+                              appBar: AppBar(title: const Text('Proof Image')),
+                              body: Center(
+                                child: InteractiveViewer(
+                                  child: Image.network(
+                                    imageUrl,
+                                    loadingBuilder:
+                                        (context, child, loadingProgress) {
+                                      if (loadingProgress == null) return child;
+                                      return Center(
+                                        child: CircularProgressIndicator(
+                                          value: loadingProgress
+                                                      .expectedTotalBytes !=
+                                                  null
+                                              ? loadingProgress
+                                                      .cumulativeBytesLoaded /
+                                                  loadingProgress
+                                                      .expectedTotalBytes!
+                                              : null,
+                                        ),
+                                      );
+                                    },
+                                    errorBuilder: (context, error,
+                                            stackTrace) =>
+                                        const Center(
+                                            child:
+                                                Text('Failed to load image')),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                        );
+                      },
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(8),
+                        child: Image.network(
+                          imageUrl,
+                          height: 200,
+                          width: 200, // Fixed width to prevent layout issues
+                          fit: BoxFit.cover,
+                          loadingBuilder: (context, child, loadingProgress) {
+                            if (loadingProgress == null) return child;
+                            return SizedBox(
+                              height: 200,
+                              width: 200,
+                              child: Center(
+                                child: CircularProgressIndicator(
+                                  value: loadingProgress.expectedTotalBytes !=
+                                          null
+                                      ? loadingProgress.cumulativeBytesLoaded /
+                                          loadingProgress.expectedTotalBytes!
+                                      : null,
+                                ),
+                              ),
+                            );
+                          },
+                          errorBuilder: (context, error, stackTrace) =>
+                              const SizedBox(
+                            height: 200,
+                            width: 200,
+                            child: Center(child: Text('Failed to load image')),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Close'),
+          ),
+        ],
+      ),
+    );
   }
 
   // Opens a dialog to submit proof

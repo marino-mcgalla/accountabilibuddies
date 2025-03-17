@@ -398,7 +398,6 @@ class PartyProvider with ChangeNotifier {
     }
   }
 
-// Modified method for confirming challenge (Phase 2)
   Future<void> confirmChallengeStart(BuildContext context) async {
     if (_isDisposed || _partyId == null || !isCurrentUserPartyLeader) return;
     if (!hasActiveChallenge || _activeChallenge?['state'] != 'pending') return;

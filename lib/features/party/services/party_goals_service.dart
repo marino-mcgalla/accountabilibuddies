@@ -102,10 +102,38 @@ class PartyGoalsService {
         goalsData.firstWhere((g) => g['id'] == goalId, orElse: () => null);
     if (goalData == null) return;
 
+    // Update challenge data
     if (goalData['challenge'] != null) {
-      _updateChallengeForApproval(goalData, proofDate);
+      goalData['challenge']['completions'] ??= {};
+
+      if (goalData['goalType'] == 'weekly' && proofDate != null) {
+        goalData['challenge']['completions'][proofDate] = 'completed';
+
+        // Update the proof status to approved instead of removing it
+        if (goalData['challenge']['proofs'] != null &&
+            goalData['challenge']['proofs'][proofDate] != null) {
+          goalData['challenge']['proofs'][proofDate]['status'] = 'approved';
+        }
+      } else if (goalData['goalType'] == 'total') {
+        // Increment the counter
+        String today = DateTime.now().toIso8601String().split('T').first;
+        int current = goalData['challenge']['completions'][today] ?? 0;
+        goalData['challenge']['completions'][today] = current + 1;
+
+        // Update the first pending proof to approved
+        if (goalData['challenge']['proofs'] != null) {
+          List proofs = goalData['challenge']['proofs'];
+          for (int i = 0; i < proofs.length; i++) {
+            if (proofs[i] is Map && proofs[i]['status'] == 'pending') {
+              proofs[i]['status'] = 'approved';
+              break;
+            }
+          }
+        }
+      }
     }
 
+    // Save changes to Firestore
     await _firestore
         .collection('userGoals')
         .doc(userId)

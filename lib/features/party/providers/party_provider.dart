@@ -44,6 +44,7 @@ class PartyProvider with ChangeNotifier {
     'Friday',
     'Saturday'
   ];
+  List<String> _optedOutMembers = [];
 
   // Subscription management
   StreamSubscription<Map<String, dynamic>?>? _partySubscription;
@@ -97,6 +98,16 @@ class PartyProvider with ChangeNotifier {
   Map<String, dynamic> get memberWagers => _activeChallenge != null
       ? (_activeChallenge!['wagers'] as Map<String, dynamic>? ?? {})
       : {};
+
+  List<String> get optedOutMembers => hasPendingChallenge
+      ? List<String>.from(_activeChallenge?['optedOutMembers'] ?? [])
+      : [];
+
+  bool get isCurrentUserOptedOut =>
+      optedOutMembers.contains(_auth.currentUser?.uid);
+
+  // Add this getter to retrieve the current user's ID
+  String? get currentUserId => _auth.currentUser?.uid;
 
   PartyProvider({
     PartyMembersService? membersService,
@@ -402,6 +413,16 @@ class PartyProvider with ChangeNotifier {
     if (_isDisposed || _partyId == null || !isCurrentUserPartyLeader) return;
     if (!hasActiveChallenge || _activeChallenge?['state'] != 'pending') return;
 
+    // Prevent starting if not all members are ready
+    if (!areAllMembersReady) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+        content: Text(
+            'Cannot start challenge until all members have locked in or opted out.'),
+        backgroundColor: Colors.red,
+      ));
+      return;
+    }
+
     setLoading(true);
     try {
       final now = DateTime.now();
@@ -446,6 +467,77 @@ class PartyProvider with ChangeNotifier {
       setLoading(false);
     }
   }
+
+  // Add this to PartyProvider class
+  Future<void> optOutMember() async {
+    if (_isDisposed || _partyId == null) return;
+
+    try {
+      final userId = _auth.currentUser?.uid;
+      if (userId == null) return;
+
+      // Update in Firestore - adds to both arrays in one operation
+      await _firestore.collection('parties').doc(_partyId).update({
+        'activeChallenge.optedOutMembers': FieldValue.arrayUnion([userId]),
+      });
+
+      // No need to manually update local state - it will update via the stream
+    } catch (e) {
+      print('Error opting out member: $e');
+    }
+  }
+
+  void undoOptOutMember() async {
+    final userId = currentUserId;
+    if (userId == null || _partyId == null) return;
+
+    try {
+      // Remove the user from optedOutMembers in Firestore
+      await _firestore.collection('parties').doc(_partyId).update({
+        'activeChallenge.optedOutMembers': FieldValue.arrayRemove([userId]),
+      });
+
+      // Update local state
+      optedOutMembers.remove(userId);
+      notifyListeners();
+    } catch (e) {
+      print('Error undoing opt-out: $e');
+    }
+  }
+
+  void undoLockInMember() async {
+    final userId = currentUserId;
+    if (userId == null || _partyId == null) return;
+
+    try {
+      // Remove the user from lockedInMembers in Firestore
+      await _firestore.collection('parties').doc(_partyId).update({
+        'activeChallenge.lockedInMembers': FieldValue.arrayRemove([userId]),
+      });
+
+      // Update local state
+      lockedInMembers.remove(userId);
+      notifyListeners();
+    } catch (e) {
+      print('Error undoing lock-in: $e');
+    }
+  }
+
+  bool get areAllMembersReady {
+    if (!hasPendingChallenge) return false;
+
+    // Check if each member is either locked in or opted out
+    for (final memberId in _members) {
+      if (!lockedInMembers.contains(memberId) &&
+          !optedOutMembers.contains(memberId)) {
+        return false;
+      }
+    }
+
+    return true;
+  }
+
+  //END CHALLENGE SECTION ----------------------------------------------------------------------------------------------------------
 
   // Fetch member details
   Future<void> fetchMemberDetails() async {

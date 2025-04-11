@@ -243,27 +243,49 @@ class PartyInfoScreen extends StatelessWidget {
                         'Unknown';
                     final isLockedIn =
                         partyProvider.lockedInMembers.contains(memberId);
+                    final isOptedOut =
+                        partyProvider.optedOutMembers.contains(memberId);
+
                     return Padding(
                       padding: EdgeInsets.only(bottom: 4),
                       child: Row(
                         children: [
                           Icon(
-                            isLockedIn
-                                ? Icons.check_circle
-                                : Icons.circle_outlined,
-                            color: isLockedIn ? Colors.green : Colors.grey,
+                            isOptedOut
+                                ? Icons.not_interested
+                                : isLockedIn
+                                    ? Icons.check_circle
+                                    : Icons.circle_outlined,
+                            color: isOptedOut
+                                ? Colors.orange
+                                : isLockedIn
+                                    ? Colors.green
+                                    : Colors.grey,
                             size: 18,
                           ),
                           SizedBox(width: 8),
                           Text(name,
                               style: TextStyle(
-                                color: isLockedIn ? Colors.black : Colors.grey,
+                                color: isOptedOut
+                                    ? Colors.orange.shade800
+                                    : isLockedIn
+                                        ? Colors.black
+                                        : Colors.grey,
                               )),
                           Spacer(),
-                          Text(isLockedIn ? 'Ready' : 'Waiting',
+                          Text(
+                              isOptedOut
+                                  ? 'Opted out'
+                                  : isLockedIn
+                                      ? 'Ready'
+                                      : 'Waiting',
                               style: TextStyle(
                                 fontStyle: FontStyle.italic,
-                                color: isLockedIn ? Colors.green : Colors.grey,
+                                color: isOptedOut
+                                    ? Colors.orange
+                                    : isLockedIn
+                                        ? Colors.green
+                                        : Colors.grey,
                               )),
                         ],
                       ),
@@ -285,10 +307,14 @@ class PartyInfoScreen extends StatelessWidget {
                         icon: Icon(Icons.play_arrow),
                         label: Text('Start Challenge'),
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.green,
+                          backgroundColor: partyProvider.areAllMembersReady
+                              ? Colors.green
+                              : Colors.grey,
                           foregroundColor: Colors.white,
                         ),
-                        onPressed: () => _confirmStartChallenge(context),
+                        onPressed: partyProvider.areAllMembersReady
+                            ? () => _confirmStartChallenge(context)
+                            : null, // Button is disabled when not all members are ready
                       ),
                     ],
                   ),
@@ -297,28 +323,68 @@ class PartyInfoScreen extends StatelessWidget {
 
             // Lock in button (for regular members)
             if (!partyProvider.isCurrentUserPartyLeader)
-              Center(
-                child: ElevatedButton.icon(
-                  icon: Icon(
-                    partyProvider.isCurrentUserLockedIn
-                        ? Icons.check
-                        : Icons.lock_outline,
-                  ),
-                  label: Text(
-                    partyProvider.isCurrentUserLockedIn
-                        ? 'Goals Locked In'
-                        : 'Lock In My Goals',
-                  ),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: partyProvider.isCurrentUserLockedIn
-                        ? Colors.grey
-                        : Theme.of(context).colorScheme.primary,
-                    foregroundColor: Colors.white,
-                  ),
-                  onPressed: partyProvider.isCurrentUserLockedIn
-                      ? null
-                      : () => _lockInMemberGoals(context),
-                ),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                children: [
+                  if (partyProvider.isCurrentUserOptedOut ||
+                      partyProvider.isCurrentUserLockedIn)
+                    Column(
+                      children: [
+                        Text(
+                          partyProvider.isCurrentUserOptedOut
+                              ? 'You have opted out for this week.'
+                              : 'Your goals are locked in.',
+                          style: TextStyle(
+                            color: partyProvider.isCurrentUserOptedOut
+                                ? Colors.orange
+                                : Colors.green,
+                          ),
+                        ),
+                        ElevatedButton.icon(
+                          icon: const Icon(Icons.undo),
+                          label: const Text('Cancel'),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor:
+                                Theme.of(context).colorScheme.primary,
+                            foregroundColor: Colors.white,
+                          ),
+                          onPressed: () => _cancelStatus(context),
+                        ),
+                      ],
+                    )
+                  else ...[
+                    ElevatedButton.icon(
+                      icon: const Icon(Icons.skip_next),
+                      label: const Text('Opt Out This Week'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.grey[600],
+                        foregroundColor: Colors.white,
+                      ),
+                      onPressed: () => _optOutForWeek(context),
+                    ),
+                    ElevatedButton.icon(
+                      icon: Icon(
+                        partyProvider.isCurrentUserLockedIn
+                            ? Icons.check
+                            : Icons.lock_outline,
+                      ),
+                      label: Text(
+                        partyProvider.isCurrentUserLockedIn
+                            ? 'Goals Locked In'
+                            : 'Lock In My Goals',
+                      ),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: partyProvider.isCurrentUserLockedIn
+                            ? Colors.grey
+                            : Theme.of(context).colorScheme.primary,
+                        foregroundColor: Colors.white,
+                      ),
+                      onPressed: partyProvider.isCurrentUserLockedIn
+                          ? null
+                          : () => _lockInMemberGoals(context),
+                    ),
+                  ],
+                ],
               ),
           ],
         ),
@@ -417,6 +483,32 @@ class PartyInfoScreen extends StatelessWidget {
     final partyProvider = Provider.of<PartyProvider>(context, listen: false);
 
     goalsProvider.showLockInDialogAndLockGoals(context, partyProvider.partyId);
+  }
+
+  void _optOutForWeek(BuildContext context) {
+    final partyProvider = Provider.of<PartyProvider>(context, listen: false);
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        // Existing code...
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            onPressed: () {
+              Navigator.pop(context);
+              Utils.showFeedback(context, 'Opting out for this week...');
+              partyProvider.optOutMember(); // Uncomment this
+            },
+            child: const Text('Opt Out'),
+          ),
+        ],
+      ),
+    );
   }
 
   // Confirm starting the challenge
@@ -579,5 +671,23 @@ class PartyInfoScreen extends StatelessWidget {
         ],
       ),
     );
+  }
+
+  void _undoOptOut(BuildContext context) {
+    final partyProvider = Provider.of<PartyProvider>(context, listen: false);
+
+    Utils.showFeedback(context, 'Undoing opt-out...');
+    partyProvider.undoOptOutMember();
+  }
+
+  void _cancelStatus(BuildContext context) {
+    final partyProvider = Provider.of<PartyProvider>(context, listen: false);
+
+    Utils.showFeedback(context, 'Canceling status...');
+    if (partyProvider.isCurrentUserOptedOut) {
+      partyProvider.undoOptOutMember();
+    } else if (partyProvider.isCurrentUserLockedIn) {
+      partyProvider.undoLockInMember();
+    }
   }
 }

@@ -22,92 +22,17 @@
 
   <!-- iOS meta tags & icons -->
   <meta name="mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black">
-  <meta name="apple-mobile-web-app-title" content="Accountabilibuddies">
+  <meta name="apple-mobile-web-app-title" content="auth_test">
   <link rel="apple-touch-icon" href="icons/Icon-192.png">
 
   <!-- Favicon -->
   <link rel="icon" type="image/png" href="favicon.png"/>
 
-  <title>Accountabilibuddies</title>
+  <title>auth_test</title>
   <link rel="manifest" href="manifest.json">
-
-  <style>
-    /* Dark theme styles for loading screen and web app */
-    body {
-      background-color: #121212; /* Dark background */
-      margin: 0;
-      padding: 0;
-      font-family: sans-serif;
-      color: white;
-    }
-    
-    /* Loading indicator styling */
-    .loading {
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      height: 100vh;
-      width: 100vw;
-      flex-direction: column;
-    }
-    
-    .loader {
-      border: 8px solid #1E1E1E; /* Dark surface color */
-      border-radius: 50%;
-      border-top: 8px solid #4169E1; /* Royal blue - accent color */
-      width: 60px;
-      height: 60px;
-      animation: spin 2s linear infinite;
-    }
-    
-    .loader-text {
-      margin-top: 20px;
-      font-size: 18px;
-      color: white;
-    }
-    
-    @keyframes spin {
-      0% { transform: rotate(0deg); }
-      100% { transform: rotate(360deg); }
-    }
-    
-    /* Ensure dark theme scrollbar for better visual integration */
-    ::-webkit-scrollbar {
-      width: 8px;
-      height: 8px;
-    }
-    
-    ::-webkit-scrollbar-track {
-      background: #1E1E1E;
-    }
-    
-    ::-webkit-scrollbar-thumb {
-      background: #4169E1;
-      border-radius: 4px;
-    }
-    
-    /* Force dark theme on system-level components */
-    html {
-      color-scheme: dark;
-    }
-  </style>
 </head>
 <body>
-  <!-- Loading indicator before Flutter loads -->
-  <div id="loading" class="loading">
-    <div class="loader"></div>
-    <div class="loader-text">Loading Accountabilibuddies...</div>
-  </div>
-
-  <script>
-    // Hide loading indicator once Flutter is initialized
-    window.addEventListener('flutter-first-frame', function() {
-      document.getElementById('loading').style.display = 'none';
-    });
-  </script>
-  
   <script src="flutter_bootstrap.js" async></script>
 </body>
 </html>

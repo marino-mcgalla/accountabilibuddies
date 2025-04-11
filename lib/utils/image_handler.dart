@@ -53,8 +53,8 @@ class ImageHandler {
         final compressedSize = compressedBytes.length;
 
         // Log to the console
-        // print('Original Size: $originalSize bytes');
-        // print('Compressed Size: $compressedSize bytes');
+        print('Original Size: $originalSize bytes');
+        print('Compressed Size: $compressedSize bytes');
 
         // Use FirebaseStorageUtil to upload the file
         downloadUrl = await _storageUtil.uploadBytes(compressedBytes);
@@ -65,14 +65,14 @@ class ImageHandler {
         final compressedSize = await getFileSize(compressedFile);
 
         // Log to the console
-        // print('Original Size: $originalSize bytes');
-        // print('Compressed Size: $compressedSize bytes');
+        print('Original Size: $originalSize bytes');
+        print('Compressed Size: $compressedSize bytes');
 
         // Use FirebaseStorageUtil to upload the file
         downloadUrl = await _storageUtil.uploadFile(compressedFile);
       }
       onUploadSuccess(downloadUrl);
-      // print('Upload successful');
+      print('Upload successful');
     } catch (e) {
       onUploadFailure('Operation failed: $e');
       print('Operation failed: $e');

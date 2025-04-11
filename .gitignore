@@ -47,4 +47,3 @@ app.*.map.json
 
 # Firebase Hosting cache file
 hosting.*.cache
-.vscode/settings.json

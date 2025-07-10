@@ -23,7 +23,7 @@ class PartyMembersService {
 
     QuerySnapshot userQuery = await _firestore
         .collection('users')
-        .where('email', isEqualTo: inviteeEmail) //TODO: add username as well
+        .where('email', isEqualTo: inviteeEmail)
         .get();
 
     if (userQuery.docs.isEmpty) {
@@ -52,12 +52,13 @@ class PartyMembersService {
   Future<Map<String, Map<String, dynamic>>> fetchMemberDetails(
       List<String> members) async {
     Map<String, Map<String, dynamic>> memberDetails = {};
-
+    
     for (String memberId in members) {
       DocumentSnapshot userDoc =
           await _firestore.collection('users').doc(memberId).get();
       if (userDoc.exists) {
-        memberDetails[memberId] = userDoc.data() as Map<String, dynamic>;
+        final data = userDoc.data() as Map<String, dynamic>;
+        memberDetails[memberId] = data;
       }
     }
 

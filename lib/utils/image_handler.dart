@@ -75,7 +75,7 @@ class ImageHandler {
       // print('Upload successful');
     } catch (e) {
       onUploadFailure('Operation failed: $e');
-      print('Operation failed: $e');
+      // Operation failed
     }
   }
 }

@@ -85,7 +85,7 @@ class ProofItem extends StatelessWidget {
           imageUrl = proof.imageUrl;
         }
       } catch (e) {
-        debugPrint('Error accessing weekly proof details: $e');
+        // Error accessing weekly proof details
       }
     }
 
@@ -276,7 +276,7 @@ class ProofItem extends StatelessWidget {
         imageUrl = proofObj?.imageUrl;
       }
     } catch (e) {
-      debugPrint('Error accessing total goal proof details: $e');
+      // Error accessing total goal proof details
     }
 
     // Format submission date if available

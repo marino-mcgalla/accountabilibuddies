@@ -1,13 +1,9 @@
-import 'package:auth_test/features/party/screens/party_screen.dart';
+import 'package:auth_test/features/challenge/screens/simple_dashboard.dart';
 import 'package:firebase_auth/firebase_auth.dart' hide EmailAuthProvider;
 import 'package:firebase_ui_auth/firebase_ui_auth.dart';
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
 import '../../core/routing/app_scaffold.dart';
-import '../../../screens/home/home_screen.dart';
 import '../services/auth_service.dart';
-import '../../goals/providers/goals_provider.dart';
-import '../../party/providers/party_provider.dart';
 
 class AuthGate extends StatelessWidget {
   const AuthGate({super.key});
@@ -82,22 +78,9 @@ class _AuthenticatedFlowState extends State<_AuthenticatedFlow> {
       );
     }
 
-    // Initialize providers once when the user logs in
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      try {
-        final goalsProvider =
-            Provider.of<GoalsProvider>(context, listen: false);
-        final partyProvider =
-            Provider.of<PartyProvider>(context, listen: false);
+    // New providers automatically initialize streams in constructor
 
-        goalsProvider.initializeGoalsListener();
-        partyProvider.initializePartyState();
-      } catch (e) {
-        print('Error initializing providers: $e');
-      }
-    });
-
-    return const AppScaffold(child: PartyScreen());
+    return const AppScaffold(child: SimpleDashboard());
   }
 }
 
@@ -105,15 +88,7 @@ class _AuthenticatedFlowState extends State<_AuthenticatedFlow> {
 class _UnauthenticatedFlow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
-    // Reset state of providers when user logs out
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      try {
-        Provider.of<GoalsProvider>(context, listen: false).resetState();
-        Provider.of<PartyProvider>(context, listen: false).resetState();
-      } catch (e) {
-        print('Error resetting providers: $e');
-      }
-    });
+    // New providers automatically handle state cleanup via streams
 
     return Scaffold(
       body: SignInScreen(

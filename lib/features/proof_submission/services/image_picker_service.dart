@@ -44,7 +44,7 @@ class ImagePickerService {
         // Fall back to alternative method if direct access fails
         return _webImagePickerService.takePhotoFallback();
       } catch (e) {
-        debugPrint('Error taking photo on web: $e');
+        // Error taking photo on web
         return _webImagePickerService.takePhotoFallback();
       }
     } else {

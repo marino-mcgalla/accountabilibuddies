@@ -1,7 +1,7 @@
 // lib/features/goals/services/proof_service.dart
 import '../models/goal_model.dart';
-import '../models/total_goal.dart';
-import '../models/weekly_goal.dart';
+// import '../models/total_goal.dart';  // Removed - using unified Goal model
+// import '../models/weekly_goal.dart';  // Removed - using unified Goal model
 import '../repositories/goals_repository.dart';
 import '../../time_machine/providers/time_machine_provider.dart';
 
@@ -14,11 +14,18 @@ class ProofService {
   Future<void> submitProof(List<Goal> currentGoals, String goalId,
       String proofText, String? imageUrl, bool yesterday) async {
     String? userId =
-        _repository.getCurrentUserId(); //TODO: replace this with _auth.userId
-    if (userId == null) return;
+        _repository.getCurrentUserId();
+    if (userId == null) {
+      print('DEBUG: No userId found, cannot submit proof');
+      return;
+    }
 
+    print('DEBUG: Submitting proof for goalId: $goalId, userId: $userId');
     int index = currentGoals.indexWhere((goal) => goal.id == goalId);
-    if (index == -1) return;
+    if (index == -1) {
+      print('DEBUG: Goal not found in currentGoals');
+      return;
+    }
 
     // Create working copy
     final updatedGoals = List<Goal>.from(currentGoals);
@@ -29,40 +36,45 @@ class ProofService {
         ? _timeMachineProvider.now.subtract(Duration(days: 1))
         : _timeMachineProvider.now;
 
-    // Let the goal handle its own proof logic
-    goal.addProof(proofText, imageUrl, submissionDate);
+    print('DEBUG: Adding proof to goal: ${goal.goalName}, type: ${goal.goalType}');
+    // Let the goal handle its own proof logic - this returns a new goal instance
+    updatedGoals[index] = goal.addProof(proofText, imageUrl, submissionDate);
 
+    print('DEBUG: Goal challengeData after addProof: ${updatedGoals[index].challengeData}');
+    
     // Save to Firebase
+    print('DEBUG: Saving goals to Firebase');
     await _repository.saveGoals(userId, updatedGoals);
+    print('DEBUG: Proof submission completed');
   }
 
-// In ProofService
-  Future<void> denyProof(Goal goal, String? proofDate) async {
-    // Just update the model - business logic only
-    if (goal.goalType == 'weekly' && proofDate != null) {
-      goal.challenge ??= {'completions': {}, 'proofs': {}};
+  Future<void> denyProof(List<Goal> currentGoals, String goalId, String? proofDate) async {
+    String? userId = _repository.getCurrentUserId();
+    if (userId == null) {
+      print('DEBUG: No userId found, cannot deny proof');
+      return;
+    }
 
-      // Update completions to denied
-      Map<String, dynamic> completions =
-          goal.challenge!['completions'] as Map<String, dynamic>? ?? {};
-      completions[proofDate] = 'denied';
-      goal.challenge!['completions'] = completions;
+    print('DEBUG: Denying proof for goalId: $goalId, proofDate: $proofDate');
+    int index = currentGoals.indexWhere((goal) => goal.id == goalId);
+    if (index == -1) {
+      print('DEBUG: Goal not found in currentGoals');
+      return;
+    }
 
-      // Remove the proof
-      if (goal.challenge!['proofs'] is Map) {
-        (goal.challenge!['proofs'] as Map).remove(proofDate);
-      }
-    } else if (goal.goalType == 'total') {
-      goal.challenge ??= {'completions': {}, 'proofs': []};
+    // Create working copy
+    final updatedGoals = List<Goal>.from(currentGoals);
+    Goal goal = updatedGoals[index];
 
-      // Remove first pending proof
-      if (goal.challenge!['proofs'] is List) {
-        List proofs = goal.challenge!['proofs'] as List;
-        int pendingIndex = proofs.indexWhere((p) => p['status'] == 'pending');
-        if (pendingIndex != -1) {
-          proofs.removeAt(pendingIndex);
-        }
-      }
+    if (proofDate != null) {
+      // For weekly goals, use the proofDate; for total goals, find the proof by date
+      String proofId = '${goalId}_${proofDate}_*'; // Simplified proof ID pattern
+      updatedGoals[index] = goal.denyProof(proofId, proofDate);
+      
+      // Save to Firebase
+      print('DEBUG: Saving goals to Firebase after denial');
+      await _repository.saveGoals(userId, updatedGoals);
+      print('DEBUG: Proof denial completed');
     }
   }
 }

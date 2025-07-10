@@ -85,12 +85,35 @@ class _UserInfoScreenState extends State<UserInfoScreen> {
     final isSmallScreen = screenWidth < 600;
 
     return Scaffold(
-      appBar: AppBar(title: const Text("User Info")),
-      body: Padding(
+      appBar: AppBar(
+        title: const Text("Profile"),
+        elevation: 0,
+      ),
+      body: SingleChildScrollView(
         padding: EdgeInsets.all(isSmallScreen ? 16.0 : 24.0),
         child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
+            const SizedBox(height: 20),
+            
+            // Header section
+            Text(
+              "Your Profile",
+              style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                fontWeight: FontWeight.bold,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 8),
+            Text(
+              "Set your display name to show to other party members",
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7),
+              ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 32),
+            
             if (_username != null && _username!.isNotEmpty) ...[
               // Profile display mode
               Card(
@@ -108,35 +131,66 @@ class _UserInfoScreenState extends State<UserInfoScreen> {
                         backgroundColor: Theme.of(context)
                             .colorScheme
                             .primary
-                            .withOpacity(0.2),
-                        child: Icon(
-                          Icons.person,
-                          size: isSmallScreen ? 48 : 40,
-                          color: Theme.of(context).colorScheme.primary,
+                            .withValues(alpha: 0.2),
+                        child: Text(
+                          _username!.isNotEmpty ? _username![0].toUpperCase() : '?',
+                          style: TextStyle(
+                            fontSize: isSmallScreen ? 32 : 28,
+                            fontWeight: FontWeight.bold,
+                            color: Theme.of(context).colorScheme.primary,
+                          ),
                         ),
                       ),
                       const SizedBox(height: 16),
 
                       // Username display
                       Text(
-                        "Username: $_username",
+                        _username!,
                         style: TextStyle(
-                          fontSize: isSmallScreen ? 20 : 18,
+                          fontSize: isSmallScreen ? 24 : 20,
                           fontWeight: FontWeight.bold,
                         ),
                       ),
+                      const SizedBox(height: 4),
+                      Text(
+                        "Display Name",
+                        style: TextStyle(
+                          fontSize: isSmallScreen ? 14 : 12,
+                          color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
+                        ),
+                      ),
 
-                      const SizedBox(height: 8),
+                      const SizedBox(height: 16),
 
                       // Email display if available
-                      if (_auth.currentUser?.email != null)
-                        Text(
-                          "Email: ${_auth.currentUser!.email}",
-                          style: TextStyle(
-                            fontSize: isSmallScreen ? 16 : 14,
-                            color: Colors.grey[600],
+                      if (_auth.currentUser?.email != null) ...[
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                          decoration: BoxDecoration(
+                            color: Theme.of(context).colorScheme.surfaceContainerHighest,
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                Icons.email_outlined,
+                                size: 16,
+                                color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
+                              ),
+                              const SizedBox(width: 8),
+                              Text(
+                                _auth.currentUser!.email!,
+                                style: TextStyle(
+                                  fontSize: isSmallScreen ? 14 : 12,
+                                  color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.8),
+                                ),
+                              ),
+                            ],
                           ),
                         ),
+                        const SizedBox(height: 8),
+                      ],
 
                       const SizedBox(height: 24),
 
@@ -148,7 +202,7 @@ class _UserInfoScreenState extends State<UserInfoScreen> {
                           });
                         },
                         icon: const Icon(Icons.edit),
-                        label: const Text("Edit Username"),
+                        label: const Text("Edit Display Name"),
                         style: ElevatedButton.styleFrom(
                           padding: EdgeInsets.symmetric(
                             horizontal: 24,
@@ -171,24 +225,40 @@ class _UserInfoScreenState extends State<UserInfoScreen> {
                   padding: EdgeInsets.all(isSmallScreen ? 24.0 : 16.0),
                   child: Column(
                     children: [
+                      Icon(
+                        Icons.edit,
+                        size: 48,
+                        color: Theme.of(context).colorScheme.primary,
+                      ),
+                      const SizedBox(height: 16),
                       Text(
-                        "Set Your Username",
+                        "Set Your Display Name",
                         style: TextStyle(
                           fontSize: isSmallScreen ? 20 : 18,
                           fontWeight: FontWeight.bold,
                         ),
                       ),
+                      const SizedBox(height: 8),
+                      Text(
+                        "This is how other party members will see you",
+                        style: TextStyle(
+                          fontSize: isSmallScreen ? 14 : 12,
+                          color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
                       const SizedBox(height: 24),
                       TextField(
                         controller: _usernameController,
                         decoration: InputDecoration(
-                          labelText: "Username",
+                          labelText: "Display Name",
                           border: const OutlineInputBorder(),
                           errorText: _errorMessage,
                           contentPadding: EdgeInsets.symmetric(
                             horizontal: 16.0,
                             vertical: isSmallScreen ? 16.0 : 12.0,
                           ),
+                          helperText: "e.g., John, Sarah, Mike123",
                         ),
                         style: TextStyle(fontSize: isSmallScreen ? 16 : 14),
                         textInputAction: TextInputAction.done,
@@ -197,16 +267,38 @@ class _UserInfoScreenState extends State<UserInfoScreen> {
                       const SizedBox(height: 24),
                       _isLoading
                           ? const CircularProgressIndicator()
-                          : ElevatedButton.icon(
-                              onPressed: _saveUsername,
-                              icon: const Icon(Icons.save),
-                              label: const Text("Save Username"),
-                              style: ElevatedButton.styleFrom(
-                                padding: EdgeInsets.symmetric(
-                                  horizontal: 24,
-                                  vertical: isSmallScreen ? 12 : 8,
+                          : Row(
+                              children: [
+                                if (_username != null) ...[
+                                  Expanded(
+                                    child: TextButton(
+                                      onPressed: () {
+                                        setState(() {
+                                          _username = _usernameController.text.isNotEmpty 
+                                              ? _usernameController.text 
+                                              : _username;
+                                        });
+                                      },
+                                      child: const Text("Cancel"),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 12),
+                                ],
+                                Expanded(
+                                  flex: 2,
+                                  child: ElevatedButton.icon(
+                                    onPressed: _saveUsername,
+                                    icon: const Icon(Icons.save),
+                                    label: const Text("Save"),
+                                    style: ElevatedButton.styleFrom(
+                                      padding: EdgeInsets.symmetric(
+                                        horizontal: 24,
+                                        vertical: isSmallScreen ? 12 : 8,
+                                      ),
+                                    ),
+                                  ),
                                 ),
-                              ),
+                              ],
                             ),
                     ],
                   ),

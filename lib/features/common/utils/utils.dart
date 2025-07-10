@@ -50,7 +50,7 @@ class Utils {
       }
     } catch (e) {
       // If we can't show the feedback (context issue, etc), just print to console
-      print('Could not show feedback: $message');
+      // Could not show feedback
     }
   }
 

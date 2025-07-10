@@ -238,7 +238,8 @@ class PartyInfoScreen extends StatelessWidget {
                   SizedBox(height: 8),
                   ...members.map((memberId) {
                     final name = partyProvider.memberDetails[memberId]
-                            ?['username'] ??
+                            ?['displayName'] ??
+                        partyProvider.memberDetails[memberId]?['username'] ??
                         partyProvider.memberDetails[memberId]?['email'] ??
                         'Unknown';
                     final isLockedIn =

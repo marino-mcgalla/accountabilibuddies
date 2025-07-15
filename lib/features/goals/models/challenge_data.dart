@@ -4,22 +4,26 @@ class ChallengeData {
   final Map<String, String> completions; // date -> 'pending'|'completed'|'denied'|'skipped'
   final List<Proof> proofs; // For total goals
   final Map<String, Proof> dailyProofs; // For weekly goals (date -> proof)
+  final Set<int> plannedDays; // For daily goals - which days of week (1-7, Mon-Sun) are planned
 
   const ChallengeData({
     this.completions = const {},
     this.proofs = const [],
     this.dailyProofs = const {},
+    this.plannedDays = const {},
   });
 
   ChallengeData copyWith({
     Map<String, String>? completions,
     List<Proof>? proofs,
     Map<String, Proof>? dailyProofs,
+    Set<int>? plannedDays,
   }) {
     return ChallengeData(
       completions: completions ?? this.completions,
       proofs: proofs ?? this.proofs,
       dailyProofs: dailyProofs ?? this.dailyProofs,
+      plannedDays: plannedDays ?? this.plannedDays,
     );
   }
 
@@ -28,6 +32,7 @@ class ChallengeData {
       'completions': completions,
       'proofs': proofs.map((proof) => proof.toMap()).toList(),
       'dailyProofs': dailyProofs.map((key, proof) => MapEntry(key, proof.toMap())),
+      'plannedDays': plannedDays.toList(),
     };
   }
 
@@ -48,11 +53,19 @@ class ChallengeData {
       dailyProofs = dailyProofsData.map((key, proofData) => 
           MapEntry(key, Proof.fromMap(proofData)));
     }
+    
+    // Handle planned days
+    final plannedDaysData = data['plannedDays'] ?? [];
+    Set<int> plannedDays = {};
+    if (plannedDaysData is List) {
+      plannedDays = Set<int>.from(plannedDaysData.cast<int>());
+    }
 
     return ChallengeData(
       completions: completions,
       proofs: proofs,
       dailyProofs: dailyProofs,
+      plannedDays: plannedDays,
     );
   }
 
@@ -89,6 +102,7 @@ class ChallengeData {
       completions: completions,
       proofs: proofs,
       dailyProofs: dailyProofs,
+      plannedDays: const {}, // Legacy data doesn't have planned days
     );
   }
 
@@ -111,6 +125,7 @@ class ChallengeData {
       completions: completions,
       proofs: [],
       dailyProofs: {},
+      plannedDays: const {}, // Legacy data doesn't have planned days
     );
   }
 

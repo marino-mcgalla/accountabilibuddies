@@ -125,7 +125,7 @@ class MyGoalsScreen extends StatelessWidget {
   Widget _buildGoalCard(BuildContext context, Goal goal) {
     int completionsCount = 0;
     if (goal.challengeData != null) {
-      if (goal.goalType == 'daily') {
+      if (goal.goalType == GoalType.daily) {
         completionsCount = goal.challengeData!.totalCompletions;
       } else {
         completionsCount = goal.challengeData!.proofs
@@ -168,7 +168,7 @@ class MyGoalsScreen extends StatelessWidget {
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Text(
-                  goal.goalType == 'daily' ? 'Daily' : 'Total',
+                  goal.goalType == GoalType.daily ? 'Daily' : 'Total',
                   style: TextStyle(
                     color: goal.isCompleted ? Colors.green[700] : Colors.blue[700],
                     fontSize: 12,
@@ -216,6 +216,12 @@ class MyGoalsScreen extends StatelessWidget {
                   : Theme.of(context).colorScheme.primary,
             ),
           ),
+          
+          // Add planning interface for daily goals
+          if (goal.goalType == GoalType.daily) ...[
+            const SizedBox(height: 16),
+            _buildPlanningSection(context, goal),
+          ],
         ],
       ),
     );
@@ -443,5 +449,223 @@ class MyGoalsScreen extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  Widget _buildPlanningSection(BuildContext context, Goal goal) {
+    final plannedDays = goal.challengeData?.plannedDays ?? <int>{};
+    final maxPlanned = goal.goalFrequency;
+    
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(
+              'Weekly Plan',
+              style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            Text(
+              '${plannedDays.length}/$maxPlanned planned',
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        Text(
+          'Tap days to plan when you\'ll complete this goal',
+          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+            color: Theme.of(context).colorScheme.onSurfaceVariant,
+          ),
+        ),
+        const SizedBox(height: 12),
+        
+        // Day selector row
+        Row(
+          children: [
+            for (int day = 1; day <= 7; day++) ...[
+              Expanded(
+                child: _buildDaySelector(context, goal, day, plannedDays, maxPlanned),
+              ),
+              if (day < 7) const SizedBox(width: 4),
+            ],
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _buildDaySelector(BuildContext context, Goal goal, int dayOfWeek, Set<int> plannedDays, int maxPlanned) {
+    final dayNames = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
+    final dayName = dayNames[dayOfWeek - 1];
+    final isPlanned = plannedDays.contains(dayOfWeek);
+    
+    // Get current status for this day
+    final now = DateTime.now();
+    final mondayOfWeek = now.subtract(Duration(days: now.weekday - 1));
+    final dateForDay = mondayOfWeek.add(Duration(days: dayOfWeek - 1));
+    final dateString = dateForDay.toIso8601String().split('T')[0];
+    final completionStatus = goal.challengeData?.getCompletionStatus(dateString) ?? 'not_attempted';
+    
+    // Check if there's an actual proof for this day
+    final hasProof = goal.challengeData?.dailyProofs.containsKey(dateString) ?? false;
+    
+    // Determine if user can interact with this day
+    bool canToggle = true;
+    if (completionStatus == 'completed') {
+      canToggle = false; // Can't change completed days
+    } else if (completionStatus == 'pending' || completionStatus == 'denied') {
+      canToggle = true; // Can change, but will show warning
+    } else {
+      canToggle = isPlanned || plannedDays.length < maxPlanned; // Normal planning rules
+    }
+    
+    // Determine color based on status and planning (prioritize actual status over planning)
+    Color backgroundColor;
+    Color textColor;
+    
+    if (completionStatus == 'completed') {
+      backgroundColor = Colors.green;
+      textColor = Colors.white;
+    } else if (completionStatus == 'pending') {
+      backgroundColor = Colors.yellow[700]!;
+      textColor = Colors.black;
+    } else if (completionStatus == 'denied') {
+      backgroundColor = Colors.red;
+      textColor = Colors.white;
+    } else if (isPlanned) {
+      backgroundColor = Colors.blue;
+      textColor = Colors.white;
+    } else {
+      backgroundColor = Theme.of(context).colorScheme.surfaceContainerHighest;
+      textColor = Theme.of(context).colorScheme.onSurfaceVariant;
+    }
+    
+    return GestureDetector(
+      onTap: canToggle ? () => _handleDayTap(context, goal, dayOfWeek, plannedDays, completionStatus, hasProof, dateString) : null,
+      child: Container(
+        height: 40,
+        decoration: BoxDecoration(
+          color: backgroundColor,
+          borderRadius: BorderRadius.circular(8),
+          border: isPlanned && completionStatus == 'not_attempted' 
+              ? Border.all(color: Colors.blue[300]!, width: 2)
+              : null,
+        ),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Text(
+              dayName,
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.bold,
+                color: textColor,
+              ),
+            ),
+            if (completionStatus != 'not_attempted') ...[
+              const SizedBox(height: 2),
+              Icon(
+                completionStatus == 'completed' ? Icons.check 
+                    : completionStatus == 'pending' ? Icons.hourglass_empty
+                    : Icons.close,
+                size: 12,
+                color: textColor,
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _handleDayTap(BuildContext context, Goal goal, int dayOfWeek, Set<int> currentPlanned, String completionStatus, bool hasProof, String dateString) async {
+    final provider = Provider.of<SimpleGoalsProvider>(context, listen: false);
+    
+    // If there's a pending or denied proof, show warning dialog
+    if (completionStatus == 'pending' || completionStatus == 'denied') {
+      final shouldProceed = await _showProofWarningDialog(context, completionStatus, dateString);
+      if (!shouldProceed) return;
+      
+      // User wants to remove proof and mark as planned - need to implement proof removal
+      // For now, just show a message that this functionality is coming
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Proof removal coming soon. Day has ${completionStatus} proof.'),
+            backgroundColor: Colors.orange,
+          ),
+        );
+      }
+      return;
+    }
+    
+    // Normal planning toggle
+    final isPlanned = currentPlanned.contains(dayOfWeek);
+    Set<int> newPlanned = Set<int>.from(currentPlanned);
+    
+    if (isPlanned) {
+      newPlanned.remove(dayOfWeek);
+    } else {
+      if (newPlanned.length < goal.goalFrequency) {
+        newPlanned.add(dayOfWeek);
+      } else {
+        // Already at max capacity
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('You can only plan ${goal.goalFrequency} days per week for this goal.'),
+              backgroundColor: Colors.orange,
+            ),
+          );
+        }
+        return;
+      }
+    }
+    
+    final success = await provider.updatePlannedDays(goal.id, newPlanned);
+    
+    if (!success && context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Failed to update planned days'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
+  Future<bool> _showProofWarningDialog(BuildContext context, String status, String dateString) async {
+    final result = await showDialog<bool>(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Proof Already Exists'),
+          content: Text(
+            'You already have a ${status} proof for $dateString. '
+            'Do you want to delete the proof and mark this day as planned instead?'
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: const Text('Cancel'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(true),
+              style: TextButton.styleFrom(
+                foregroundColor: Colors.red,
+              ),
+              child: const Text('Delete Proof'),
+            ),
+          ],
+        );
+      },
+    );
+    
+    return result ?? false;
   }
 }

@@ -8,10 +8,22 @@ enum GoalType {
   final String value;
 
   static GoalType fromString(String value) {
-    return GoalType.values.firstWhere(
-      (type) => type.value == value,
-      orElse: () => GoalType.daily,
-    );
+    // Handle legacy values
+    final normalizedValue = value.toLowerCase();
+    switch (normalizedValue) {
+      case 'daily':
+      case 'weekly':
+      case 'frequency':
+        return GoalType.daily;
+      case 'total':
+      case 'count':
+        return GoalType.total;
+      default:
+        return GoalType.values.firstWhere(
+          (type) => type.value == normalizedValue,
+          orElse: () => GoalType.daily,
+        );
+    }
   }
 }
 
@@ -81,11 +93,12 @@ class GoalTemplate {
 
   factory GoalTemplate.fromFirestore(DocumentSnapshot doc) {
     final data = doc.data() as Map<String, dynamic>;
+    final typeValue = data['type'] as String?;
     return GoalTemplate(
       id: doc.id,
       name: data['name'] ?? '',
       description: data['description'] ?? '',
-      type: GoalType.fromString(data['type'] ?? 'frequency'),
+      type: GoalType.fromString(typeValue ?? 'daily'),
       defaultFrequency: data['defaultFrequency'] ?? 1,
       category: data['category'] ?? 'general',
       status: GoalStatus.fromString(data['status'] ?? 'active'),

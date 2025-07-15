@@ -85,9 +85,9 @@ class _SimpleDashboardState extends State<SimpleDashboard> {
                 _buildProofStoriesSection(context, partyProvider),
                 const SizedBox(height: 8),
                 
-                // Challenge Status
+                // Challenge Status or Party Progress
                 if (partyProvider.hasParties)
-                  _buildChallengeStatus(context, partyProvider),
+                  _buildChallengeStatusOrPartyProgress(context, partyProvider),
                 
                 if (partyProvider.hasParties)
                   const SizedBox(height: 16),
@@ -199,12 +199,14 @@ class _SimpleDashboardState extends State<SimpleDashboard> {
     
     // Initialize all party members
     final Map<String, List<Map<String, dynamic>>> proofsPerUser = {};
+    final Map<String, List<Goal>> goalsPerUser = {};
     final Map<String, String> userNames = {};
     
     if (members != null) {
       for (final memberId in members) {
         if (memberId is String) {
           proofsPerUser[memberId] = [];
+          goalsPerUser[memberId] = [];
           userNames[memberId] = userIdToName[memberId] ?? 'User-${memberId.substring(0, 4)}';
         }
       }
@@ -219,12 +221,17 @@ class _SimpleDashboardState extends State<SimpleDashboard> {
       // Ensure user exists in our maps
       if (!proofsPerUser.containsKey(memberId)) {
         proofsPerUser[memberId] = [];
+        goalsPerUser[memberId] = [];
         userNames[memberId] = userIdToName[memberId] ?? 'User-${memberId.substring(0, 4)}';
       }
       
       for (var goalData in userGoals) {
         try {
           final goal = Goal.fromMap(Map<String, dynamic>.from(goalData));
+          
+          // Store all goals for this user
+          goalsPerUser[memberId]!.add(goal);
+          
           final pendingProofs = goal.pendingProofs;
           
           // Add all pending proofs for this goal
@@ -246,12 +253,14 @@ class _SimpleDashboardState extends State<SimpleDashboard> {
     int totalPending = 0;
     for (final userId in proofsPerUser.keys) {
       final proofsList = proofsPerUser[userId] ?? [];
+      final goalsList = goalsPerUser[userId] ?? [];
       totalPending += proofsList.length;
       
       result.add({
         'userId': userId,
         'userName': userNames[userId] ?? 'Unknown',
         'proofs': proofsList,
+        'goals': goalsList,
       });
     }
     
@@ -345,6 +354,336 @@ class _SimpleDashboardState extends State<SimpleDashboard> {
                 ),
               ),
             ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildChallengeStatusOrPartyProgress(BuildContext context, SimplePartyProvider partyProvider) {
+    final firstParty = partyProvider.parties.first;
+    final hasUserLockedIn = partyProvider.hasUserLockedIn(firstParty['id']);
+    
+    // If user is locked in, show party progress instead of challenge status
+    if (hasUserLockedIn) {
+      return _buildPartyProgress(context, partyProvider);
+    } else {
+      return _buildChallengeStatus(context, partyProvider);
+    }
+  }
+
+  Widget _buildPartyProgress(BuildContext context, SimplePartyProvider partyProvider) {
+    // Use the cached member data if available, otherwise show loading
+    if (_cachedMemberProofs == null) {
+      return Card(
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Party Progress',
+                style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(height: 8),
+              const Center(child: CircularProgressIndicator()),
+            ],
+          ),
+        ),
+      );
+    }
+
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Party Progress',
+              style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(height: 12),
+            ..._cachedMemberProofs!.map((memberData) {
+              final userId = memberData['userId'] as String;
+              final userName = memberData['userName'] as String;
+              final proofs = memberData['proofs'] as List<Map<String, dynamic>>;
+              final goals = memberData['goals'] as List<Goal>? ?? [];
+              
+              return _buildMemberProgressRow(context, userId, userName, proofs, goals);
+            }).toList(),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildMemberProgressRow(BuildContext context, String userId, String userName, List<Map<String, dynamic>> proofs, List<Goal> goals) {
+    final currentUserId = Provider.of<SimplePartyProvider>(context, listen: false).currentUserId;
+    final isCurrentUser = userId == currentUserId;
+    int pendingProofsCount = proofs.length;
+    
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: isCurrentUser 
+            ? Theme.of(context).colorScheme.primaryContainer.withValues(alpha: 0.3)
+            : Theme.of(context).colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
+        borderRadius: BorderRadius.circular(8),
+        border: isCurrentUser 
+            ? Border.all(color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.5))
+            : null,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Header with user info
+          Row(
+            children: [
+              // User avatar
+              CircleAvatar(
+                radius: 14,
+                backgroundColor: isCurrentUser ? Theme.of(context).colorScheme.primary : Colors.blue,
+                child: Text(
+                  userName.isNotEmpty 
+                      ? userName.substring(0, 2).toUpperCase()
+                      : '??',
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 11,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 10),
+              
+              Text(
+                isCurrentUser ? '$userName (You)' : userName,
+                style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              
+              if (pendingProofsCount > 0) ...[
+                const SizedBox(width: 8),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: Colors.orange,
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Text(
+                    '$pendingProofsCount',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 10,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+              ],
+            ],
+          ),
+          
+          // Individual goal progress bars
+          if (goals.isNotEmpty) ...[
+            const SizedBox(height: 8),
+            ...goals.map((goal) => _buildIndividualGoalProgress(context, goal)),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildIndividualGoalProgress(BuildContext context, Goal goal) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 4),
+      child: Row(
+        children: [
+          // Goal name (truncated)
+          SizedBox(
+            width: 80,
+            child: Text(
+              goal.goalName,
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                fontSize: 10,
+                fontWeight: FontWeight.w500,
+              ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+          const SizedBox(width: 8),
+          
+          // Progress bar based on goal type
+          Expanded(
+            child: Container(
+              height: 8,
+              child: goal.goalType == GoalType.daily 
+                  ? _buildDailyGoalProgressBar(context, goal)
+                  : _buildTotalGoalProgressBar(context, goal),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDailyGoalProgressBar(BuildContext context, Goal goal) {
+    // Generate days of the week (Mon-Sun)
+    final now = DateTime.now();
+    final mondayOfWeek = now.subtract(Duration(days: now.weekday - 1));
+    final daysOfWeek = List.generate(7, (index) {
+      final date = mondayOfWeek.add(Duration(days: index));
+      return date.toIso8601String().split('T')[0];
+    });
+
+    final completions = goal.challengeData?.completions ?? {};
+    final plannedDays = goal.challengeData?.plannedDays ?? <int>{};
+
+    return Row(
+      children: daysOfWeek.asMap().entries.map((entry) {
+        final index = entry.key;
+        final dateString = entry.value;
+        final dayOfWeek = index + 1; // Convert 0-based index to 1-based day (Mon=1, Sun=7)
+        final status = completions[dateString] ?? 'default';
+        final isPlanned = plannedDays.contains(dayOfWeek);
+        
+        Color dayColor;
+        
+        // Prioritize actual completion status over planning
+        switch (status) {
+          case 'pending':
+            dayColor = Colors.yellow[700]!;
+            break;
+          case 'completed':
+            dayColor = Colors.green;
+            break;
+          case 'denied':
+            dayColor = Colors.red;
+            break;
+          default:
+            // If no actual status, check if it's planned
+            dayColor = isPlanned ? Colors.blue : Colors.grey[300]!;
+        }
+        
+        return Expanded(
+          child: Container(
+            height: 8,
+            margin: const EdgeInsets.symmetric(horizontal: 0.5),
+            decoration: BoxDecoration(
+              color: dayColor,
+              borderRadius: BorderRadius.circular(1),
+            ),
+          ),
+        );
+      }).toList(),
+    );
+  }
+
+  Widget _buildTotalGoalProgressBar(BuildContext context, Goal goal) {
+    final challengeData = goal.challengeData;
+    if (challengeData == null) {
+      return Container(
+        height: 8,
+        decoration: BoxDecoration(
+          color: Colors.grey[300],
+          borderRadius: BorderRadius.circular(4),
+        ),
+      );
+    }
+
+    final totalProofs = challengeData.proofs;
+    final frequency = goal.goalFrequency;
+    
+    if (frequency == 0) {
+      return Container(
+        height: 8,
+        decoration: BoxDecoration(
+          color: Colors.grey[300],
+          borderRadius: BorderRadius.circular(4),
+        ),
+      );
+    }
+
+    // Count proofs by status
+    int approvedCount = 0;
+    int pendingCount = 0;
+    int deniedCount = 0;
+    
+    for (final proof in totalProofs) {
+      switch (proof.status) {
+        case ProofStatus.approved:
+          approvedCount++;
+          break;
+        case ProofStatus.pending:
+          pendingCount++;
+          break;
+        case ProofStatus.denied:
+          deniedCount++;
+          break;
+      }
+    }
+
+    // Calculate the number of empty slots
+    final totalSubmitted = approvedCount + pendingCount + deniedCount;
+    final emptySlots = frequency - totalSubmitted;
+
+    return Container(
+      height: 8,
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(4),
+      ),
+      child: Row(
+        children: [
+          // Approved sections (green)
+          ...List.generate(approvedCount, (index) => Expanded(
+            child: Container(
+              height: 8,
+              margin: const EdgeInsets.symmetric(horizontal: 0.25),
+              decoration: BoxDecoration(
+                color: Colors.green,
+                borderRadius: BorderRadius.circular(1),
+              ),
+            ),
+          )),
+          // Pending sections (yellow)
+          ...List.generate(pendingCount, (index) => Expanded(
+            child: Container(
+              height: 8,
+              margin: const EdgeInsets.symmetric(horizontal: 0.25),
+              decoration: BoxDecoration(
+                color: Colors.yellow[700]!,
+                borderRadius: BorderRadius.circular(1),
+              ),
+            ),
+          )),
+          // Denied sections (red)
+          ...List.generate(deniedCount, (index) => Expanded(
+            child: Container(
+              height: 8,
+              margin: const EdgeInsets.symmetric(horizontal: 0.25),
+              decoration: BoxDecoration(
+                color: Colors.red,
+                borderRadius: BorderRadius.circular(1),
+              ),
+            ),
+          )),
+          // Empty sections (grey)
+          ...List.generate(emptySlots, (index) => Expanded(
+            child: Container(
+              height: 8,
+              margin: const EdgeInsets.symmetric(horizontal: 0.25),
+              decoration: BoxDecoration(
+                color: Colors.grey[300]!,
+                borderRadius: BorderRadius.circular(1),
+              ),
+            ),
+          )),
         ],
       ),
     );

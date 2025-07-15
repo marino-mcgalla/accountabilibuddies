@@ -40,7 +40,8 @@ abstract class Goal {
 
   /// Factory constructor that creates the appropriate goal type from map data
   factory Goal.fromMap(Map<String, dynamic> data) {
-    final typeString = data['goalType'] as String?;
+    // Check both 'goalType' and 'type' fields for compatibility
+    final typeString = data['goalType'] as String? ?? data['type'] as String?;
     final goalType = GoalType.fromString(typeString ?? 'daily');
     
     switch (goalType) {
@@ -84,6 +85,9 @@ abstract class Goal {
 
   /// Deny a proof for this goal
   Goal denyProof(String proofId, String date);
+
+  /// Update planned days for daily goals
+  Goal updatePlannedDays(Set<int> plannedDays);
 
   /// Get all pending proofs for this goal
   List<Proof> get pendingProofs {
@@ -308,6 +312,14 @@ class WeeklyGoal extends Goal {
       ),
     );
   }
+
+  @override
+  WeeklyGoal updatePlannedDays(Set<int> plannedDays) {
+    final currentData = challengeData ?? const ChallengeData();
+    return copyWith(
+      challengeData: currentData.copyWith(plannedDays: plannedDays),
+    );
+  }
 }
 
 /// Total Goal Implementation
@@ -466,6 +478,12 @@ class TotalGoal extends Goal {
       challengeData: currentData.copyWith(proofs: updatedProofs),
     );
   }
+
+  @override
+  TotalGoal updatePlannedDays(Set<int> plannedDays) {
+    // For total goals, planned days don't apply, so return unchanged
+    return this;
+  }
 }
 
 /// Goal Type Enum
@@ -476,10 +494,11 @@ enum GoalType {
   static GoalType fromString(String value) {
     switch (value.toLowerCase()) {
       case 'daily':
-        return GoalType.daily;
       case 'weekly': // Support legacy data
+      case 'frequency': // Support legacy data
         return GoalType.daily;
       case 'total':
+      case 'count': // Support legacy data
         return GoalType.total;
       default:
         return GoalType.daily; // Default fallback

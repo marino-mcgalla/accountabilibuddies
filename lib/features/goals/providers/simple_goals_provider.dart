@@ -455,4 +455,90 @@ class SimpleGoalsProvider with ChangeNotifier {
       return false;
     }
   }
+
+  Future<bool> updatePlannedDays(String goalId, Set<int> plannedDays) async {
+    final userId = currentUserId;
+    if (userId == null) return false;
+
+    try {
+      // Find the goal
+      final goalIndex = _goals.indexWhere((goal) => goal.id == goalId);
+      if (goalIndex == -1) {
+        print('DEBUG: UPDATE PLANNED DAYS: Goal not found');
+        return false;
+      }
+
+      final goal = _goals[goalIndex];
+      if (goal.goalType != GoalType.daily) {
+        print('DEBUG: UPDATE PLANNED DAYS: Goal is not a daily goal');
+        return false;
+      }
+
+      print('DEBUG: UPDATE PLANNED DAYS: Updating planned days for ${goal.goalName}: $plannedDays');
+
+      // Update the goal with new planned days
+      final updatedGoal = goal.updatePlannedDays(plannedDays);
+
+      // Save to Firebase - find the party
+      final partiesSnapshot = await _firestore
+          .collection('parties')
+          .where('members', arrayContains: userId)
+          .get();
+
+      for (var partyDoc in partiesSnapshot.docs) {
+        final partyData = partyDoc.data();
+        
+        // Update both pendingChallenge and activeChallenge
+        for (final challengeType in ['pendingChallenge', 'activeChallenge']) {
+          final challenge = partyData[challengeType] as Map<String, dynamic>?;
+          if (challenge != null) {
+            final challengeId = challenge['id'] as String;
+            
+            // Load from subcollection
+            final memberGoalsDoc = await _firestore
+                .collection('challenges')
+                .doc(challengeId)
+                .collection('memberGoals')
+                .doc(userId)
+                .get();
+            
+            if (memberGoalsDoc.exists) {
+              final memberGoalsData = memberGoalsDoc.data() as Map<String, dynamic>;
+              final userGoals = List<Map<String, dynamic>>.from(memberGoalsData['goals'] as List);
+              final goalIndex = userGoals.indexWhere((g) => g['id'] == goalId);
+              
+              if (goalIndex != -1) {
+                userGoals[goalIndex] = updatedGoal.toMap();
+                
+                print('DEBUG: UPDATE PLANNED DAYS: Saving to Firebase - $challengeType');
+                
+                await _firestore
+                    .collection('challenges')
+                    .doc(challengeId)
+                    .collection('memberGoals')
+                    .doc(userId)
+                    .update({
+                      'goals': userGoals,
+                      'updatedAt': FieldValue.serverTimestamp(),
+                    });
+                
+                print('DEBUG: UPDATE PLANNED DAYS: Successfully saved to Firebase');
+                
+                // Update local state
+                _goals[goalIndex] = updatedGoal;
+                notifyListeners();
+                return true;
+              }
+            }
+          }
+        }
+      }
+
+      print('DEBUG: UPDATE PLANNED DAYS: Goal not found in any party');
+      return false;
+    } catch (e) {
+      print('DEBUG: UPDATE PLANNED DAYS: Error: $e');
+      return false;
+    }
+  }
 }

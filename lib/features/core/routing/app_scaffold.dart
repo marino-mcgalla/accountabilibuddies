@@ -373,23 +373,9 @@ class AppScaffold extends StatelessWidget {
             ),
             _buildDrawerItem(
               context,
-              Icons.library_books,
-              'Goal Templates',
-              '/goal-templates',
-              isSmallScreen,
-            ),
-            _buildDrawerItem(
-              context,
               Icons.groups,
               'My Parties',
-              '/simple-parties',
-              isSmallScreen,
-            ),
-            _buildDrawerItem(
-              context,
-              Icons.group_add,
-              'Join Party',
-              '/join-party',
+              '/party',
               isSmallScreen,
             ),
             _buildDrawerItem(

@@ -208,6 +208,27 @@ class _SimplePartyDetailScreenState extends State<SimplePartyDetailScreen> {
                 ),
                 const SizedBox(height: 16),
 
+                // Challenge Management Section (Leader Only)
+                if (isLeader) ...[
+                  Card(
+                    child: Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Challenge Management',
+                            style: Theme.of(context).textTheme.titleLarge,
+                          ),
+                          const SizedBox(height: 12),
+                          _buildChallengeManagement(context, provider, party),
+                        ],
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                ],
+
                 // Actions Section
                 if (isMember && !isLeader)
                   Card(
@@ -460,5 +481,193 @@ class _SimplePartyDetailScreenState extends State<SimplePartyDetailScreen> {
         ],
       ),
     );
+  }
+
+  Widget _buildChallengeManagement(BuildContext context, SimplePartyProvider provider, Map<String, dynamic> party) {
+    final hasPendingChallenge = provider.hasPendingChallenge(party['id']);
+    final hasActiveChallenge = provider.hasActiveChallenge(party['id']);
+    
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.surfaceContainerHighest,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(
+          color: Theme.of(context).colorScheme.outline.withValues(alpha: 0.2),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          if (hasPendingChallenge) ...[ 
+            Row(
+              children: [
+                Icon(
+                  Icons.hourglass_top,
+                  color: Theme.of(context).colorScheme.secondary,
+                  size: 20,
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  'Challenge in preparation',
+                  style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Members are locking in their goals',
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
+            const SizedBox(height: 12),
+            OutlinedButton.icon(
+              onPressed: () => _cancelChallengePrep(context, provider),
+              icon: const Icon(Icons.cancel),
+              label: const Text('Cancel Challenge'),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: Theme.of(context).colorScheme.error,
+                side: BorderSide(color: Theme.of(context).colorScheme.error),
+              ),
+            ),
+          ] else if (hasActiveChallenge) ...[
+            Row(
+              children: [
+                Icon(
+                  Icons.emoji_events,
+                  color: Theme.of(context).colorScheme.primary,
+                  size: 20,
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  'Challenge is active',
+                  style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Challenge is running',
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
+            const SizedBox(height: 12),
+            OutlinedButton.icon(
+              onPressed: () => _endChallenge(context, provider),
+              icon: const Icon(Icons.stop),
+              label: const Text('End Challenge'),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: Theme.of(context).colorScheme.error,
+                side: BorderSide(color: Theme.of(context).colorScheme.error),
+              ),
+            ),
+          ] else ...[
+            Row(
+              children: [
+                Icon(
+                  Icons.schedule,
+                  color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
+                  size: 20,
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  'No active challenge',
+                  style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Start a new challenge from the home screen',
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Future<void> _cancelChallengePrep(BuildContext context, SimplePartyProvider provider) async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Cancel Challenge'),
+        content: const Text('Are you sure you want to cancel this challenge preparation? All member lock-ins will be lost.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Keep Challenge'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: TextButton.styleFrom(
+              foregroundColor: Theme.of(context).colorScheme.error,
+            ),
+            child: const Text('Cancel Challenge'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm == true) {
+      final success = await provider.clearChallenge(widget.partyId);
+      if (context.mounted) {
+        if (success) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Challenge cancelled')),
+          );
+          _loadPartyData(); // Refresh the data
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Failed to cancel challenge')),
+          );
+        }
+      }
+    }
+  }
+
+  Future<void> _endChallenge(BuildContext context, SimplePartyProvider provider) async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('End Challenge'),
+        content: const Text('Are you sure you want to end this active challenge? This action cannot be undone.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Keep Active'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: TextButton.styleFrom(
+              foregroundColor: Theme.of(context).colorScheme.error,
+            ),
+            child: const Text('End Challenge'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm == true) {
+      final success = await provider.clearChallenge(widget.partyId);
+      if (context.mounted) {
+        if (success) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Challenge ended')),
+          );
+          _loadPartyData(); // Refresh the data
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Failed to end challenge')),
+          );
+        }
+      }
+    }
   }
 }

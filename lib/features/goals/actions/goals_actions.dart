@@ -90,7 +90,7 @@ class GoalsActions {
       final goals = List<Goal>.from(currentGoals);
       final index = goals.indexWhere((goal) => goal.id == goalId);
       
-      if (index == -1 || goals[index].goalType != GoalType.weekly) return false;
+      if (index == -1 || goals[index].goalType != GoalType.daily) return false;
 
       final goal = goals[index];
       

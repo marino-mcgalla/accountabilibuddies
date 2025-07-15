@@ -41,7 +41,7 @@ class ProofActions {
 
       final goal = userGoals[goalIndex];
 
-      if (goal.goalType == GoalType.weekly && proofDate != null) {
+      if (goal.goalType == GoalType.daily && proofDate != null) {
         userGoals[goalIndex] = goal.approveProof('', proofDate);
       } else if (goal.goalType == GoalType.total) {
         // For total goals, find the first pending proof and approve it
@@ -67,7 +67,7 @@ class ProofActions {
 
       final goal = userGoals[goalIndex];
 
-      if (goal.goalType == GoalType.weekly && proofDate != null) {
+      if (goal.goalType == GoalType.daily && proofDate != null) {
         userGoals[goalIndex] = goal.denyProof('', proofDate);
       } else if (goal.goalType == GoalType.total) {
         // For total goals, find the first pending proof and deny it

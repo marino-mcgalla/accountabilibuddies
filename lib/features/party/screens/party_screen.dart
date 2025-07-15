@@ -1,11 +1,11 @@
-import 'package:auth_test/features/goals/screens/create_party_screen.dart';
+import 'package:auth_test/features/party/screens/create_party_screen.dart';
 import 'package:auth_test/screens/party/party_info_screen.dart';
 import 'package:auth_test/features/party/widgets/invite_list.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
-import '../providers/party_provider.dart';
-import '../../goals/providers/goals_provider.dart';
+import '../providers/simple_party_provider.dart';
+import '../../goals/providers/simple_goals_provider.dart';
 import '../../time_machine/providers/time_machine_provider.dart';
 import '../widgets/proof_approval_widget.dart';
 
@@ -43,7 +43,7 @@ class _PartyScreenContentState extends State<PartyScreenContent>
 
   @override
   Widget build(BuildContext context) {
-    return Selector2<PartyProvider, GoalsProvider, Tuple2<bool, String?>>(
+    return Selector2<SimplePartyProvider, SimpleGoalsProvider, Tuple2<bool, String?>>(
       selector: (_, partyProvider, goalsProvider) =>
           Tuple2(partyProvider.isLoading, partyProvider.partyId),
       builder: (context, data, child) {
@@ -206,7 +206,7 @@ class _PartyScreenContentState extends State<PartyScreenContent>
 
                     // Pending invites section (unchanged)
                     StreamBuilder(
-                      stream: Provider.of<PartyProvider>(context, listen: false)
+                      stream: Provider.of<SimplePartyProvider>(context, listen: false)
                           .fetchIncomingPendingInvites(),
                       builder: (context, snapshot) {
                         if (snapshot.connectionState ==
@@ -238,7 +238,7 @@ class _PartyScreenContentState extends State<PartyScreenContent>
                             ),
                             const SizedBox(height: 12),
                             ...invites.map((invite) {
-                              final partyProvider = Provider.of<PartyProvider>(
+                              final partyProvider = Provider.of<SimplePartyProvider>(
                                   context,
                                   listen: false);
                               return Card(
@@ -270,7 +270,7 @@ class _PartyScreenContentState extends State<PartyScreenContent>
         // Party exists view with tabs
         return Scaffold(
           appBar: AppBar(
-            title: Text(Provider.of<PartyProvider>(context).partyName ??
+            title: Text(Provider.of<SimplePartyProvider>(context).partyName ??
                 "Accountabilibuddies"),
             bottom: TabBar(
               controller: _tabController,
@@ -301,7 +301,7 @@ class CreatePartyDialog extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final partyProvider = Provider.of<PartyProvider>(context, listen: false);
+    final partyProvider = Provider.of<SimplePartyProvider>(context, listen: false);
 
     return AlertDialog(
       title: const Text('Create New Party'),
@@ -346,7 +346,7 @@ class PartyInfoTab extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final partyProvider = Provider.of<PartyProvider>(context);
+    final partyProvider = Provider.of<SimplePartyProvider>(context);
 
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16.0),
@@ -409,7 +409,7 @@ class PartyInfoTab extends StatelessWidget {
     );
   }
 
-  Widget _buildChallengeManagement(BuildContext context, PartyProvider partyProvider) {
+  Widget _buildChallengeManagement(BuildContext context, SimplePartyProvider partyProvider) {
     final hasPendingChallenge = partyProvider.hasPendingChallenge;
     final hasActiveChallenge = partyProvider.hasActiveChallenge;
     
@@ -519,7 +519,7 @@ class PartyInfoTab extends StatelessWidget {
     );
   }
 
-  Future<void> _cancelChallengePrep(BuildContext context, PartyProvider partyProvider) async {
+  Future<void> _cancelChallengePrep(BuildContext context, SimplePartyProvider partyProvider) async {
     final confirm = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
@@ -557,7 +557,7 @@ class PartyInfoTab extends StatelessWidget {
     }
   }
 
-  Future<void> _endChallenge(BuildContext context, PartyProvider partyProvider) async {
+  Future<void> _endChallenge(BuildContext context, SimplePartyProvider partyProvider) async {
     final confirm = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(

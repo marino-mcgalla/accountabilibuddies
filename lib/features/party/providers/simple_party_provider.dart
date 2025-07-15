@@ -21,6 +21,25 @@ class SimplePartyProvider with ChangeNotifier {
   bool get hasInvitations => _invitations.isNotEmpty;
   String? get currentUserId => _repository.currentUserId;
 
+  // Current party getters (assumes first party is the "current" one)
+  String? get partyId => _parties.isNotEmpty ? _parties.first['id'] : null;
+  String? get partyName => _parties.isNotEmpty ? _parties.first['name'] : null;
+  List<String> get members => _parties.isNotEmpty 
+      ? List<String>.from(_parties.first['members'] ?? [])
+      : [];
+  bool get isCurrentUserPartyLeader => _parties.isNotEmpty 
+      ? _parties.first['leaderId'] == currentUserId 
+      : false;
+      
+  // Challenge status getters for current party
+  bool get currentPartyHasActiveChallenge => _parties.isNotEmpty && 
+      _parties.first['activeChallenge']?['status'] == 'active';
+  bool get currentPartyHasPendingChallenge => _parties.isNotEmpty && 
+      _parties.first['activeChallenge']?['status'] == 'setup';
+  List<String> get lockedInMembers => _parties.isNotEmpty 
+      ? List<String>.from(_parties.first['activeChallenge']?['lockedInMembers'] ?? [])
+      : [];
+
   SimplePartyProvider() {
     _listenToParties();
     _listenToInvitations();
@@ -402,4 +421,80 @@ class SimplePartyProvider with ChangeNotifier {
       return false;
     }
   }
+
+  // Additional methods needed by UI
+  double getTotalWagerPool() {
+    if (_parties.isEmpty) return 0.0;
+    
+    final challenge = _parties.first['activeChallenge'];
+    if (challenge == null) return 0.0;
+    
+    final wagers = Map<String, dynamic>.from(challenge['wagers'] ?? {});
+    double total = 0.0;
+    for (final wager in wagers.values) {
+      if (wager is num) {
+        total += wager.toDouble();
+      }
+    }
+    return total;
+  }
+
+  Future<bool> cancelChallengePreparation() async {
+    if (partyId == null) return false;
+    return await clearChallenge(partyId!);
+  }
+
+  Future<bool> endCurrentChallenge() async {
+    if (partyId == null) return false;
+    
+    try {
+      _setLoading(true);
+      final success = await _challengeActions.clearChallenge(partyId!);
+      _setLoading(false);
+      return success;
+    } catch (e) {
+      _setError('Error ending challenge: $e');
+      _setLoading(false);
+      return false;
+    }
+  }
+
+  Future<bool> clearChallenge(String partyId) async {
+    try {
+      _setLoading(true);
+      final success = await _challengeActions.clearChallenge(partyId);
+      _setLoading(false);
+      return success;
+    } catch (e) {
+      _setError('Error clearing challenge: $e');
+      _setLoading(false);
+      return false;
+    }
+  }
+
+  // Invite management methods (stubs for now)
+  final TextEditingController inviteController = TextEditingController();
+  
+  Future<void> sendInviteFromController() async {
+    // TODO: Implement invite sending
+  }
+  
+  Stream fetchOutgoingPendingInvites() {
+    // TODO: Implement outgoing invites stream
+    return Stream.empty();
+  }
+  
+  Stream fetchIncomingPendingInvites() {
+    // TODO: Implement incoming invites stream  
+    return Stream.empty();
+  }
+  
+  Future<void> cancelInvite(String inviteId) async {
+    // TODO: Implement invite cancellation
+  }
+  
+  Future<void> acceptInvite(String inviteId, String partyId) async {
+    // TODO: Implement invite acceptance
+  }
+  
 }

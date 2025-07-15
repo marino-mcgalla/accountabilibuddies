@@ -1,8 +1,8 @@
 import 'package:auth_test/features/party/widgets/member_item_widget.dart';
 import 'package:flutter/material.dart';
 import '../../features/common/widgets/compact_progress_tracker.dart';
-import '../../features/party/providers/party_provider.dart';
-import '../../features/goals/providers/goals_provider.dart';
+import '../../features/party/providers/simple_party_provider.dart';
+import '../../features/goals/providers/simple_goals_provider.dart';
 import 'package:provider/provider.dart';
 import '../../features/goals/models/goal_model.dart';
 import '../../features/common/utils/utils.dart';
@@ -26,11 +26,11 @@ class PartyInfoScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     // Use Selector to only rebuild when partyMemberGoals changes
-    return Selector<PartyProvider, Map<String, List<Goal>>>(
+    return Selector<SimplePartyProvider, Map<String, List<Goal>>>(
       selector: (_, provider) => provider.partyMemberGoals,
       builder: (context, partyMemberGoals, child) {
         final partyProvider =
-            Provider.of<PartyProvider>(context, listen: false);
+            Provider.of<SimplePartyProvider>(context, listen: false);
 
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -192,7 +192,7 @@ class PartyInfoScreen extends StatelessWidget {
 
   // Build the pending challenge card
   Widget _buildPendingChallengeCard(BuildContext context) {
-    final partyProvider = Provider.of<PartyProvider>(context, listen: false);
+    final partyProvider = Provider.of<SimplePartyProvider>(context, listen: false);
 
     return Card(
       elevation: 3,
@@ -394,7 +394,7 @@ class PartyInfoScreen extends StatelessWidget {
   }
 
   Widget _buildActiveChallengeCard(BuildContext context) {
-    final partyProvider = Provider.of<PartyProvider>(context);
+    final partyProvider = Provider.of<SimplePartyProvider>(context);
 
     return Container(
       padding: const EdgeInsets.all(12),
@@ -480,14 +480,14 @@ class PartyInfoScreen extends StatelessWidget {
   }
 
   void _lockInMemberGoals(BuildContext context) {
-    final goalsProvider = Provider.of<GoalsProvider>(context, listen: false);
-    final partyProvider = Provider.of<PartyProvider>(context, listen: false);
+    final goalsProvider = Provider.of<SimpleGoalsProvider>(context, listen: false);
+    final partyProvider = Provider.of<SimplePartyProvider>(context, listen: false);
 
     goalsProvider.showLockInDialogAndLockGoals(context, partyProvider.partyId);
   }
 
   void _optOutForWeek(BuildContext context) {
-    final partyProvider = Provider.of<PartyProvider>(context, listen: false);
+    final partyProvider = Provider.of<SimplePartyProvider>(context, listen: false);
 
     showDialog(
       context: context,
@@ -514,7 +514,7 @@ class PartyInfoScreen extends StatelessWidget {
 
   // Confirm starting the challenge
   void _confirmStartChallenge(BuildContext context) {
-    final partyProvider = Provider.of<PartyProvider>(context, listen: false);
+    final partyProvider = Provider.of<SimplePartyProvider>(context, listen: false);
 
     showDialog(
       context: context,
@@ -545,7 +545,7 @@ class PartyInfoScreen extends StatelessWidget {
 
   // Show dialog to select the challenge start day
   void _showChallengeStartDayPicker(BuildContext context) {
-    final partyProvider = Provider.of<PartyProvider>(context, listen: false);
+    final partyProvider = Provider.of<SimplePartyProvider>(context, listen: false);
 
     showDialog(
       context: context,
@@ -557,7 +557,7 @@ class PartyInfoScreen extends StatelessWidget {
             const Text('Select which day of the week challenges will start:'),
             const SizedBox(height: 16),
             ...List.generate(7, (index) {
-              final dayName = PartyProvider.dayNames[index];
+              final dayName = SimplePartyProvider.dayNames[index];
               return ListTile(
                 title: Text(dayName),
                 leading: Radio<int>(
@@ -586,7 +586,7 @@ class PartyInfoScreen extends StatelessWidget {
 
   // Show dialog for initiating challenge preparation
   void _showInitiateChallengeDialog(BuildContext context) {
-    final partyProvider = Provider.of<PartyProvider>(context, listen: false);
+    final partyProvider = Provider.of<SimplePartyProvider>(context, listen: false);
 
     showDialog(
       context: context,
@@ -615,7 +615,7 @@ class PartyInfoScreen extends StatelessWidget {
 
   // Show dialog for canceling challenge preparation
   void _showCancelChallengeDialog(BuildContext context) {
-    final partyProvider = Provider.of<PartyProvider>(context, listen: false);
+    final partyProvider = Provider.of<SimplePartyProvider>(context, listen: false);
 
     showDialog(
       context: context,
@@ -646,7 +646,7 @@ class PartyInfoScreen extends StatelessWidget {
 
   // Show confirmation dialog for ending the current challenge
   void _showEndChallengeConfirmation(BuildContext context) {
-    final partyProvider = Provider.of<PartyProvider>(context, listen: false);
+    final partyProvider = Provider.of<SimplePartyProvider>(context, listen: false);
 
     showDialog(
       context: context,
@@ -675,14 +675,14 @@ class PartyInfoScreen extends StatelessWidget {
   }
 
   void _undoOptOut(BuildContext context) {
-    final partyProvider = Provider.of<PartyProvider>(context, listen: false);
+    final partyProvider = Provider.of<SimplePartyProvider>(context, listen: false);
 
     Utils.showFeedback(context, 'Undoing opt-out...');
     partyProvider.undoOptOutMember();
   }
 
   void _cancelStatus(BuildContext context) {
-    final partyProvider = Provider.of<PartyProvider>(context, listen: false);
+    final partyProvider = Provider.of<SimplePartyProvider>(context, listen: false);
 
     Utils.showFeedback(context, 'Canceling status...');
     if (partyProvider.isCurrentUserOptedOut) {

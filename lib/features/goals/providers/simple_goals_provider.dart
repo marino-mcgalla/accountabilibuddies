@@ -2,14 +2,20 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/goal_model.dart';
+import '../models/goal_instance.dart';
+import '../services/goal_instance_service.dart';
+import 'dart:async';
 
 class SimpleGoalsProvider with ChangeNotifier {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final FirebaseAuth _auth = FirebaseAuth.instance;
+  final GoalInstanceService _goalInstanceService = GoalInstanceService();
 
   List<Goal> _goals = [];
   bool _isLoading = false;
   String? _error;
+  StreamSubscription? _challengeGoalsSubscription;
+  StreamSubscription<DocumentSnapshot>? _memberGoalsSubscription;
 
   List<Goal> get goals => _goals;
   bool get isLoading => _isLoading;
@@ -20,12 +26,123 @@ class SimpleGoalsProvider with ChangeNotifier {
 
   SimpleGoalsProvider() {
     _loadGoals();
+    _setupRealtimeListener();
+  }
+
+  void _setupRealtimeListener() async {
+    final userId = currentUserId;
+    if (userId == null) return;
+
+    try {
+      // Find the user's challenge
+      final partiesSnapshot = await _firestore
+          .collection('parties')
+          .where('members', arrayContains: userId)
+          .get();
+
+      for (var doc in partiesSnapshot.docs) {
+        final data = doc.data();
+        
+        // Check activeChallenge first (most common)
+        final activeChallenge = data['activeChallenge'] as Map<String, dynamic>?;
+        final pendingChallenge = data['pendingChallenge'] as Map<String, dynamic>?;
+        
+        String? challengeId;
+        if (activeChallenge != null) {
+          challengeId = activeChallenge['id'] as String;
+        } else if (pendingChallenge != null) {
+          challengeId = pendingChallenge['id'] as String;
+        }
+        
+        if (challengeId != null) {
+          print('GOALS PROVIDER: Setting up real-time listener for challenge $challengeId');
+          
+          // Listen to the user's memberGoals document
+          _memberGoalsSubscription = _firestore
+              .collection('challenges')
+              .doc(challengeId)
+              .collection('memberGoals')
+              .doc(userId)
+              .snapshots()
+              .listen((doc) {
+            print('GOALS PROVIDER: Received real-time update for user goals');
+            _processRealtimeGoalsUpdate(doc);
+          });
+          
+          break; // Only set up one listener
+        }
+      }
+    } catch (e) {
+      print('GOALS PROVIDER: Error setting up real-time listener: $e');
+    }
+  }
+
+  void _processRealtimeGoalsUpdate(DocumentSnapshot doc) {
+    if (!doc.exists) return;
+
+    try {
+      final memberGoalsData = doc.data() as Map<String, dynamic>;
+      final userGoals = memberGoalsData['goals'] as List? ?? [];
+      
+      List<Goal> updatedGoals = [];
+      for (var goalData in userGoals) {
+        try {
+          final goal = Goal.fromMap(Map<String, dynamic>.from(goalData));
+          updatedGoals.add(goal);
+        } catch (e) {
+          print('GOALS PROVIDER: Error parsing goal in real-time update: $e');
+        }
+      }
+      
+      _goals = updatedGoals;
+      print('GOALS PROVIDER: Updated ${_goals.length} goals from real-time listener');
+      notifyListeners();
+    } catch (e) {
+      print('GOALS PROVIDER: Error processing real-time update: $e');
+    }
   }
 
   // Force refresh for debugging
   Future<void> refreshGoals() async {
     print('DEBUG: Force refreshing goals...');
     await _loadGoals();
+  }
+
+  // Set up real-time listeners for challenge goals
+  void setupChallengeGoalsListener(String challengeId) {
+    _challengeGoalsSubscription?.cancel();
+    
+    _challengeGoalsSubscription = _goalInstanceService
+        .listenToAllMemberGoalsForChallenge(challengeId: challengeId)
+        .listen((allMemberGoals) {
+      print('DEBUG: Received real-time update for challenge $challengeId');
+      
+      // Find current user's goals from the real-time data
+      final userId = currentUserId;
+      if (userId != null) {
+        final userGoalInstances = allMemberGoals
+            .where((goalData) => goalData['userId'] == userId)
+            .map((goalData) => goalData['instance'] as GoalInstance)
+            .toList();
+        
+        // Convert goal instances to goals by using their toMap method and Goal.fromMap
+        final convertedGoals = userGoalInstances.map((instance) {
+          return Goal.fromMap(instance.toMap());
+        }).toList();
+        
+        if (convertedGoals.isNotEmpty) {
+          _goals = convertedGoals;
+          notifyListeners();
+        }
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _challengeGoalsSubscription?.cancel();
+    _memberGoalsSubscription?.cancel();
+    super.dispose();
   }
 
   // Test method to validate data format
@@ -50,7 +167,7 @@ class SimpleGoalsProvider with ChangeNotifier {
       'id': '1752093025471_0',
       'ownerId': 'swMvqZCvPvg1vUsAZLMEvNXtBWD2',
       'goalName': 'Cardio',
-      'goalType': 'weekly',
+      'goalType': 'daily',
       'goalCriteria': '30 minutes of ANY cardio',
       'goalFrequency': 6,
       'active': true,
@@ -110,9 +227,19 @@ class SimpleGoalsProvider with ChangeNotifier {
         // Check pendingChallenge first
         final pendingChallenge = data['pendingChallenge'] as Map<String, dynamic>?;
         if (pendingChallenge != null) {
-          final memberGoals = pendingChallenge['memberGoals'] as Map<String, dynamic>?;
-          if (memberGoals != null && memberGoals.containsKey(userId)) {
-            final userGoals = memberGoals[userId] as List? ?? [];
+          final challengeId = pendingChallenge['id'] as String;
+          
+          // Load from subcollection: challenges/{challengeId}/memberGoals/{userId}
+          final memberGoalsDoc = await _firestore
+              .collection('challenges')
+              .doc(challengeId)
+              .collection('memberGoals')
+              .doc(userId)
+              .get();
+          
+          if (memberGoalsDoc.exists) {
+            final memberGoalsData = memberGoalsDoc.data() as Map<String, dynamic>;
+            final userGoals = memberGoalsData['goals'] as List? ?? [];
             print('DEBUG: Found ${userGoals.length} pending challenge goals');
             
             for (var goalData in userGoals) {
@@ -131,9 +258,19 @@ class SimpleGoalsProvider with ChangeNotifier {
         // Check activeChallenge
         final activeChallenge = data['activeChallenge'] as Map<String, dynamic>?;
         if (activeChallenge != null) {
-          final memberGoals = activeChallenge['memberGoals'] as Map<String, dynamic>?;
-          if (memberGoals != null && memberGoals.containsKey(userId)) {
-            final userGoals = memberGoals[userId] as List? ?? [];
+          final challengeId = activeChallenge['id'] as String;
+          
+          // Load from subcollection: challenges/{challengeId}/memberGoals/{userId}
+          final memberGoalsDoc = await _firestore
+              .collection('challenges')
+              .doc(challengeId)
+              .collection('memberGoals')
+              .doc(userId)
+              .get();
+          
+          if (memberGoalsDoc.exists) {
+            final memberGoalsData = memberGoalsDoc.data() as Map<String, dynamic>;
+            final userGoals = memberGoalsData['goals'] as List? ?? [];
             print('DEBUG: Found ${userGoals.length} active challenge goals');
             
             for (var goalData in userGoals) {
@@ -183,11 +320,11 @@ class SimpleGoalsProvider with ChangeNotifier {
     return false;
   }
 
-  Future<bool> submitProof(String goalId, String proofText, String? imageUrl, DateTime date) async {
+  Future<bool> submitProof(String goalId, String proofText, String? imageUrl, DateTime date, {bool isOverwrite = false}) async {
     final userId = currentUserId;
     if (userId == null) return false;
 
-    print('DEBUG: SIMPLE SUBMIT: Submitting proof for goal $goalId');
+    print('DEBUG: SIMPLE SUBMIT: Submitting proof for goal $goalId (overwrite: $isOverwrite)');
     print('DEBUG: SIMPLE SUBMIT: Proof text: $proofText');
     print('DEBUG: SIMPLE SUBMIT: Date: ${date.toIso8601String().split('T')[0]}');
 
@@ -204,9 +341,11 @@ class SimpleGoalsProvider with ChangeNotifier {
       print('DEBUG: SIMPLE SUBMIT: Goal type: ${goal.goalType}');
       print('DEBUG: SIMPLE SUBMIT: Current challengeData: ${goal.challengeData?.toMap()}');
 
-      // Add proof to goal
-      final updatedGoal = goal.addProof(proofText, imageUrl, date);
-      print('DEBUG: SIMPLE SUBMIT: Updated goal with proof');
+      // Use overwriteProof or addProof based on the flag
+      final updatedGoal = isOverwrite 
+          ? goal.overwriteProof(proofText, imageUrl, date)
+          : goal.addProof(proofText, imageUrl, date);
+      print('DEBUG: SIMPLE SUBMIT: Updated goal with proof (using ${isOverwrite ? "overwrite" : "add"})');
       print('DEBUG: SIMPLE SUBMIT: Updated goal challenge data: ${updatedGoal.challengeData?.toMap()}');
 
       // Save to Firebase - find the party
@@ -221,9 +360,19 @@ class SimpleGoalsProvider with ChangeNotifier {
         // Update pendingChallenge
         final pendingChallenge = partyData['pendingChallenge'] as Map<String, dynamic>?;
         if (pendingChallenge != null) {
-          final memberGoals = pendingChallenge['memberGoals'] as Map<String, dynamic>?;
-          if (memberGoals != null && memberGoals.containsKey(userId)) {
-            final userGoals = List<Map<String, dynamic>>.from(memberGoals[userId] as List);
+          final challengeId = pendingChallenge['id'] as String;
+          
+          // Load from subcollection
+          final memberGoalsDoc = await _firestore
+              .collection('challenges')
+              .doc(challengeId)
+              .collection('memberGoals')
+              .doc(userId)
+              .get();
+          
+          if (memberGoalsDoc.exists) {
+            final memberGoalsData = memberGoalsDoc.data() as Map<String, dynamic>;
+            final userGoals = List<Map<String, dynamic>>.from(memberGoalsData['goals'] as List);
             final goalIndex = userGoals.indexWhere((g) => g['id'] == goalId);
             
             if (goalIndex != -1) {
@@ -232,9 +381,15 @@ class SimpleGoalsProvider with ChangeNotifier {
               print('DEBUG: SIMPLE SUBMIT: About to save to Firebase - pendingChallenge');
               print('DEBUG: SIMPLE SUBMIT: Updated goal map: ${updatedGoal.toMap()}');
               
-              await _firestore.collection('parties').doc(partyDoc.id).update({
-                'pendingChallenge.memberGoals.$userId': userGoals,
-              });
+              await _firestore
+                  .collection('challenges')
+                  .doc(challengeId)
+                  .collection('memberGoals')
+                  .doc(userId)
+                  .update({
+                    'goals': userGoals,
+                    'updatedAt': FieldValue.serverTimestamp(),
+                  });
               
               print('DEBUG: SIMPLE SUBMIT: Successfully saved to Firebase - pendingChallenge');
               
@@ -250,9 +405,19 @@ class SimpleGoalsProvider with ChangeNotifier {
         // Update activeChallenge
         final activeChallenge = partyData['activeChallenge'] as Map<String, dynamic>?;
         if (activeChallenge != null) {
-          final memberGoals = activeChallenge['memberGoals'] as Map<String, dynamic>?;
-          if (memberGoals != null && memberGoals.containsKey(userId)) {
-            final userGoals = List<Map<String, dynamic>>.from(memberGoals[userId] as List);
+          final challengeId = activeChallenge['id'] as String;
+          
+          // Load from subcollection
+          final memberGoalsDoc = await _firestore
+              .collection('challenges')
+              .doc(challengeId)
+              .collection('memberGoals')
+              .doc(userId)
+              .get();
+          
+          if (memberGoalsDoc.exists) {
+            final memberGoalsData = memberGoalsDoc.data() as Map<String, dynamic>;
+            final userGoals = List<Map<String, dynamic>>.from(memberGoalsData['goals'] as List);
             final goalIndex = userGoals.indexWhere((g) => g['id'] == goalId);
             
             if (goalIndex != -1) {
@@ -261,9 +426,15 @@ class SimpleGoalsProvider with ChangeNotifier {
               print('DEBUG: SIMPLE SUBMIT: About to save to Firebase - activeChallenge');
               print('DEBUG: SIMPLE SUBMIT: Updated goal map: ${updatedGoal.toMap()}');
               
-              await _firestore.collection('parties').doc(partyDoc.id).update({
-                'activeChallenge.memberGoals.$userId': userGoals,
-              });
+              await _firestore
+                  .collection('challenges')
+                  .doc(challengeId)
+                  .collection('memberGoals')
+                  .doc(userId)
+                  .update({
+                    'goals': userGoals,
+                    'updatedAt': FieldValue.serverTimestamp(),
+                  });
               
               print('DEBUG: SIMPLE SUBMIT: Successfully saved to Firebase - activeChallenge');
               

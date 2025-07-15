@@ -2,12 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:firebase_ui_auth/firebase_ui_auth.dart';
 import '../../auth/screens/auth_gate.dart';
-import '../../party/screens/party_screen.dart';
-import '../../party/screens/party_list_screen.dart';
-import '../../party/screens/party_detail_screen.dart';
 import '../../party/screens/simple_party_list_screen.dart';
 import '../../party/screens/simple_join_party_screen.dart';
 import '../../challenge/screens/simple_dashboard.dart';
+import '../../challenge/screens/challenge_setup_screen.dart';
+import '../../challenge/screens/challenge_lockin_screen.dart';
 import '../../../screens/user/user_info_screen.dart';
 import '../../goals/screens/my_goals_screen.dart';
 import '../../goals/screens/goal_templates_screen.dart';
@@ -38,7 +37,7 @@ final GoRouter appRouter = GoRouter(
     ),
     GoRoute(
       path: '/party',
-      builder: (context, state) => const AppScaffold(child: PartyScreen()),
+      builder: (context, state) => const AppScaffold(child: SimplePartyListScreen()),
     ),
     GoRoute(
       path: '/user-info',
@@ -58,26 +57,19 @@ final GoRouter appRouter = GoRouter(
           const AppScaffold(child: TimeMachineScreen()),
     ),
     GoRoute(
-      path: '/parties',
-      builder: (context, state) =>
-          const AppScaffold(child: PartyListScreen()),
-    ),
-    GoRoute(
-      path: '/party/:partyId',
-      builder: (context, state) {
-        final partyId = state.pathParameters['partyId']!;
-        return AppScaffold(child: PartyDetailScreen(partyId: partyId));
-      },
-    ),
-    GoRoute(
       path: '/join-party',
       builder: (context, state) =>
           const AppScaffold(child: SimpleJoinPartyScreen()),
     ),
     GoRoute(
-      path: '/simple-parties',
+      path: '/challenge-setup',
       builder: (context, state) =>
-          const AppScaffold(child: SimplePartyListScreen()),
+          const AppScaffold(child: ChallengeSetupScreen()),
+    ),
+    GoRoute(
+      path: '/challenge-lockin',
+      builder: (context, state) =>
+          const AppScaffold(child: ChallengeLockinScreen()),
     ),
     // GoRoute(
     //   path: '/sandbox',

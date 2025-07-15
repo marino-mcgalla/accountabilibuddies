@@ -125,7 +125,7 @@ class MyGoalsScreen extends StatelessWidget {
   Widget _buildGoalCard(BuildContext context, Goal goal) {
     int completionsCount = 0;
     if (goal.challengeData != null) {
-      if (goal.goalType == 'weekly') {
+      if (goal.goalType == 'daily') {
         completionsCount = goal.challengeData!.totalCompletions;
       } else {
         completionsCount = goal.challengeData!.proofs
@@ -168,7 +168,7 @@ class MyGoalsScreen extends StatelessWidget {
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Text(
-                  goal.goalType == 'weekly' ? 'Weekly' : 'Total',
+                  goal.goalType == 'daily' ? 'Daily' : 'Total',
                   style: TextStyle(
                     color: goal.isCompleted ? Colors.green[700] : Colors.blue[700],
                     fontSize: 12,

@@ -48,7 +48,6 @@ class SimpleProgressTracker extends StatelessWidget {
         
         if (goal.challengeData != null) {
           final completions = goal.challengeData!.completions;
-          print('DEBUG: SIMPLE PROGRESS: Completions: $completions');
           
           // Generate days of the week (Mon-Sun)
           final now = DateTime.now();
@@ -58,11 +57,30 @@ class SimpleProgressTracker extends StatelessWidget {
             return date.toIso8601String().split('T')[0];
           });
           
-          print('DEBUG: SIMPLE PROGRESS: Days of week: $daysOfWeek');
-          
           return Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              // Goal name and progress
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    goal.goalName,
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  Text(
+                    '${goal.completionsCount}/${goal.goalFrequency}',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: Colors.grey[600],
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
               // Days labels
               Row(
                 children: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map((day) {

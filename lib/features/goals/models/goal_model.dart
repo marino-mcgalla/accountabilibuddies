@@ -41,10 +41,10 @@ abstract class Goal {
   /// Factory constructor that creates the appropriate goal type from map data
   factory Goal.fromMap(Map<String, dynamic> data) {
     final typeString = data['goalType'] as String?;
-    final goalType = GoalType.fromString(typeString ?? 'weekly');
+    final goalType = GoalType.fromString(typeString ?? 'daily');
     
     switch (goalType) {
-      case GoalType.weekly:
+      case GoalType.daily:
         return WeeklyGoal.fromMap(data);
       case GoalType.total:
         return TotalGoal.fromMap(data);
@@ -75,6 +75,9 @@ abstract class Goal {
 
   /// Add proof submission to this goal
   Goal addProof(String proofText, String? imageUrl, DateTime date);
+
+  /// Overwrite proof - replaces existing proof and resets completion status to pending
+  Goal overwriteProof(String proofText, String? imageUrl, DateTime date);
 
   /// Approve a proof for this goal
   Goal approveProof(String proofId, String date);
@@ -107,7 +110,7 @@ class WeeklyGoal extends Goal {
     super.templateId,
     required super.createdAt,
     required super.updatedAt,
-  }) : super(goalType: GoalType.weekly);
+  }) : super(goalType: GoalType.daily);
 
   @override
   Map<String, dynamic> toMap() {
@@ -145,9 +148,9 @@ class WeeklyGoal extends Goal {
     return WeeklyGoal(
       id: data['id'] ?? '',
       ownerId: data['ownerId'] ?? '',
-      goalName: data['goalName'] ?? '',
-      goalCriteria: data['goalCriteria'] ?? '',
-      goalFrequency: data['goalFrequency'] ?? 1,
+      goalName: data['goalName'] ?? data['name'] ?? '', // Support both field names
+      goalCriteria: data['goalCriteria'] ?? data['description'] ?? '', // Support both field names
+      goalFrequency: data['goalFrequency'] ?? data['frequency'] ?? 1, // Support both field names
       active: data['active'] ?? true,
       challengeData: challengeData,
       templateId: data['templateId'],
@@ -222,6 +225,35 @@ class WeeklyGoal extends Goal {
     if (updatedCompletions[dateKey] != 'completed') {
       updatedCompletions[dateKey] = 'pending';
     }
+
+    return copyWith(
+      challengeData: currentData.copyWith(
+        dailyProofs: updatedDailyProofs,
+        completions: updatedCompletions,
+      ),
+    );
+  }
+
+  /// Overwrite proof - replaces existing proof and resets completion status to pending
+  @override
+  WeeklyGoal overwriteProof(String proofText, String? imageUrl, DateTime date) {
+    final dateKey = date.toIso8601String().split('T')[0];
+    
+    final proof = Proof(
+      id: '${id}_${dateKey}_${DateTime.now().millisecondsSinceEpoch}',
+      proofText: proofText,
+      imageUrl: imageUrl,
+      submissionDate: date,
+      status: ProofStatus.pending,
+    );
+
+    final currentData = challengeData ?? const ChallengeData();
+    final updatedDailyProofs = Map<String, Proof>.from(currentData.dailyProofs);
+    final updatedCompletions = Map<String, String>.from(currentData.completions);
+    
+    // Replace the proof and reset completion to pending
+    updatedDailyProofs[dateKey] = proof;
+    updatedCompletions[dateKey] = 'pending';
 
     return copyWith(
       challengeData: currentData.copyWith(
@@ -325,9 +357,9 @@ class TotalGoal extends Goal {
     return TotalGoal(
       id: data['id'] ?? '',
       ownerId: data['ownerId'] ?? '',
-      goalName: data['goalName'] ?? '',
-      goalCriteria: data['goalCriteria'] ?? '',
-      goalFrequency: data['goalFrequency'] ?? 1,
+      goalName: data['goalName'] ?? data['name'] ?? '', // Support both field names
+      goalCriteria: data['goalCriteria'] ?? data['description'] ?? '', // Support both field names
+      goalFrequency: data['goalFrequency'] ?? data['frequency'] ?? 1, // Support both field names
       active: data['active'] ?? true,
       challengeData: challengeData,
       templateId: data['templateId'],
@@ -398,6 +430,13 @@ class TotalGoal extends Goal {
     );
   }
 
+  /// Overwrite proof - for total goals, this is the same as adding a proof since they don't track daily completions
+  @override
+  TotalGoal overwriteProof(String proofText, String? imageUrl, DateTime date) {
+    // For total goals, overwriting is the same as adding since there's no daily completion tracking
+    return addProof(proofText, imageUrl, date);
+  }
+
   @override
   TotalGoal approveProof(String proofId, String date) {
     final currentData = challengeData ?? const ChallengeData();
@@ -431,24 +470,26 @@ class TotalGoal extends Goal {
 
 /// Goal Type Enum
 enum GoalType {
-  weekly,
+  daily,
   total;
 
   static GoalType fromString(String value) {
     switch (value.toLowerCase()) {
-      case 'weekly':
-        return GoalType.weekly;
+      case 'daily':
+        return GoalType.daily;
+      case 'weekly': // Support legacy data
+        return GoalType.daily;
       case 'total':
         return GoalType.total;
       default:
-        return GoalType.weekly; // Default fallback
+        return GoalType.daily; // Default fallback
     }
   }
 
   String get name {
     switch (this) {
-      case GoalType.weekly:
-        return 'weekly';
+      case GoalType.daily:
+        return 'daily';
       case GoalType.total:
         return 'total';
     }

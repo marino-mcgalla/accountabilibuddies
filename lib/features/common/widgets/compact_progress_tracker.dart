@@ -1,6 +1,7 @@
 import 'package:auth_test/features/common/utils/utils.dart';
 import 'package:flutter/material.dart';
 import '../../goals/models/goal_model.dart';
+import '../../goals/models/challenge_data.dart';
 import 'package:provider/provider.dart';
 import '../../time_machine/providers/time_machine_provider.dart';
 
@@ -15,7 +16,7 @@ class CompactProgressTracker extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     // Create a unique key based on challenge data
-    final keyString = '${goal.id}-${(goal.challenge ?? {}).hashCode}';
+    final keyString = '${goal.id}-${(goal.challengeData ?? const ChallengeData()).hashCode}';
     final valueKey = ValueKey(keyString);
 
     return Container(
@@ -25,11 +26,11 @@ class CompactProgressTracker extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            '${goal.goalName} (x${goal.challenge?['challengeFrequency']})',
+            '${goal.goalName} (x${goal.goalFrequency})',
             style: const TextStyle(fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 4),
-          if (goal.goalType == 'total')
+          if (goal.goalType == GoalType.total)
             _buildTotalGoalProgress(context)
           else
             _buildWeeklyGoalProgress(context),
@@ -39,17 +40,9 @@ class CompactProgressTracker extends StatelessWidget {
   }
 
   Widget _buildTotalGoalProgress(BuildContext context) {
-    final completions =
-        (goal.challenge?['completions'] as Map<String, dynamic>?) ?? {};
-    final int completed =
-        completions.values.fold(0, (sum, val) => sum + (val as int? ?? 0));
-
-    int pendingCount = 0;
-    final proofs = goal.challenge?['proofs'];
-    if (proofs is List) {
-      pendingCount =
-          proofs.where((proof) => proof['status'] == 'pending').length;
-    }
+    final challengeData = goal.challengeData ?? const ChallengeData();
+    final int completed = challengeData.proofs.where((proof) => proof.status.name == 'approved').length;
+    final int pendingCount = challengeData.proofs.where((proof) => proof.status.name == 'pending').length;
 
     final double completedProgress = goal.goalFrequency > 0
         ? (completed / goal.goalFrequency).clamp(0.0, 1.0)
@@ -92,17 +85,31 @@ class CompactProgressTracker extends StatelessWidget {
   Widget _buildWeeklyGoalProgress(BuildContext context) {
     final timeMachineProvider =
         Provider.of<TimeMachineProvider>(context, listen: false);
+    
+    // Calculate days of week (Monday to Sunday)
+    final now = timeMachineProvider.now;
+    final mondayOfWeek = now.subtract(Duration(days: now.weekday - 1));
     final daysOfWeek = List.generate(7, (index) {
-      final date = timeMachineProvider.now.subtract(
-          Duration(days: timeMachineProvider.now.weekday - 1 - index));
+      final date = mondayOfWeek.add(Duration(days: index));
       return date.toIso8601String().split('T').first;
     });
+    
+    // Also calculate today's date for comparison
+    final todayDateString = now.toIso8601String().split('T').first;
 
     // Get completed count
-    final completions =
-        (goal.challenge?['completions'] as Map<String, dynamic>?) ?? {};
-    final completedCount =
-        completions.values.where((status) => status == 'completed').length;
+    final challengeData = goal.challengeData ?? const ChallengeData();
+    final completions = challengeData.completions;
+    final completedCount = completions.values.where((status) => status == 'completed').length;
+    
+    // Debug logging
+    print('DEBUG: Progress bar for goal ${goal.goalName}');
+    print('DEBUG: Current time: ${now.toIso8601String()}');
+    print('DEBUG: Today date string: $todayDateString');
+    print('DEBUG: Monday of week: ${mondayOfWeek.toIso8601String()}');
+    print('DEBUG: Challenge data completions: $completions');
+    print('DEBUG: Challenge data dailyProofs: ${challengeData.dailyProofs.keys.toList()}');
+    print('DEBUG: Days of week: $daysOfWeek');
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -112,6 +119,7 @@ class CompactProgressTracker extends StatelessWidget {
           child: Row(
             children: daysOfWeek.map((day) {
               final status = (completions[day] ?? 'default');
+              print('DEBUG: Day $day has status: $status (color: ${Utils.getStatusColor(status)})');
               return Expanded(
                 child: Container(
                   height: 4,

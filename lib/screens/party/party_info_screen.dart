@@ -1,8 +1,8 @@
 import 'package:auth_test/features/party/widgets/member_item_widget.dart';
 import 'package:flutter/material.dart';
 import '../../features/common/widgets/compact_progress_tracker.dart';
-import '../../features/party/providers/party_provider.dart';
-import '../../features/goals/providers/goals_provider.dart';
+import '../../features/party/providers/simple_party_provider.dart';
+import '../../features/goals/providers/simple_goals_provider.dart';
 import 'package:provider/provider.dart';
 import '../../features/goals/models/goal_model.dart';
 import '../../features/common/utils/utils.dart';
@@ -26,11 +26,11 @@ class PartyInfoScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     // Use Selector to only rebuild when partyMemberGoals changes
-    return Selector<PartyProvider, Map<String, List<Goal>>>(
+    return Selector<SimplePartyProvider, Map<String, List<Goal>>>(
       selector: (_, provider) => provider.partyMemberGoals,
       builder: (context, partyMemberGoals, child) {
         final partyProvider =
-            Provider.of<PartyProvider>(context, listen: false);
+            Provider.of<SimplePartyProvider>(context, listen: false);
 
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -192,7 +192,7 @@ class PartyInfoScreen extends StatelessWidget {
 
   // Build the pending challenge card
   Widget _buildPendingChallengeCard(BuildContext context) {
-    final partyProvider = Provider.of<PartyProvider>(context, listen: false);
+    final partyProvider = Provider.of<SimplePartyProvider>(context, listen: false);
 
     return Card(
       elevation: 3,
@@ -238,32 +238,55 @@ class PartyInfoScreen extends StatelessWidget {
                   SizedBox(height: 8),
                   ...members.map((memberId) {
                     final name = partyProvider.memberDetails[memberId]
-                            ?['username'] ??
+                            ?['displayName'] ??
+                        partyProvider.memberDetails[memberId]?['username'] ??
                         partyProvider.memberDetails[memberId]?['email'] ??
                         'Unknown';
                     final isLockedIn =
                         partyProvider.lockedInMembers.contains(memberId);
+                    final isOptedOut =
+                        partyProvider.optedOutMembers.contains(memberId);
+
                     return Padding(
                       padding: EdgeInsets.only(bottom: 4),
                       child: Row(
                         children: [
                           Icon(
-                            isLockedIn
-                                ? Icons.check_circle
-                                : Icons.circle_outlined,
-                            color: isLockedIn ? Colors.green : Colors.grey,
+                            isOptedOut
+                                ? Icons.not_interested
+                                : isLockedIn
+                                    ? Icons.check_circle
+                                    : Icons.circle_outlined,
+                            color: isOptedOut
+                                ? Colors.orange
+                                : isLockedIn
+                                    ? Colors.green
+                                    : Colors.grey,
                             size: 18,
                           ),
                           SizedBox(width: 8),
                           Text(name,
                               style: TextStyle(
-                                color: isLockedIn ? Colors.black : Colors.grey,
+                                color: isOptedOut
+                                    ? Colors.orange.shade800
+                                    : isLockedIn
+                                        ? Colors.black
+                                        : Colors.grey,
                               )),
                           Spacer(),
-                          Text(isLockedIn ? 'Ready' : 'Waiting',
+                          Text(
+                              isOptedOut
+                                  ? 'Opted out'
+                                  : isLockedIn
+                                      ? 'Ready'
+                                      : 'Waiting',
                               style: TextStyle(
                                 fontStyle: FontStyle.italic,
-                                color: isLockedIn ? Colors.green : Colors.grey,
+                                color: isOptedOut
+                                    ? Colors.orange
+                                    : isLockedIn
+                                        ? Colors.green
+                                        : Colors.grey,
                               )),
                         ],
                       ),
@@ -285,10 +308,14 @@ class PartyInfoScreen extends StatelessWidget {
                         icon: Icon(Icons.play_arrow),
                         label: Text('Start Challenge'),
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.green,
+                          backgroundColor: partyProvider.areAllMembersReady
+                              ? Colors.green
+                              : Colors.grey,
                           foregroundColor: Colors.white,
                         ),
-                        onPressed: () => _confirmStartChallenge(context),
+                        onPressed: partyProvider.areAllMembersReady
+                            ? () => _confirmStartChallenge(context)
+                            : null, // Button is disabled when not all members are ready
                       ),
                     ],
                   ),
@@ -297,28 +324,68 @@ class PartyInfoScreen extends StatelessWidget {
 
             // Lock in button (for regular members)
             if (!partyProvider.isCurrentUserPartyLeader)
-              Center(
-                child: ElevatedButton.icon(
-                  icon: Icon(
-                    partyProvider.isCurrentUserLockedIn
-                        ? Icons.check
-                        : Icons.lock_outline,
-                  ),
-                  label: Text(
-                    partyProvider.isCurrentUserLockedIn
-                        ? 'Goals Locked In'
-                        : 'Lock In My Goals',
-                  ),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: partyProvider.isCurrentUserLockedIn
-                        ? Colors.grey
-                        : Theme.of(context).colorScheme.primary,
-                    foregroundColor: Colors.white,
-                  ),
-                  onPressed: partyProvider.isCurrentUserLockedIn
-                      ? null
-                      : () => _lockInMemberGoals(context),
-                ),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                children: [
+                  if (partyProvider.isCurrentUserOptedOut ||
+                      partyProvider.isCurrentUserLockedIn)
+                    Column(
+                      children: [
+                        Text(
+                          partyProvider.isCurrentUserOptedOut
+                              ? 'You have opted out for this week.'
+                              : 'Your goals are locked in.',
+                          style: TextStyle(
+                            color: partyProvider.isCurrentUserOptedOut
+                                ? Colors.orange
+                                : Colors.green,
+                          ),
+                        ),
+                        ElevatedButton.icon(
+                          icon: const Icon(Icons.undo),
+                          label: const Text('Cancel'),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor:
+                                Theme.of(context).colorScheme.primary,
+                            foregroundColor: Colors.white,
+                          ),
+                          onPressed: () => _cancelStatus(context),
+                        ),
+                      ],
+                    )
+                  else ...[
+                    ElevatedButton.icon(
+                      icon: const Icon(Icons.skip_next),
+                      label: const Text('Opt Out This Week'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.grey[600],
+                        foregroundColor: Colors.white,
+                      ),
+                      onPressed: () => _optOutForWeek(context),
+                    ),
+                    ElevatedButton.icon(
+                      icon: Icon(
+                        partyProvider.isCurrentUserLockedIn
+                            ? Icons.check
+                            : Icons.lock_outline,
+                      ),
+                      label: Text(
+                        partyProvider.isCurrentUserLockedIn
+                            ? 'Goals Locked In'
+                            : 'Lock In My Goals',
+                      ),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: partyProvider.isCurrentUserLockedIn
+                            ? Colors.grey
+                            : Theme.of(context).colorScheme.primary,
+                        foregroundColor: Colors.white,
+                      ),
+                      onPressed: partyProvider.isCurrentUserLockedIn
+                          ? null
+                          : () => _lockInMemberGoals(context),
+                    ),
+                  ],
+                ],
               ),
           ],
         ),
@@ -327,7 +394,7 @@ class PartyInfoScreen extends StatelessWidget {
   }
 
   Widget _buildActiveChallengeCard(BuildContext context) {
-    final partyProvider = Provider.of<PartyProvider>(context);
+    final partyProvider = Provider.of<SimplePartyProvider>(context);
 
     return Container(
       padding: const EdgeInsets.all(12),
@@ -413,15 +480,41 @@ class PartyInfoScreen extends StatelessWidget {
   }
 
   void _lockInMemberGoals(BuildContext context) {
-    final goalsProvider = Provider.of<GoalsProvider>(context, listen: false);
-    final partyProvider = Provider.of<PartyProvider>(context, listen: false);
+    final goalsProvider = Provider.of<SimpleGoalsProvider>(context, listen: false);
+    final partyProvider = Provider.of<SimplePartyProvider>(context, listen: false);
 
     goalsProvider.showLockInDialogAndLockGoals(context, partyProvider.partyId);
   }
 
+  void _optOutForWeek(BuildContext context) {
+    final partyProvider = Provider.of<SimplePartyProvider>(context, listen: false);
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        // Existing code...
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            onPressed: () {
+              Navigator.pop(context);
+              Utils.showFeedback(context, 'Opting out for this week...');
+              partyProvider.optOutMember(); // Uncomment this
+            },
+            child: const Text('Opt Out'),
+          ),
+        ],
+      ),
+    );
+  }
+
   // Confirm starting the challenge
   void _confirmStartChallenge(BuildContext context) {
-    final partyProvider = Provider.of<PartyProvider>(context, listen: false);
+    final partyProvider = Provider.of<SimplePartyProvider>(context, listen: false);
 
     showDialog(
       context: context,
@@ -452,7 +545,7 @@ class PartyInfoScreen extends StatelessWidget {
 
   // Show dialog to select the challenge start day
   void _showChallengeStartDayPicker(BuildContext context) {
-    final partyProvider = Provider.of<PartyProvider>(context, listen: false);
+    final partyProvider = Provider.of<SimplePartyProvider>(context, listen: false);
 
     showDialog(
       context: context,
@@ -464,7 +557,7 @@ class PartyInfoScreen extends StatelessWidget {
             const Text('Select which day of the week challenges will start:'),
             const SizedBox(height: 16),
             ...List.generate(7, (index) {
-              final dayName = PartyProvider.dayNames[index];
+              final dayName = SimplePartyProvider.dayNames[index];
               return ListTile(
                 title: Text(dayName),
                 leading: Radio<int>(
@@ -493,7 +586,7 @@ class PartyInfoScreen extends StatelessWidget {
 
   // Show dialog for initiating challenge preparation
   void _showInitiateChallengeDialog(BuildContext context) {
-    final partyProvider = Provider.of<PartyProvider>(context, listen: false);
+    final partyProvider = Provider.of<SimplePartyProvider>(context, listen: false);
 
     showDialog(
       context: context,
@@ -522,7 +615,7 @@ class PartyInfoScreen extends StatelessWidget {
 
   // Show dialog for canceling challenge preparation
   void _showCancelChallengeDialog(BuildContext context) {
-    final partyProvider = Provider.of<PartyProvider>(context, listen: false);
+    final partyProvider = Provider.of<SimplePartyProvider>(context, listen: false);
 
     showDialog(
       context: context,
@@ -553,7 +646,7 @@ class PartyInfoScreen extends StatelessWidget {
 
   // Show confirmation dialog for ending the current challenge
   void _showEndChallengeConfirmation(BuildContext context) {
-    final partyProvider = Provider.of<PartyProvider>(context, listen: false);
+    final partyProvider = Provider.of<SimplePartyProvider>(context, listen: false);
 
     showDialog(
       context: context,
@@ -579,5 +672,23 @@ class PartyInfoScreen extends StatelessWidget {
         ],
       ),
     );
+  }
+
+  void _undoOptOut(BuildContext context) {
+    final partyProvider = Provider.of<SimplePartyProvider>(context, listen: false);
+
+    Utils.showFeedback(context, 'Undoing opt-out...');
+    partyProvider.undoOptOutMember();
+  }
+
+  void _cancelStatus(BuildContext context) {
+    final partyProvider = Provider.of<SimplePartyProvider>(context, listen: false);
+
+    Utils.showFeedback(context, 'Canceling status...');
+    if (partyProvider.isCurrentUserOptedOut) {
+      partyProvider.undoOptOutMember();
+    } else if (partyProvider.isCurrentUserLockedIn) {
+      partyProvider.undoLockInMember();
+    }
   }
 }

@@ -1,11 +1,11 @@
-import 'package:auth_test/features/goals/screens/create_party_screen.dart';
+import 'package:auth_test/features/party/screens/create_party_screen.dart';
 import 'package:auth_test/screens/party/party_info_screen.dart';
 import 'package:auth_test/features/party/widgets/invite_list.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
-import '../providers/party_provider.dart';
-import '../../goals/providers/goals_provider.dart';
+import '../providers/simple_party_provider.dart';
+import '../../goals/providers/simple_goals_provider.dart';
 import '../../time_machine/providers/time_machine_provider.dart';
 import '../widgets/proof_approval_widget.dart';
 
@@ -43,7 +43,7 @@ class _PartyScreenContentState extends State<PartyScreenContent>
 
   @override
   Widget build(BuildContext context) {
-    return Selector2<PartyProvider, GoalsProvider, Tuple2<bool, String?>>(
+    return Selector2<SimplePartyProvider, SimpleGoalsProvider, Tuple2<bool, String?>>(
       selector: (_, partyProvider, goalsProvider) =>
           Tuple2(partyProvider.isLoading, partyProvider.partyId),
       builder: (context, data, child) {
@@ -206,7 +206,7 @@ class _PartyScreenContentState extends State<PartyScreenContent>
 
                     // Pending invites section (unchanged)
                     StreamBuilder(
-                      stream: Provider.of<PartyProvider>(context, listen: false)
+                      stream: Provider.of<SimplePartyProvider>(context, listen: false)
                           .fetchIncomingPendingInvites(),
                       builder: (context, snapshot) {
                         if (snapshot.connectionState ==
@@ -238,7 +238,7 @@ class _PartyScreenContentState extends State<PartyScreenContent>
                             ),
                             const SizedBox(height: 12),
                             ...invites.map((invite) {
-                              final partyProvider = Provider.of<PartyProvider>(
+                              final partyProvider = Provider.of<SimplePartyProvider>(
                                   context,
                                   listen: false);
                               return Card(
@@ -270,7 +270,7 @@ class _PartyScreenContentState extends State<PartyScreenContent>
         // Party exists view with tabs
         return Scaffold(
           appBar: AppBar(
-            title: Text(Provider.of<PartyProvider>(context).partyName ??
+            title: Text(Provider.of<SimplePartyProvider>(context).partyName ??
                 "Accountabilibuddies"),
             bottom: TabBar(
               controller: _tabController,
@@ -301,7 +301,7 @@ class CreatePartyDialog extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final partyProvider = Provider.of<PartyProvider>(context, listen: false);
+    final partyProvider = Provider.of<SimplePartyProvider>(context, listen: false);
 
     return AlertDialog(
       title: const Text('Create New Party'),
@@ -346,7 +346,7 @@ class PartyInfoTab extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final partyProvider = Provider.of<PartyProvider>(context);
+    final partyProvider = Provider.of<SimplePartyProvider>(context);
 
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16.0),
@@ -376,7 +376,7 @@ class PartyInfoTab extends StatelessWidget {
                   icon: const Icon(Icons.send),
                   label: const Text("Send Invite"),
                   onPressed: partyProvider.isCurrentUserPartyLeader
-                      ? partyProvider.sendInvite
+                      ? partyProvider.sendInviteFromController
                       : null,
                 ),
               ),
@@ -389,9 +389,210 @@ class PartyInfoTab extends StatelessWidget {
             onAction: (inviteId, _) => partyProvider.cancelInvite(inviteId),
             isOutgoing: true,
           ),
+          
+          // Challenge Management Section (Leader Only)
+          if (partyProvider.isCurrentUserPartyLeader) ...[
+            const SizedBox(height: 32),
+            const Divider(),
+            const SizedBox(height: 16),
+            Text(
+              "Challenge Management",
+              style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(height: 16),
+            _buildChallengeManagement(context, partyProvider),
+          ],
         ],
       ),
     );
+  }
+
+  Widget _buildChallengeManagement(BuildContext context, SimplePartyProvider partyProvider) {
+    final hasPendingChallenge = partyProvider.hasPendingChallenge;
+    final hasActiveChallenge = partyProvider.hasActiveChallenge;
+    
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.surfaceContainerHighest,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(
+          color: Theme.of(context).colorScheme.outline.withValues(alpha: 0.2),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          if (hasPendingChallenge) ...[
+            Row(
+              children: [
+                Icon(
+                  Icons.hourglass_top,
+                  color: Theme.of(context).colorScheme.secondary,
+                  size: 20,
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  "Challenge in preparation",
+                  style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Text(
+              "${partyProvider.lockedInMembers.length} of ${partyProvider.members.length} members have locked in",
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
+            const SizedBox(height: 12),
+            OutlinedButton.icon(
+              onPressed: () => _cancelChallengePrep(context, partyProvider),
+              icon: const Icon(Icons.cancel),
+              label: const Text("Cancel Challenge"),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: Theme.of(context).colorScheme.error,
+                side: BorderSide(color: Theme.of(context).colorScheme.error),
+              ),
+            ),
+          ] else if (hasActiveChallenge) ...[
+            Row(
+              children: [
+                Icon(
+                  Icons.emoji_events,
+                  color: Theme.of(context).colorScheme.primary,
+                  size: 20,
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  "Challenge is active",
+                  style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Text(
+              "Total wager pool: \$${partyProvider.getTotalWagerPool().toStringAsFixed(0)}",
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
+            const SizedBox(height: 12),
+            OutlinedButton.icon(
+              onPressed: () => _endChallenge(context, partyProvider),
+              icon: const Icon(Icons.stop),
+              label: const Text("End Challenge"),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: Theme.of(context).colorScheme.error,
+                side: BorderSide(color: Theme.of(context).colorScheme.error),
+              ),
+            ),
+          ] else ...[
+            Row(
+              children: [
+                Icon(
+                  Icons.schedule,
+                  color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
+                  size: 20,
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  "No active challenge",
+                  style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Text(
+              "Start a new challenge from the home screen",
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Future<void> _cancelChallengePrep(BuildContext context, SimplePartyProvider partyProvider) async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text("Cancel Challenge"),
+        content: const Text("Are you sure you want to cancel this challenge preparation? All member lock-ins will be lost."),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text("Keep Challenge"),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: TextButton.styleFrom(
+              foregroundColor: Theme.of(context).colorScheme.error,
+            ),
+            child: const Text("Cancel Challenge"),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm == true) {
+      final success = await partyProvider.cancelChallengePreparation();
+      if (context.mounted) {
+        if (success) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text("Challenge preparation cancelled.")),
+          );
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text("Failed to cancel challenge preparation.")),
+          );
+        }
+      }
+    }
+  }
+
+  Future<void> _endChallenge(BuildContext context, SimplePartyProvider partyProvider) async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text("End Challenge"),
+        content: const Text("Are you sure you want to end this active challenge? This action cannot be undone."),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text("Keep Active"),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: TextButton.styleFrom(
+              foregroundColor: Theme.of(context).colorScheme.error,
+            ),
+            child: const Text("End Challenge"),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm == true) {
+      final success = await partyProvider.endCurrentChallenge();
+      if (context.mounted) {
+        if (success) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text("Challenge ended and archived.")),
+          );
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text("Failed to end challenge.")),
+          );
+        }
+      }
+    }
   }
 }
 

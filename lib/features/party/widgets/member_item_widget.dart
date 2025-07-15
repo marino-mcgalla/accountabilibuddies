@@ -19,6 +19,7 @@ class MemberItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    print('🔍 memberDetails for $memberId: $memberDetails');
     final partyProvider = Provider.of<PartyProvider>(context);
     final isLeader = memberId == partyProvider.partyLeaderId;
     final isCurrentUser = memberId == FirebaseAuth.instance.currentUser?.uid;
@@ -98,7 +99,7 @@ class MemberItem extends StatelessWidget {
                   child: Row(
                     children: [
                       Text(
-                        memberDetails?['email'] ?? 'Unknown User',
+                        _getMemberDisplayName(memberDetails),
                         style: const TextStyle(fontWeight: FontWeight.bold),
                       ),
                       if (isLeader)
@@ -157,7 +158,7 @@ class MemberItem extends StatelessWidget {
       builder: (context) => AlertDialog(
         title: const Text('Transfer Leadership'),
         content: Text(
-            'Make ${memberDetails?['email'] ?? 'this user'} the party leader?'),
+            'Make ${_getMemberDisplayName(memberDetails)} the party leader?'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
@@ -181,7 +182,7 @@ class MemberItem extends StatelessWidget {
       builder: (context) => AlertDialog(
         title: const Text('Remove Member'),
         content: Text(
-            'Remove ${memberDetails?['email'] ?? 'this user'} from the party?'),
+            'Remove ${_getMemberDisplayName(memberDetails)} from the party?'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
@@ -198,5 +199,21 @@ class MemberItem extends StatelessWidget {
         ],
       ),
     );
+  }
+
+  String _getMemberDisplayName(Map<String, dynamic>? memberDetails) {
+    if (memberDetails == null) return 'Unknown User';
+    
+    // Prioritize displayName over email
+    final displayName = memberDetails['displayName'] as String?;
+    final email = memberDetails['email'] as String?;
+    
+    if (displayName != null && displayName.isNotEmpty) {
+      return displayName;
+    } else if (email != null && email.isNotEmpty) {
+      return email;
+    } else {
+      return 'Unknown User';
+    }
   }
 }

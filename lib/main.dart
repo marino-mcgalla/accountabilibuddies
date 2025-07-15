@@ -7,8 +7,11 @@ import 'package:firebase_core/firebase_core.dart';
 import 'firebase_options.dart';
 import 'features/core/routing/app_router.dart';
 import 'package:provider/provider.dart';
-import 'features/goals/providers/goals_provider.dart';
-import 'features/party/providers/party_provider.dart';
+// import 'features/goals/providers/goals_provider.dart'; // OLD SYSTEM - COMMENTED OUT  
+import 'features/goals/providers/simple_goals_provider.dart';
+import 'features/goals/providers/goal_template_provider.dart';
+// import 'features/party/providers/party_provider.dart'; // OLD SYSTEM - COMMENTED OUT
+import 'features/party/providers/simple_party_provider.dart';
 import 'features/time_machine/providers/time_machine_provider.dart';
 import 'features/core/utils/responsive_wrapper.dart';
 
@@ -34,22 +37,25 @@ class MyApp extends StatelessWidget {
         // TimeMachineProvider first (dependency of GoalsProvider)
         ChangeNotifierProvider(create: (context) => TimeMachineProvider()),
 
-        // Set up GoalsProvider with TimeMachineProvider dependency
-        ChangeNotifierProxyProvider<TimeMachineProvider, GoalsProvider>(
-          create: (context) => GoalsProvider(
-            Provider.of<TimeMachineProvider>(context, listen: false),
-          ),
-          update: (context, timeMachineProvider, goalsProvider) =>
-              goalsProvider!..updateTimeMachineProvider(timeMachineProvider),
+        // Set up SimpleGoalsProvider (new clean version)
+        ChangeNotifierProvider<SimpleGoalsProvider>(
+          create: (context) => SimpleGoalsProvider(),
         ),
 
-        // Set up PartyProvider with GoalsProvider dependency
-        ChangeNotifierProxyProvider<GoalsProvider, PartyProvider>(
-          create: (context) => PartyProvider(
-            goalsProvider: Provider.of<GoalsProvider>(context, listen: false),
-          ),
-          update: (context, goalsProvider, partyProvider) =>
-              partyProvider ?? PartyProvider(goalsProvider: goalsProvider),
+        // Set up Goal Template Provider
+        ChangeNotifierProvider<GoalTemplateProvider>(
+          create: (context) => GoalTemplateProvider(),
+        ),
+
+        // Set up PartyProvider (old clean version) - COMMENTED OUT
+        // ChangeNotifierProvider<PartyProvider>(
+        //   create: (context) => PartyProvider(),
+        // ),
+
+
+        // Set up SimplePartyProvider (Fresh start simple system)
+        ChangeNotifierProvider<SimplePartyProvider>(
+          create: (context) => SimplePartyProvider(),
         ),
       ],
       child: Consumer<ThemeProvider>(

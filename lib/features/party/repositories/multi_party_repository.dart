@@ -37,7 +37,7 @@ class MultiPartyRepository {
         final partyRef = _partiesCollection.doc();
         final partyWithId = party.copyWith(id: partyRef.id);
         
-        print('Creating party document at: ${partyRef.path}');
+        
         transaction.set(partyRef, partyWithId.toFirestore());
 
         // Create membership for the leader
@@ -80,13 +80,13 @@ class MultiPartyRepository {
         }
         
         transaction.set(userRef, updatedUserData);
-        print('Updated user doc with ${currentParties.length} parties including ${partyRef.id}');
         
-        print('Transaction completed, party ID: ${partyRef.id}');
+        
+        
         return partyRef.id;
       });
     } catch (e) {
-      print('Transaction failed: $e');
+      
       return null;
     }
   }
@@ -95,13 +95,13 @@ class MultiPartyRepository {
   Future<void> verifyPartyExists(String partyId) async {
     try {
       final doc = await _partiesCollection.doc(partyId).get();
-      print('🔍 PARTY VERIFICATION: $partyId exists = ${doc.exists}');
+      
       if (doc.exists) {
         final data = doc.data()!;
-        print('🔍 PARTY DATA: name=${data['name']}, leaderId=${data['leaderId']}');
+        
       }
     } catch (e) {
-      print('🔍 PARTY VERIFICATION ERROR: $e');
+      
     }
   }
 
@@ -110,7 +110,7 @@ class MultiPartyRepository {
       await _partiesCollection.doc(party.id).update(party.toFirestore());
       return true;
     } catch (e) {
-      print('Error updating party: $e');
+      
       return false;
     }
   }
@@ -146,7 +146,7 @@ class MultiPartyRepository {
         return true;
       });
     } catch (e) {
-      print('Error deleting party: $e');
+      
       return false;
     }
   }
@@ -196,7 +196,7 @@ class MultiPartyRepository {
         return true;
       });
     } catch (e) {
-      print('Error joining party: $e');
+      
       return false;
     }
   }
@@ -249,7 +249,7 @@ class MultiPartyRepository {
         return true;
       });
     } catch (e) {
-      print('Error leaving party: $e');
+      
       return false;
     }
   }
@@ -292,7 +292,7 @@ class MultiPartyRepository {
         return true;
       });
     } catch (e) {
-      print('Error transferring leadership: $e');
+      
       return false;
     }
   }
@@ -332,7 +332,7 @@ class MultiPartyRepository {
         return true;
       });
     } catch (e) {
-      print('Error removing member: $e');
+      
       return false;
     }
   }
@@ -373,7 +373,7 @@ class MultiPartyRepository {
       final inviteRef = await _invitesCollection.add(inviteData);
       return inviteRef.id;
     } catch (e) {
-      print('Error creating invitation: $e');
+      
       return null;
     }
   }
@@ -415,7 +415,7 @@ class MultiPartyRepository {
         return true;
       });
     } catch (e) {
-      print('Error accepting invitation: $e');
+      
       return false;
     }
   }
@@ -428,7 +428,7 @@ class MultiPartyRepository {
       });
       return true;
     } catch (e) {
-      print('Error declining invitation: $e');
+      
       return false;
     }
   }
@@ -447,7 +447,7 @@ class MultiPartyRepository {
       final partyIds = parties.keys.toList();
       
       // Simple debug
-      print('User has ${partyIds.length} parties: $partyIds');
+      
       return partyIds;
     }).asyncExpand((partyIds) {
       if (partyIds.isEmpty) return Stream.value(<MultiParty>[]);
@@ -456,9 +456,9 @@ class MultiPartyRepository {
           .where(FieldPath.documentId, whereIn: partyIds)
           .snapshots(includeMetadataChanges: true)
           .map((snapshot) {
-            print('Found ${snapshot.docs.length} party docs for ${partyIds.length} IDs');
+            
             for (final doc in snapshot.docs) {
-              print('Party found: ${doc.id} - ${doc.data()['name']}');
+              ['name']}');
             }
             
             return snapshot.docs
@@ -506,7 +506,7 @@ class MultiPartyRepository {
       final doc = await _usersCollection.doc(userId).get();
       return doc.exists ? UserModel.fromFirestore(doc) : null;
     } catch (e) {
-      print('Error getting user model: $e');
+      
       return null;
     }
   }
@@ -516,7 +516,7 @@ class MultiPartyRepository {
       final doc = await _partiesCollection.doc(partyId).get();
       return doc.exists ? MultiParty.fromFirestore(doc) : null;
     } catch (e) {
-      print('Error getting party: $e');
+      
       return null;
     }
   }
@@ -534,7 +534,7 @@ class MultiPartyRepository {
       final parties = userData['parties'] as Map<String, dynamic>? ?? {};
       final partyIds = parties.keys.toList();
       
-      print('FORCE REFRESH: User has ${partyIds.length} party IDs: $partyIds');
+      
       
       if (partyIds.isEmpty) return [];
       
@@ -543,16 +543,16 @@ class MultiPartyRepository {
           .where(FieldPath.documentId, whereIn: partyIds)
           .get(const GetOptions(source: Source.server));
       
-      print('FORCE REFRESH: Found ${partyDocs.docs.length} party documents');
+      
       for (final doc in partyDocs.docs) {
-        print('FORCE REFRESH: Party ${doc.id} - ${doc.data()['name']}');
+        ['name']}');
       }
       
       return partyDocs.docs
           .map((doc) => MultiParty.fromFirestore(doc))
           .toList();
     } catch (e) {
-      print('Error getting user parties: $e');
+      
       return [];
     }
   }
@@ -597,7 +597,7 @@ class MultiPartyRepository {
         return true;
       });
     } catch (e) {
-      print('Error setting up challenge: $e');
+      
       return false;
     }
   }
@@ -633,7 +633,7 @@ class MultiPartyRepository {
         return true;
       });
     } catch (e) {
-      print('Error locking in for challenge: $e');
+      
       return false;
     }
   }
@@ -669,7 +669,7 @@ class MultiPartyRepository {
         return true;
       });
     } catch (e) {
-      print('Error opting out of challenge: $e');
+      
       return false;
     }
   }
@@ -709,7 +709,7 @@ class MultiPartyRepository {
         return true;
       });
     } catch (e) {
-      print('Error starting challenge: $e');
+      
       return false;
     }
   }
@@ -744,7 +744,7 @@ class MultiPartyRepository {
         return true;
       });
     } catch (e) {
-      print('Error canceling challenge: $e');
+      
       return false;
     }
   }

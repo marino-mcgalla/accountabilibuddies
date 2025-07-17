@@ -15,7 +15,7 @@ class FirebaseStorageService {
       // Get current user ID
       String? userId = _auth.currentUser?.uid;
       if (userId == null) {
-        debugPrint('Error: User is not logged in');
+        
         return null;
       }
 
@@ -41,7 +41,7 @@ class FirebaseStorageService {
 
       return downloadUrl;
     } catch (e) {
-      debugPrint('Error uploading image: $e');
+      
       return null;
     }
   }
@@ -54,7 +54,7 @@ class FirebaseStorageService {
       await ref.delete();
       return true;
     } catch (e) {
-      debugPrint('Error deleting image: $e');
+      
       return false;
     }
   }

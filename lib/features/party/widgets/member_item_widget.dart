@@ -19,7 +19,7 @@ class MemberItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    print('🔍 memberDetails for $memberId: $memberDetails');
+    
     final partyProvider = Provider.of<PartyProvider>(context);
     final isLeader = memberId == partyProvider.partyLeaderId;
     final isCurrentUser = memberId == FirebaseAuth.instance.currentUser?.uid;

@@ -103,13 +103,13 @@ class CompactProgressTracker extends StatelessWidget {
     final completedCount = completions.values.where((status) => status == 'completed').length;
     
     // Debug logging
-    print('DEBUG: Progress bar for goal ${goal.goalName}');
-    print('DEBUG: Current time: ${now.toIso8601String()}');
-    print('DEBUG: Today date string: $todayDateString');
-    print('DEBUG: Monday of week: ${mondayOfWeek.toIso8601String()}');
-    print('DEBUG: Challenge data completions: $completions');
-    print('DEBUG: Challenge data dailyProofs: ${challengeData.dailyProofs.keys.toList()}');
-    print('DEBUG: Days of week: $daysOfWeek');
+    
+    }');
+    
+    }');
+    
+    }');
+    
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -119,7 +119,7 @@ class CompactProgressTracker extends StatelessWidget {
           child: Row(
             children: daysOfWeek.map((day) {
               final status = (completions[day] ?? 'default');
-              print('DEBUG: Day $day has status: $status (color: ${Utils.getStatusColor(status)})');
+              })');
               return Expanded(
                 child: Container(
                   height: 4,

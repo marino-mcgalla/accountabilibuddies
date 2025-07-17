@@ -111,7 +111,7 @@ class MultiPartyProvider with ChangeNotifier {
       },
       onError: (error) {
         if (_isDisposed) return;
-        debugPrint('Error loading invitations: $error');
+        
       },
     );
   }
@@ -384,7 +384,7 @@ class MultiPartyProvider with ChangeNotifier {
         },
         onError: (error) {
           if (_isDisposed) return;
-          debugPrint('Error loading current party: $error');
+          
         },
       );
     } else {
@@ -407,7 +407,7 @@ class MultiPartyProvider with ChangeNotifier {
       },
       onError: (error) {
         if (_isDisposed) return;
-        debugPrint('Error loading sent invitations for party $partyId: $error');
+        
       },
     );
   }
@@ -437,7 +437,7 @@ class MultiPartyProvider with ChangeNotifier {
       }
       return userData;
     } catch (e) {
-      debugPrint('Error fetching user data for $userId: $e');
+      
       return null;
     }
   }
@@ -640,7 +640,7 @@ class MultiPartyProvider with ChangeNotifier {
       _userParties = parties;
       notifyListeners();
     } catch (e) {
-      debugPrint('Error force refreshing parties: $e');
+      
     }
   }
 

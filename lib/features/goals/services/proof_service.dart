@@ -16,14 +16,14 @@ class ProofService {
     String? userId =
         _repository.getCurrentUserId();
     if (userId == null) {
-      print('DEBUG: No userId found, cannot submit proof');
+      
       return;
     }
 
-    print('DEBUG: Submitting proof for goalId: $goalId, userId: $userId');
+    
     int index = currentGoals.indexWhere((goal) => goal.id == goalId);
     if (index == -1) {
-      print('DEBUG: Goal not found in currentGoals');
+      
       return;
     }
 
@@ -36,29 +36,29 @@ class ProofService {
         ? _timeMachineProvider.now.subtract(Duration(days: 1))
         : _timeMachineProvider.now;
 
-    print('DEBUG: Adding proof to goal: ${goal.goalName}, type: ${goal.goalType}');
+    
     // Let the goal handle its own proof logic - this returns a new goal instance
     updatedGoals[index] = goal.addProof(proofText, imageUrl, submissionDate);
 
-    print('DEBUG: Goal challengeData after addProof: ${updatedGoals[index].challengeData}');
+    
     
     // Save to Firebase
-    print('DEBUG: Saving goals to Firebase');
+    
     await _repository.saveGoals(userId, updatedGoals);
-    print('DEBUG: Proof submission completed');
+    
   }
 
   Future<void> denyProof(List<Goal> currentGoals, String goalId, String? proofDate) async {
     String? userId = _repository.getCurrentUserId();
     if (userId == null) {
-      print('DEBUG: No userId found, cannot deny proof');
+      
       return;
     }
 
-    print('DEBUG: Denying proof for goalId: $goalId, proofDate: $proofDate');
+    
     int index = currentGoals.indexWhere((goal) => goal.id == goalId);
     if (index == -1) {
-      print('DEBUG: Goal not found in currentGoals');
+      
       return;
     }
 
@@ -72,9 +72,9 @@ class ProofService {
       updatedGoals[index] = goal.denyProof(proofId, proofDate);
       
       // Save to Firebase
-      print('DEBUG: Saving goals to Firebase after denial');
+      
       await _repository.saveGoals(userId, updatedGoals);
-      print('DEBUG: Proof denial completed');
+      
     }
   }
 }

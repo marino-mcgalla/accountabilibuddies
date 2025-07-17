@@ -326,7 +326,7 @@ class GoalTemplateProvider with ChangeNotifier {
       await _repository.updateUsageStats(templateId);
     } catch (e) {
       // Don't show error to user for usage tracking
-      debugPrint('Error updating usage stats: $e');
+      
     }
   }
 

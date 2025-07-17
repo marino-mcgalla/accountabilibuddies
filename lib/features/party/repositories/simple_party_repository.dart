@@ -10,13 +10,13 @@ class SimplePartyRepository {
   // Simple party creation - just create party doc and add user to members
   Future<String?> createParty(String name) async {
     if (currentUserId == null) {
-      print('Cannot create party: no current user');
+      
       return null;
     }
 
     try {
       final partyDoc = _firestore.collection('parties').doc();
-      print('Creating party document at: ${partyDoc.path}');
+      
       
       await partyDoc.set({
         'id': partyDoc.id,
@@ -29,10 +29,10 @@ class SimplePartyRepository {
         'isActive': true,
       });
 
-      print('Party created successfully with ID: ${partyDoc.id}');
+      
       return partyDoc.id;
     } catch (e) {
-      print('Error creating party: $e');
+      
       return null;
     }
   }
@@ -55,7 +55,7 @@ class SimplePartyRepository {
       }
       return null;
     } catch (e) {
-      print('Error getting party by ID: $e');
+      
       return null;
     }
   }
@@ -71,7 +71,7 @@ class SimplePartyRepository {
       });
       return true;
     } catch (e) {
-      print('Error joining party: $e');
+      
       return false;
     }
   }
@@ -87,7 +87,7 @@ class SimplePartyRepository {
       });
       return true;
     } catch (e) {
-      print('Error leaving party: $e');
+      
       return false;
     }
   }
@@ -109,7 +109,7 @@ class SimplePartyRepository {
       });
       return true;
     } catch (e) {
-      print('Error removing member: $e');
+      
       return false;
     }
   }
@@ -128,7 +128,7 @@ class SimplePartyRepository {
       await _firestore.collection('parties').doc(partyId).delete();
       return true;
     } catch (e) {
-      print('Error deleting party: $e');
+      
       return false;
     }
   }
@@ -142,7 +142,7 @@ class SimplePartyRepository {
         .where('members', arrayContains: currentUserId)
         .snapshots()
         .map((snapshot) {
-          print('Simple party system found ${snapshot.docs.length} parties for user $currentUserId');
+          
           return snapshot.docs.map((doc) => {
                 'id': doc.id,
                 'name': doc.data()['name'] ?? '',
@@ -174,7 +174,7 @@ class SimplePartyRepository {
             'activeChallenge': doc.data()['activeChallenge'],
           }).toList();
     } catch (e) {
-      print('Error getting parties: $e');
+      
       return [];
     }
   }
@@ -221,7 +221,7 @@ class SimplePartyRepository {
 
       return true;
     } catch (e) {
-      print('Error sending invitation: $e');
+      
       return false;
     }
   }
@@ -261,7 +261,7 @@ class SimplePartyRepository {
 
       return true;
     } catch (e) {
-      print('Error accepting invitation: $e');
+      
       return false;
     }
   }
@@ -278,7 +278,7 @@ class SimplePartyRepository {
 
       return true;
     } catch (e) {
-      print('Error declining invitation: $e');
+      
       return false;
     }
   }
@@ -297,7 +297,7 @@ class SimplePartyRepository {
       }
       return null;
     } catch (e) {
-      print('Error getting user by ID: $e');
+      
       return null;
     }
   }
@@ -327,7 +327,7 @@ class SimplePartyRepository {
       
       return users;
     } catch (e) {
-      print('Error getting users by IDs: $e');
+      
       return [];
     }
   }

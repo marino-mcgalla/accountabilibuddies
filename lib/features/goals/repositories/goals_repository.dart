@@ -116,7 +116,7 @@ class GoalsRepository {
           .doc(userId)
           .update({'goals': goalsData});
     } catch (e) {
-      print('Error updating goal field: $e');
+      
       throw e;
     }
   }

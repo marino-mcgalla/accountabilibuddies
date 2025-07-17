@@ -55,7 +55,6 @@ class SimpleGoalsProvider with ChangeNotifier {
         }
         
         if (challengeId != null) {
-          print('GOALS PROVIDER: Setting up real-time listener for challenge $challengeId');
           
           // Listen to the user's memberGoals document
           _memberGoalsSubscription = _firestore
@@ -65,7 +64,6 @@ class SimpleGoalsProvider with ChangeNotifier {
               .doc(userId)
               .snapshots()
               .listen((doc) {
-            print('GOALS PROVIDER: Received real-time update for user goals');
             _processRealtimeGoalsUpdate(doc);
           });
           
@@ -73,7 +71,6 @@ class SimpleGoalsProvider with ChangeNotifier {
         }
       }
     } catch (e) {
-      print('GOALS PROVIDER: Error setting up real-time listener: $e');
     }
   }
 
@@ -90,21 +87,17 @@ class SimpleGoalsProvider with ChangeNotifier {
           final goal = Goal.fromMap(Map<String, dynamic>.from(goalData));
           updatedGoals.add(goal);
         } catch (e) {
-          print('GOALS PROVIDER: Error parsing goal in real-time update: $e');
         }
       }
       
       _goals = updatedGoals;
-      print('GOALS PROVIDER: Updated ${_goals.length} goals from real-time listener');
       notifyListeners();
     } catch (e) {
-      print('GOALS PROVIDER: Error processing real-time update: $e');
     }
   }
 
   // Force refresh for debugging
   Future<void> refreshGoals() async {
-    print('DEBUG: Force refreshing goals...');
     await _loadGoals();
   }
 
@@ -115,7 +108,6 @@ class SimpleGoalsProvider with ChangeNotifier {
     _challengeGoalsSubscription = _goalInstanceService
         .listenToAllMemberGoalsForChallenge(challengeId: challengeId)
         .listen((allMemberGoals) {
-      print('DEBUG: Received real-time update for challenge $challengeId');
       
       // Find current user's goals from the real-time data
       final userId = currentUserId;
@@ -147,20 +139,12 @@ class SimpleGoalsProvider with ChangeNotifier {
 
   // Test method to validate data format
   void debugGoalData() {
-    print('DEBUG: Current goals count: ${_goals.length}');
     for (var goal in _goals) {
-      print('DEBUG: Goal ${goal.goalName}:');
-      print('  - ID: ${goal.id}');
-      print('  - Type: ${goal.goalType}');
-      print('  - Challenge data: ${goal.challengeData?.toMap()}');
-      print('  - Completions: ${goal.challengeData?.completions}');
-      print('  - Daily proofs: ${goal.challengeData?.dailyProofs}');
     }
   }
 
   // Test method to simulate proof submission scenario
   void simulateProofSubmission() {
-    print('DEBUG: SIMULATION: Simulating proof submission for 2025-07-09');
     
     // Create test goal data similar to what should be in Firebase
     final testGoalData = {
@@ -190,17 +174,11 @@ class SimpleGoalsProvider with ChangeNotifier {
     
     try {
       final goal = Goal.fromMap(testGoalData);
-      print('DEBUG: SIMULATION: Created goal successfully');
-      print('DEBUG: SIMULATION: Goal challenge data: ${goal.challengeData?.toMap()}');
-      print('DEBUG: SIMULATION: Completions: ${goal.challengeData?.completions}');
-      print('DEBUG: SIMULATION: Daily proofs: ${goal.challengeData?.dailyProofs}');
       
       // Check if the completion for 2025-07-09 is pending
       final status = goal.challengeData?.getCompletionStatus('2025-07-09');
-      print('DEBUG: SIMULATION: Status for 2025-07-09: $status');
       
     } catch (e) {
-      print('DEBUG: SIMULATION: Error creating goal: $e');
     }
   }
 
@@ -208,7 +186,6 @@ class SimpleGoalsProvider with ChangeNotifier {
     final userId = currentUserId;
     if (userId == null) return;
 
-    print('DEBUG: Loading goals for user: $userId');
     _isLoading = true;
     notifyListeners();
 
@@ -240,16 +217,12 @@ class SimpleGoalsProvider with ChangeNotifier {
           if (memberGoalsDoc.exists) {
             final memberGoalsData = memberGoalsDoc.data() as Map<String, dynamic>;
             final userGoals = memberGoalsData['goals'] as List? ?? [];
-            print('DEBUG: Found ${userGoals.length} pending challenge goals');
             
             for (var goalData in userGoals) {
               try {
                 final goal = Goal.fromMap(Map<String, dynamic>.from(goalData));
                 challengeGoals.add(goal);
-                print('DEBUG: Loaded goal: ${goal.goalName}');
-                print('DEBUG: Goal challenge data: ${goal.challengeData?.toMap()}');
               } catch (e) {
-                print('DEBUG: Error parsing goal: $e');
               }
             }
           }
@@ -271,16 +244,12 @@ class SimpleGoalsProvider with ChangeNotifier {
           if (memberGoalsDoc.exists) {
             final memberGoalsData = memberGoalsDoc.data() as Map<String, dynamic>;
             final userGoals = memberGoalsData['goals'] as List? ?? [];
-            print('DEBUG: Found ${userGoals.length} active challenge goals');
             
             for (var goalData in userGoals) {
               try {
                 final goal = Goal.fromMap(Map<String, dynamic>.from(goalData));
                 challengeGoals.add(goal);
-                print('DEBUG: Loaded goal: ${goal.goalName}');
-                print('DEBUG: Goal challenge data: ${goal.challengeData?.toMap()}');
               } catch (e) {
-                print('DEBUG: Error parsing goal: $e');
               }
             }
           }
@@ -288,14 +257,11 @@ class SimpleGoalsProvider with ChangeNotifier {
       }
 
       _goals = challengeGoals;
-      print('DEBUG: Total goals loaded: ${_goals.length}');
-      print('DEBUG: Active goals: ${activeGoals.length}');
       
       _isLoading = false;
       _error = null;
       notifyListeners();
     } catch (e) {
-      print('DEBUG: Error loading goals: $e');
       _error = e.toString();
       _isLoading = false;
       notifyListeners();
@@ -304,7 +270,6 @@ class SimpleGoalsProvider with ChangeNotifier {
 
   Future<bool> createGoalFromTemplate(dynamic template) async {
     // Stub implementation for now
-    print('DEBUG: createGoalFromTemplate called');
     return false;
   }
 
@@ -316,7 +281,6 @@ class SimpleGoalsProvider with ChangeNotifier {
     String? templateId,
   }) async {
     // Stub implementation for now
-    print('DEBUG: createGoal called');
     return false;
   }
 
@@ -324,29 +288,20 @@ class SimpleGoalsProvider with ChangeNotifier {
     final userId = currentUserId;
     if (userId == null) return false;
 
-    print('DEBUG: SIMPLE SUBMIT: Submitting proof for goal $goalId (overwrite: $isOverwrite)');
-    print('DEBUG: SIMPLE SUBMIT: Proof text: $proofText');
-    print('DEBUG: SIMPLE SUBMIT: Date: ${date.toIso8601String().split('T')[0]}');
 
     try {
       // Find the goal
       final goalIndex = _goals.indexWhere((goal) => goal.id == goalId);
       if (goalIndex == -1) {
-        print('DEBUG: SIMPLE SUBMIT: Goal not found');
         return false;
       }
 
       final goal = _goals[goalIndex];
-      print('DEBUG: SIMPLE SUBMIT: Found goal: ${goal.goalName}');
-      print('DEBUG: SIMPLE SUBMIT: Goal type: ${goal.goalType}');
-      print('DEBUG: SIMPLE SUBMIT: Current challengeData: ${goal.challengeData?.toMap()}');
 
       // Use overwriteProof or addProof based on the flag
       final updatedGoal = isOverwrite 
           ? goal.overwriteProof(proofText, imageUrl, date)
           : goal.addProof(proofText, imageUrl, date);
-      print('DEBUG: SIMPLE SUBMIT: Updated goal with proof (using ${isOverwrite ? "overwrite" : "add"})');
-      print('DEBUG: SIMPLE SUBMIT: Updated goal challenge data: ${updatedGoal.challengeData?.toMap()}');
 
       // Save to Firebase - find the party
       final partiesSnapshot = await _firestore
@@ -378,8 +333,6 @@ class SimpleGoalsProvider with ChangeNotifier {
             if (goalIndex != -1) {
               userGoals[goalIndex] = updatedGoal.toMap();
               
-              print('DEBUG: SIMPLE SUBMIT: About to save to Firebase - pendingChallenge');
-              print('DEBUG: SIMPLE SUBMIT: Updated goal map: ${updatedGoal.toMap()}');
               
               await _firestore
                   .collection('challenges')
@@ -391,11 +344,9 @@ class SimpleGoalsProvider with ChangeNotifier {
                     'updatedAt': FieldValue.serverTimestamp(),
                   });
               
-              print('DEBUG: SIMPLE SUBMIT: Successfully saved to Firebase - pendingChallenge');
               
               // Update local state
               _goals[goalIndex] = updatedGoal;
-              print('DEBUG: SIMPLE SUBMIT: Calling notifyListeners() - goals count: ${_goals.length}');
               notifyListeners();
               return true;
             }
@@ -423,8 +374,6 @@ class SimpleGoalsProvider with ChangeNotifier {
             if (goalIndex != -1) {
               userGoals[goalIndex] = updatedGoal.toMap();
               
-              print('DEBUG: SIMPLE SUBMIT: About to save to Firebase - activeChallenge');
-              print('DEBUG: SIMPLE SUBMIT: Updated goal map: ${updatedGoal.toMap()}');
               
               await _firestore
                   .collection('challenges')
@@ -436,11 +385,9 @@ class SimpleGoalsProvider with ChangeNotifier {
                     'updatedAt': FieldValue.serverTimestamp(),
                   });
               
-              print('DEBUG: SIMPLE SUBMIT: Successfully saved to Firebase - activeChallenge');
               
               // Update local state
               _goals[goalIndex] = updatedGoal;
-              print('DEBUG: SIMPLE SUBMIT: Calling notifyListeners() - goals count: ${_goals.length}');
               notifyListeners();
               return true;
             }
@@ -448,10 +395,8 @@ class SimpleGoalsProvider with ChangeNotifier {
         }
       }
 
-      print('DEBUG: SIMPLE SUBMIT: Goal not found in any party');
       return false;
     } catch (e) {
-      print('DEBUG: SIMPLE SUBMIT: Error: $e');
       return false;
     }
   }
@@ -464,17 +409,14 @@ class SimpleGoalsProvider with ChangeNotifier {
       // Find the goal
       final goalIndex = _goals.indexWhere((goal) => goal.id == goalId);
       if (goalIndex == -1) {
-        print('DEBUG: UPDATE PLANNED DAYS: Goal not found');
         return false;
       }
 
       final goal = _goals[goalIndex];
       if (goal.goalType != GoalType.daily) {
-        print('DEBUG: UPDATE PLANNED DAYS: Goal is not a daily goal');
         return false;
       }
 
-      print('DEBUG: UPDATE PLANNED DAYS: Updating planned days for ${goal.goalName}: $plannedDays');
 
       // Update the goal with new planned days
       final updatedGoal = goal.updatePlannedDays(plannedDays);
@@ -510,7 +452,6 @@ class SimpleGoalsProvider with ChangeNotifier {
               if (goalIndex != -1) {
                 userGoals[goalIndex] = updatedGoal.toMap();
                 
-                print('DEBUG: UPDATE PLANNED DAYS: Saving to Firebase - $challengeType');
                 
                 await _firestore
                     .collection('challenges')
@@ -522,7 +463,6 @@ class SimpleGoalsProvider with ChangeNotifier {
                       'updatedAt': FieldValue.serverTimestamp(),
                     });
                 
-                print('DEBUG: UPDATE PLANNED DAYS: Successfully saved to Firebase');
                 
                 // Update local state
                 _goals[goalIndex] = updatedGoal;
@@ -534,10 +474,8 @@ class SimpleGoalsProvider with ChangeNotifier {
         }
       }
 
-      print('DEBUG: UPDATE PLANNED DAYS: Goal not found in any party');
       return false;
     } catch (e) {
-      print('DEBUG: UPDATE PLANNED DAYS: Error: $e');
       return false;
     }
   }

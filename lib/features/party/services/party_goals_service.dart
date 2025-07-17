@@ -44,7 +44,7 @@ class PartyGoalsService {
     List<Map<String, dynamic>> results = [];
 
     if (_partyProvider == null) {
-      print("Error: PartyProvider not available for proof extraction");
+      
       return [];
     }
 
@@ -175,7 +175,7 @@ class PartyGoalsService {
 
     // If no pending proof found, return
     if (proofs.isNotEmpty) {
-      print('something broke in removeProofFromList');
+      
       return;
     }
   }

@@ -115,55 +115,55 @@ class ProofStreamManager {
 
   Future<List<Map<String, dynamic>>> _getUserPendingProofs(String userId) async {
     try {
-      print('DEBUG: Getting pending proofs for user: $userId');
+      
       final userGoalsDoc = await _firestore.collection('userGoals').doc(userId).get();
       
-      print('DEBUG: User goals doc exists: ${userGoalsDoc.exists}');
+      
       if (!userGoalsDoc.exists) {
-        print('DEBUG: No userGoals document found for $userId');
+        
         return [];
       }
       
       final data = userGoalsDoc.data();
-      print('DEBUG: User goals data keys: ${data?.keys}');
-      print('DEBUG: User goals data: $data');
+      
+      
       
       if (data == null) {
-        print('DEBUG: User goals data is null');
+        
         return [];
       }
       
       if (!data.containsKey('goals')) {
-        print('DEBUG: No goals key in user data. Available keys: ${data.keys}');
+        
         return [];
       }
       
       List<Map<String, dynamic>> pendingProofs = [];
       final goals = data['goals'] as List<dynamic>;
-      print('DEBUG: Found ${goals.length} goals for user $userId');
+      
       
       for (int i = 0; i < goals.length; i++) {
         final goalData = goals[i];
-        print('DEBUG: Processing goal $i: ${goalData['goalName']} (${goalData['goalType']})');
+        ');
         
         final challenge = goalData['challenge'];
-        print('DEBUG: Goal challenge data: $challenge');
+        
         
         if (challenge == null) {
-          print('DEBUG: No challenge data for goal ${goalData['goalName']}');
+          
           continue;
         }
         
         // Check for pending proofs in weekly goals
         if (goalData['goalType'] == 'weekly') {
-          print('DEBUG: Checking weekly goal proofs...');
+          
           if (challenge['proofs'] is Map) {
             final proofs = challenge['proofs'] as Map;
-            print('DEBUG: Weekly goal has ${proofs.length} proof entries');
+            
             proofs.forEach((date, proof) {
-              print('DEBUG: Checking proof for date $date: $proof');
+              
               if (proof is Map && proof['status'] == 'pending') {
-                print('DEBUG: Found pending weekly proof for date $date');
+                
                 pendingProofs.add({
                   'userId': userId,
                   'goalId': goalData['id'],
@@ -173,25 +173,25 @@ class ProofStreamManager {
                   'goalType': 'weekly',
                 });
               } else {
-                print('DEBUG: Proof status is: ${proof is Map ? proof['status'] : 'not a map'}');
+                
               }
             });
           } else {
-            print('DEBUG: Weekly goal proofs is not a Map: ${challenge['proofs']}');
+            
           }
         }
         
         // Check for pending proofs in total goals
         if (goalData['goalType'] == 'total') {
-          print('DEBUG: Checking total goal proofs...');
+          
           if (challenge['proofs'] is List) {
             final proofs = challenge['proofs'] as List;
-            print('DEBUG: Total goal has ${proofs.length} proof entries');
+            
             for (int j = 0; j < proofs.length; j++) {
               final proof = proofs[j];
-              print('DEBUG: Checking total proof $j: $proof');
+              
               if (proof is Map && proof['status'] == 'pending') {
-                print('DEBUG: Found pending total proof');
+                
                 pendingProofs.add({
                   'userId': userId,
                   'goalId': goalData['id'],
@@ -201,20 +201,20 @@ class ProofStreamManager {
                   'goalType': 'total',
                 });
               } else {
-                print('DEBUG: Total proof status is: ${proof is Map ? proof['status'] : 'not a map'}');
+                
               }
             }
           } else {
-            print('DEBUG: Total goal proofs is not a List: ${challenge['proofs']}');
+            
           }
         }
       }
       
-      print('DEBUG: Found ${pendingProofs.length} total pending proofs for user $userId');
+      
       return pendingProofs;
     } catch (e) {
-      print('ERROR: Exception getting pending proofs for user $userId: $e');
-      print('ERROR: Stack trace: ${StackTrace.current}');
+      
+      
       return [];
     }
   }

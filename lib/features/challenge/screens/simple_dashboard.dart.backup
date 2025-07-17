@@ -54,29 +54,9 @@ class _SimpleDashboardState extends State<SimpleDashboard> {
           .listen((snapshot) {
         if (mounted) {
           setState(() {
-            _cachedMemberProofs = _processSnapshotData(snapshot, firstParty, partyProvider);
+            _cachedMemberProofs = _processSnapshotData(snapshot, firstParty);
           });
         }
-      });
-    } else {
-      // No challenge yet, but still show party members with no proofs
-      setState(() {
-        // Create empty member data for all party members
-        final members = firstParty['members'] as List? ?? [];
-        final List<Map<String, dynamic>> emptyMemberData = [];
-        
-        for (final memberId in members) {
-          if (memberId is String) {
-            emptyMemberData.add({
-              'userId': memberId,
-              'userName': partyProvider.getUserDisplayName(memberId),
-              'proofs': <Map<String, dynamic>>[],
-              'goals': <Goal>[],
-            });
-          }
-        }
-        
-        _cachedMemberProofs = emptyMemberData;
       });
     }
   }
@@ -135,13 +115,8 @@ class _SimpleDashboardState extends State<SimpleDashboard> {
 
 
   Widget _buildProofStoriesSection(BuildContext context, SimplePartyProvider partyProvider) {
-    // Don't show this section if user has no parties
-    if (!partyProvider.hasParties) {
-      return const SizedBox.shrink();
-    }
-    
     // Set up subscription if not already done and party data is available
-    if (_proofSubscription == null) {
+    if (_proofSubscription == null && partyProvider.hasParties) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         _setupProofSubscription();
       });
@@ -210,12 +185,16 @@ class _SimpleDashboardState extends State<SimpleDashboard> {
     );
   }
 
-  List<Map<String, dynamic>> _processSnapshotData(QuerySnapshot snapshot, Map<String, dynamic>? firstParty, SimplePartyProvider partyProvider) {
+  List<Map<String, dynamic>> _processSnapshotData(QuerySnapshot snapshot, Map<String, dynamic>? firstParty) {
     if (firstParty == null) return [];
     
     
-    // Get party members
+    // Get party members for user names
     final members = firstParty['members'] as List?;
+    final userIdToName = {
+      'woixNy5MHAgYypmylQmEPZqlUHt1': 'Bobby',
+      'swMvqZCvPvg1vUsAZLMEvNXtBWD2': 'Reno',
+    };
     
     // Initialize all party members
     final Map<String, List<Map<String, dynamic>>> proofsPerUser = {};
@@ -227,7 +206,7 @@ class _SimpleDashboardState extends State<SimpleDashboard> {
         if (memberId is String) {
           proofsPerUser[memberId] = [];
           goalsPerUser[memberId] = [];
-          userNames[memberId] = partyProvider.getUserDisplayName(memberId);
+          userNames[memberId] = userIdToName[memberId] ?? 'User-${memberId.substring(0, 4)}';
         }
       }
     }
@@ -242,7 +221,7 @@ class _SimpleDashboardState extends State<SimpleDashboard> {
       if (!proofsPerUser.containsKey(memberId)) {
         proofsPerUser[memberId] = [];
         goalsPerUser[memberId] = [];
-        userNames[memberId] = partyProvider.getUserDisplayName(memberId);
+        userNames[memberId] = userIdToName[memberId] ?? 'User-${memberId.substring(0, 4)}';
       }
       
       for (var goalData in userGoals) {

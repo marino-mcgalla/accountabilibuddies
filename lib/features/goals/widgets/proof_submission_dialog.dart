@@ -143,7 +143,7 @@ class _ProofSubmissionDialogState extends State<ProofSubmissionDialog> {
           _statusMessage = 'Uploading image...';
         });
 
-        debugPrint('Starting image upload for goal ${widget.goal.id}');
+        
         imageUrl = await _storageService.uploadProofImage(
           _selectedImageData!,
           widget.goal.id,
@@ -158,7 +158,7 @@ class _ProofSubmissionDialogState extends State<ProofSubmissionDialog> {
           return;
         }
 
-        debugPrint('Image uploaded successfully. URL: $imageUrl');
+        
         setState(() {
           _statusMessage = 'Image uploaded successfully';
         });

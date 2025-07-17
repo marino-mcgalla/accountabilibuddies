@@ -396,8 +396,7 @@ class _JoinPartyScreenState extends State<JoinPartyScreen> {
       _isLoading = true;
     });
 
-    // TODO: Implement join by code functionality
-    // This would require additional methods in the repository and provider
+    // Placeholder for join by code functionality
     await Future.delayed(const Duration(seconds: 2)); // Simulate API call
     
     setState(() {

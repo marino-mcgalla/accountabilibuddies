@@ -3,7 +3,6 @@ import 'package:provider/provider.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../goals/models/proof_model.dart';
 import '../../goals/models/goal_model.dart';
-import '../../goals/providers/simple_goals_provider.dart';
 import '../../party/providers/simple_party_provider.dart';
 
 class ProofStoryViewer extends StatefulWidget {
@@ -98,31 +97,85 @@ class _ProofStoryViewerState extends State<ProofStoryViewer> {
                       
                       // Proof content
                       Container(
-                        width: double.infinity,
-                        padding: const EdgeInsets.all(24),
-                        decoration: BoxDecoration(
-                          color: Colors.white.withValues(alpha: 0.1),
-                          borderRadius: BorderRadius.circular(16),
-                          border: Border.all(
-                            color: Colors.white.withValues(alpha: 0.3),
-                          ),
+                        constraints: BoxConstraints(
+                          maxHeight: MediaQuery.of(context).size.height * 0.6,
+                          maxWidth: MediaQuery.of(context).size.width * 0.9,
                         ),
                         child: Column(
+                          mainAxisSize: MainAxisSize.min,
                           children: [
-                            const Icon(
-                              Icons.text_snippet,
-                              color: Colors.white,
-                              size: 48,
-                            ),
-                            const SizedBox(height: 16),
-                            Text(
-                              proof.proofText,
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontSize: 18,
+                            // Image display
+                            if (proof.imageUrl != null && proof.imageUrl!.isNotEmpty)
+                              ClipRRect(
+                                borderRadius: BorderRadius.circular(16),
+                                child: Image.network(
+                                  proof.imageUrl!,
+                                  fit: BoxFit.contain,
+                                  loadingBuilder: (context, child, loadingProgress) {
+                                    if (loadingProgress == null) return child;
+                                    return Container(
+                                      height: 200,
+                                      color: Colors.white.withValues(alpha: 0.1),
+                                      child: Center(
+                                        child: CircularProgressIndicator(
+                                          value: loadingProgress.expectedTotalBytes != null
+                                              ? loadingProgress.cumulativeBytesLoaded / 
+                                                loadingProgress.expectedTotalBytes!
+                                              : null,
+                                          color: Colors.white,
+                                        ),
+                                      ),
+                                    );
+                                  },
+                                  errorBuilder: (context, error, stackTrace) {
+                                    return Container(
+                                      height: 200,
+                                      decoration: BoxDecoration(
+                                        color: Colors.white.withValues(alpha: 0.1),
+                                        borderRadius: BorderRadius.circular(16),
+                                      ),
+                                      child: const Column(
+                                        mainAxisAlignment: MainAxisAlignment.center,
+                                        children: [
+                                          Icon(
+                                            Icons.broken_image,
+                                            color: Colors.white,
+                                            size: 48,
+                                          ),
+                                          SizedBox(height: 8),
+                                          Text(
+                                            'Failed to load image',
+                                            style: TextStyle(color: Colors.white),
+                                          ),
+                                        ],
+                                      ),
+                                    );
+                                  },
+                                ),
+                              )
+                            else
+                              Container(
+                                height: 200,
+                                decoration: BoxDecoration(
+                                  color: Colors.white.withValues(alpha: 0.1),
+                                  borderRadius: BorderRadius.circular(16),
+                                ),
+                                child: const Column(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Icon(
+                                      Icons.image_not_supported,
+                                      color: Colors.white,
+                                      size: 48,
+                                    ),
+                                    SizedBox(height: 8),
+                                    Text(
+                                      'No image available',
+                                      style: TextStyle(color: Colors.white),
+                                    ),
+                                  ],
+                                ),
                               ),
-                              textAlign: TextAlign.center,
-                            ),
                             const SizedBox(height: 16),
                             Text(
                               'Submitted ${_formatDate(proof.submissionDate)}',
@@ -369,7 +422,7 @@ class _ProofStoryViewerState extends State<ProofStoryViewer> {
   /// Save updated goal back to the database in the subcollection structure
   Future<void> _saveGoalToDatabase(Goal updatedGoal, String goalOwnerId) async {
     try {
-      print('PROOF APPROVAL: Saving ${updatedGoal.goalName} for user $goalOwnerId');
+      
       
       // Get party info to find the challenge ID
       final partyProvider = Provider.of<SimplePartyProvider>(context, listen: false);
@@ -433,9 +486,9 @@ class _ProofStoryViewerState extends State<ProofStoryViewer> {
         'updatedAt': FieldValue.serverTimestamp(),
       });
       
-      print('PROOF APPROVAL: Successfully saved to database - SimpleGoalsProvider should auto-update via real-time listener');
+      
     } catch (e) {
-      print('PROOF APPROVAL ERROR: $e');
+      
       rethrow;
     }
   }

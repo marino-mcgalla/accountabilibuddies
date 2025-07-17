@@ -30,7 +30,7 @@ class GoalTemplateRepository {
       final docRef = await _goalTemplatesCollection.add(template.toFirestore());
       return docRef.id;
     } catch (e) {
-      print('Error creating goal template: $e');
+      
       return null;
     }
   }
@@ -41,7 +41,7 @@ class GoalTemplateRepository {
       await _goalTemplatesCollection.doc(template.id).update(template.toFirestore());
       return true;
     } catch (e) {
-      print('Error updating goal template: $e');
+      
       return false;
     }
   }
@@ -55,7 +55,7 @@ class GoalTemplateRepository {
       });
       return true;
     } catch (e) {
-      print('Error archiving goal template: $e');
+      
       return false;
     }
   }
@@ -69,7 +69,7 @@ class GoalTemplateRepository {
       });
       return true;
     } catch (e) {
-      print('Error reactivating goal template: $e');
+      
       return false;
     }
   }
@@ -80,7 +80,7 @@ class GoalTemplateRepository {
       await _goalTemplatesCollection.doc(templateId).delete();
       return true;
     } catch (e) {
-      print('Error deleting goal template: $e');
+      
       return false;
     }
   }
@@ -94,7 +94,7 @@ class GoalTemplateRepository {
       }
       return null;
     } catch (e) {
-      print('Error getting goal template: $e');
+      
       return null;
     }
   }
@@ -155,7 +155,7 @@ class GoalTemplateRepository {
           .map((doc) => GoalTemplate.fromFirestore(doc))
           .toList();
     } catch (e) {
-      print('Error getting goal templates by status: $e');
+      
       return [];
     }
   }
@@ -179,7 +179,7 @@ class GoalTemplateRepository {
       
       return true;
     } catch (e) {
-      print('Error updating usage stats: $e');
+      
       return false;
     }
   }
@@ -200,7 +200,7 @@ class GoalTemplateRepository {
       await batch.commit();
       return true;
     } catch (e) {
-      print('Error batch archiving templates: $e');
+      
       return false;
     }
   }
@@ -219,7 +219,7 @@ class GoalTemplateRepository {
       await batch.commit();
       return true;
     } catch (e) {
-      print('Error batch reactivating templates: $e');
+      
       return false;
     }
   }
@@ -243,7 +243,7 @@ class GoalTemplateRepository {
                template.description.toLowerCase().contains(lowercaseQuery);
       }).toList();
     } catch (e) {
-      print('Error searching goal templates: $e');
+      
       return [];
     }
   }
@@ -265,7 +265,7 @@ class GoalTemplateRepository {
         'archived': archivedSnapshot.docs.length,
       };
     } catch (e) {
-      print('Error getting template stats: $e');
+      
       return {'total': 0, 'active': 0, 'archived': 0};
     }
   }

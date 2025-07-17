@@ -252,17 +252,17 @@ class GoalInstanceProvider with ChangeNotifier {
 
   /// Debug methods
   void debugInstances() {
-    print('DEBUG: Current instances count: ${_instances.length}');
+    
     for (var instance in _instances) {
-      print('DEBUG: Instance ${instance.name}:');
-      print('  - ID: ${instance.id}');
-      print('  - Type: ${instance.type}');
-      print('  - Template ID: ${instance.templateId}');
-      print('  - Party ID: ${instance.partyId}');
-      print('  - Challenge data: ${instance.challengeData.toMap()}');
-      print('  - Completions: ${instance.challengeData.completions}');
-      print('  - Is completed: ${instance.isCompleted}');
-      print('  - Progress: ${instance.completionProgress}');
+      
+      
+      
+      
+      
+      }');
+      
+      
+      
     }
   }
 }

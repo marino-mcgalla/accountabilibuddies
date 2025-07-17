@@ -54,7 +54,7 @@ class GoalInstanceService {
       
       return instances;
     } catch (e) {
-      print('Error creating goal instances from templates: $e');
+      
       return [];
     }
   }
@@ -67,19 +67,19 @@ class GoalInstanceService {
     required List<GoalInstance> instances,
   }) async {
     try {
-      print('DEBUG SAVE: Saving ${instances.length} instances for user $userId to $challengeType');
+      
       
       // Get the challenge document
       final challengeDoc = await _firestore.collection('parties').doc(partyId).get();
       if (!challengeDoc.exists) {
-        print('DEBUG SAVE: Party document does not exist');
+        
         return false;
       }
       
       final challengeData = challengeDoc.data() as Map<String, dynamic>;
       final challenge = challengeData[challengeType] as Map<String, dynamic>?;
       if (challenge == null) {
-        print('DEBUG SAVE: No $challengeType found in party data');
+        
         return false;
       }
       
@@ -95,7 +95,7 @@ class GoalInstanceService {
       // Convert instances to maps
       final instanceMaps = instances.map((instance) => instance.toMap()).toList();
       
-      print('DEBUG SAVE: Saving to subcollection challenges/$challengeId/memberGoals/$userId');
+      
       
       // Save all instances as an array in the user's document
       await memberGoalsRef.set({
@@ -105,11 +105,11 @@ class GoalInstanceService {
         'updatedAt': FieldValue.serverTimestamp(),
       });
       
-      print('DEBUG SAVE: Successfully saved to Firebase subcollection');
+      
       
       return true;
     } catch (e) {
-      print('Error saving goal instances to challenge: $e');
+      
       return false;
     }
   }
@@ -121,25 +121,25 @@ class GoalInstanceService {
     required String userId,
   }) async {
     try {
-      print('DEBUG LOAD: Loading instances for party: $partyId, type: $challengeType, user: $userId');
+      
       
       // Get the challenge document to find challengeId
       final partyDoc = await _firestore.collection('parties').doc(partyId).get();
       if (!partyDoc.exists) {
-        print('DEBUG LOAD: Party document does not exist');
+        
         return [];
       }
       
       final data = partyDoc.data() as Map<String, dynamic>;
       final challenge = data[challengeType] as Map<String, dynamic>?;
       if (challenge == null) {
-        print('DEBUG LOAD: No $challengeType found in party data');
+        
         return [];
       }
       
       final challengeId = challenge['id'] as String;
       
-      print('DEBUG LOAD: Loading from subcollection challenges/$challengeId/memberGoals/$userId');
+      
       
       // Load from subcollection: challenges/{challengeId}/memberGoals/{userId}
       final memberGoalsDoc = await _firestore
@@ -150,7 +150,7 @@ class GoalInstanceService {
           .get();
       
       if (!memberGoalsDoc.exists) {
-        print('DEBUG LOAD: No goals found for user $userId in subcollection');
+        
         return [];
       }
       
@@ -158,11 +158,11 @@ class GoalInstanceService {
       final userGoals = memberGoalsData['goals'] as List?;
       
       if (userGoals == null) {
-        print('DEBUG LOAD: No goals array found in user document');
+        
         return [];
       }
       
-      print('DEBUG LOAD: Found ${userGoals.length} goals for user');
+      
       
       final instances = <GoalInstance>[];
       for (final goalData in userGoals) {
@@ -170,13 +170,13 @@ class GoalInstanceService {
           final instance = GoalInstance.fromMap(Map<String, dynamic>.from(goalData));
           instances.add(instance);
         } catch (e) {
-          print('Error parsing goal instance: $e');
+          
         }
       }
       
       return instances;
     } catch (e) {
-      print('Error loading goal instances from challenge: $e');
+      
       return [];
     }
   }
@@ -209,7 +209,7 @@ class GoalInstanceService {
         instances: instances,
       );
     } catch (e) {
-      print('Error updating goal instance: $e');
+      
       return false;
     }
   }
@@ -252,7 +252,7 @@ class GoalInstanceService {
         instance: updatedInstance,
       );
     } catch (e) {
-      print('Error submitting proof: $e');
+      
       return false;
     }
   }
@@ -288,7 +288,7 @@ class GoalInstanceService {
         instance: updatedInstance,
       );
     } catch (e) {
-      print('Error approving proof: $e');
+      
       return false;
     }
   }
@@ -324,7 +324,7 @@ class GoalInstanceService {
         instance: updatedInstance,
       );
     } catch (e) {
-      print('Error denying proof: $e');
+      
       return false;
     }
   }
@@ -355,14 +355,14 @@ class GoalInstanceService {
               'challengeId': challengeId,
             });
           } catch (e) {
-            print('Error parsing goal instance: $e');
+            
           }
         }
       }
       
       return allMemberGoals;
     } catch (e) {
-      print('Error getting all member goals for challenge: $e');
+      
       return [];
     }
   }
@@ -391,7 +391,7 @@ class GoalInstanceService {
               'challengeId': challengeId,
             });
           } catch (e) {
-            print('Error parsing goal instance in listener: $e');
+            
           }
         }
       }
@@ -406,24 +406,24 @@ class GoalInstanceService {
     required String challengeType,
   }) async {
     try {
-      print('DEBUG PENDING PROOFS SERVICE: Getting proofs for party $partyId, challenge type $challengeType');
+      
       
       // Get the challenge document to find challengeId
       final partyDoc = await _firestore.collection('parties').doc(partyId).get();
       if (!partyDoc.exists) {
-        print('DEBUG PENDING PROOFS SERVICE: Party document does not exist');
+        
         return [];
       }
       
       final data = partyDoc.data() as Map<String, dynamic>;
       final challenge = data[challengeType] as Map<String, dynamic>?;
       if (challenge == null) {
-        print('DEBUG PENDING PROOFS SERVICE: No $challengeType found in party data');
+        
         return [];
       }
       
       final challengeId = challenge['id'] as String;
-      print('DEBUG PENDING PROOFS SERVICE: Found challenge ID: $challengeId');
+      
       
       // Query all member goals from the subcollection
       final memberGoalsSnapshot = await _firestore
@@ -432,7 +432,7 @@ class GoalInstanceService {
           .collection('memberGoals')
           .get();
       
-      print('DEBUG PENDING PROOFS SERVICE: Found ${memberGoalsSnapshot.docs.length} member documents');
+      
       
       final pendingProofs = <Map<String, dynamic>>[];
       
@@ -442,7 +442,7 @@ class GoalInstanceService {
         final memberData = memberDoc.data();
         final userGoals = memberData['goals'] as List?;
         
-        print('DEBUG PENDING PROOFS SERVICE: Processing user $userId with ${userGoals?.length ?? 0} goals');
+        
         
         if (userGoals != null) {
           for (final goalData in userGoals) {
@@ -450,11 +450,11 @@ class GoalInstanceService {
               final instance = GoalInstance.fromMap(Map<String, dynamic>.from(goalData));
               final instancePendingProofs = instance.pendingProofs;
               
-              print('DEBUG PENDING PROOFS SERVICE: Goal ${instance.name} has ${instancePendingProofs.length} pending proofs');
+              
               
               // Get pending proofs for this instance
               for (final proof in instancePendingProofs) {
-                print('DEBUG PENDING PROOFS SERVICE: Adding pending proof ${proof.id} for user $userId');
+                
                 pendingProofs.add({
                   'proof': proof,
                   'instance': instance,
@@ -464,16 +464,16 @@ class GoalInstanceService {
                 });
               }
             } catch (e) {
-              print('Error parsing goal instance for pending proofs: $e');
+              
             }
           }
         }
       }
       
-      print('DEBUG PENDING PROOFS SERVICE: Returning ${pendingProofs.length} total pending proofs');
+      
       return pendingProofs;
     } catch (e) {
-      print('Error getting pending proofs for party: $e');
+      
       return [];
     }
   }

@@ -29,7 +29,7 @@ class WebImagePickerService {
         });
 
         reader.onError.listen((e) {
-          debugPrint('Error reading file: $e');
+          
           completer.complete(null);
         });
 
@@ -141,7 +141,7 @@ class WebImagePickerService {
           reader.readAsArrayBuffer(blob);
         });
       } catch (e) {
-        debugPrint('Error capturing image: $e');
+        
         _stopCamera(video);
         container.remove();
         completer.complete(null);
@@ -158,12 +158,12 @@ class WebImagePickerService {
       }).then((stream) {
         video.srcObject = stream;
       }).catchError((error) {
-        debugPrint('Error accessing camera: $error');
+        
         container.remove();
         completer.complete(null);
       });
     } catch (e) {
-      debugPrint('Error starting camera: $e');
+      
       container.remove();
       completer.complete(null);
     }
@@ -218,7 +218,7 @@ class WebImagePickerService {
         });
 
         reader.onError.listen((e) {
-          debugPrint('Error reading file: $e');
+          
           completer.complete(null);
         });
 

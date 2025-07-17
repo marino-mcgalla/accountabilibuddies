@@ -7,10 +7,8 @@ import 'package:firebase_core/firebase_core.dart';
 import 'firebase_options.dart';
 import 'features/core/routing/app_router.dart';
 import 'package:provider/provider.dart';
-// import 'features/goals/providers/goals_provider.dart'; // OLD SYSTEM - COMMENTED OUT  
 import 'features/goals/providers/simple_goals_provider.dart';
 import 'features/goals/providers/goal_template_provider.dart';
-// import 'features/party/providers/party_provider.dart'; // OLD SYSTEM - COMMENTED OUT
 import 'features/party/providers/simple_party_provider.dart';
 import 'features/time_machine/providers/time_machine_provider.dart';
 import 'features/core/utils/responsive_wrapper.dart';
@@ -46,12 +44,6 @@ class MyApp extends StatelessWidget {
         ChangeNotifierProvider<GoalTemplateProvider>(
           create: (context) => GoalTemplateProvider(),
         ),
-
-        // Set up PartyProvider (old clean version) - COMMENTED OUT
-        // ChangeNotifierProvider<PartyProvider>(
-        //   create: (context) => PartyProvider(),
-        // ),
-
 
         // Set up SimplePartyProvider (Fresh start simple system)
         ChangeNotifierProvider<SimplePartyProvider>(

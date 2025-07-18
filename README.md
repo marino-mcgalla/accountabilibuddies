@@ -1,6 +1,6 @@
-# auth_test
+# accountabilibuddies
 
-A new Flutter project.
+Social accountability app with peer verification and financial motivation
 
 ## Getting Started
 

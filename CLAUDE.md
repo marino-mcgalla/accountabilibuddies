@@ -1,350 +1,521 @@
-# AccountabiliBuddies App Architecture
+# Coding Guidelines & Standards
+# AccountabiliBuddies Flutter Rebuild
 
-## Overview
-AccountabiliBuddies is a Flutter mobile app for group accountability and goal tracking. Users create or join parties, set weekly/total goals, submit proof of completion, and approve/deny each other's proofs. The app uses a wager-based commitment system to incentivize goal completion.
+## 1. Project Philosophy
 
-## Frontend Architecture (Flutter/Dart)
+### 1.1 Core Principles
+- **Clarity over Cleverness**: Write code that is immediately understandable
+- **Test-Driven Development**: Write tests first, then implement features
+- **Separation of Concerns**: Clear boundaries between UI, business logic, and data
+- **Offline-First**: Design with offline capability as a primary requirement
+- **Real-time by Design**: Architecture must support instant synchronization
 
-### Directory Structure
+### 1.2 Code Quality Standards
+- **Zero Tolerance for Technical Debt**: Address issues immediately, don't defer
+- **Documentation as Code**: Self-documenting code with minimal but effective comments
+- **Performance by Default**: Optimize for mobile performance from the start
+- **Security First**: Implement security measures proactively, not reactively
+
+## 2. Dart & Flutter Coding Standards
+
+### 2.1 Code Style
+Follow the official [Dart Style Guide](https://dart.dev/guides/language/effective-dart/style) with these additions:
+
+#### File Organization
+```dart
+// File header structure
+// 1. Dart/Flutter imports
+import 'dart:async';
+import 'package:flutter/material.dart';
+
+// 2. Package imports (alphabetical)
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+// 3. Local imports (alphabetical)
+import '../models/goal.dart';
+import '../services/goal_service.dart';
+import 'widgets/goal_card.dart';
+```
+
+#### Naming Conventions
+```dart
+// Classes: PascalCase
+class GoalService { }
+class ProofSubmissionWidget extends StatelessWidget { }
+
+// Variables and functions: camelCase
+String goalName;
+void submitProof() { }
+
+// Constants: lowerCamelCase with descriptive names
+const int maxPhotoSizeBytes = 5 * 1024 * 1024; // 5MB
+const Duration syncTimeoutDuration = Duration(seconds: 30);
+
+// Private members: underscore prefix
+String _userId;
+void _validateInput() { }
+
+// Enums: PascalCase for type, camelCase for values
+enum ProofStatus { pending, approved, denied, disputed }
+enum GoalType { daily, weekly, monthly }
+```
+
+#### Method Organization
+```dart
+class ExampleWidget extends StatefulWidget {
+  // 1. Constructors
+  const ExampleWidget({required this.goal, super.key});
+  
+  // 2. Public fields
+  final Goal goal;
+  
+  // 3. Overrides
+  @override
+  State<ExampleWidget> createState() => _ExampleWidgetState();
+}
+
+class _ExampleWidgetState extends State<ExampleWidget> {
+  // 1. Private fields
+  bool _isLoading = false;
+  
+  // 2. Lifecycle methods
+  @override
+  void initState() {
+    super.initState();
+  }
+  
+  @override
+  void dispose() {
+    super.dispose();
+  }
+  
+  // 3. Build method
+  @override
+  Widget build(BuildContext context) {
+    return Container();
+  }
+  
+  // 4. Event handlers
+  void _onSubmitPressed() { }
+  
+  // 5. Helper methods
+  String _formatDate(DateTime date) { }
+}
+```
+
+### 2.2 Error Handling
+
+#### Exception Types
+```dart
+// Custom exceptions for domain-specific errors
+class GoalNotFoundException implements Exception {
+  const GoalNotFoundException(this.goalId);
+  final String goalId;
+  
+  @override
+  String toString() => 'Goal not found: $goalId';
+}
+
+class NetworkException implements Exception {
+  const NetworkException(this.message);
+  final String message;
+  
+  @override
+  String toString() => 'Network error: $message';
+}
+
+class OfflineException implements Exception {
+  const OfflineException();
+  
+  @override
+  String toString() => 'Operation requires internet connection';
+}
+```
+
+#### Error Handling Patterns
+```dart
+// Use Result pattern for operations that can fail
+sealed class Result<T> {
+  const Result();
+}
+
+class Success<T> extends Result<T> {
+  const Success(this.value);
+  final T value;
+}
+
+class Failure<T> extends Result<T> {
+  const Failure(this.error);
+  final Exception error;
+}
+
+// Example usage
+Future<Result<Goal>> createGoal(String name) async {
+  try {
+    final goal = await _goalService.create(name);
+    return Success(goal);
+  } catch (e) {
+    return Failure(GoalCreationException(e.toString()));
+  }
+}
+```
+
+## 3. Architecture Patterns
+
+### 3.1 Clean Architecture Structure
 ```
 lib/
-├── features/
-│   ├── auth/                     # Authentication
-│   ├── challenge/                # Challenge dashboard & widgets
-│   ├── common/                   # Shared utilities & widgets
-│   ├── goals/                    # Goal management
-│   ├── party/                    # Party/group management
-│   ├── proof_submission/         # Proof submission & streams
-│   └── time_machine/             # Date/time utilities
-├── main.dart                     # App entry point
-└── utils/                        # Global utilities
+├── core/                           # Shared utilities and constants
+│   ├── constants/                  # App constants
+│   ├── errors/                     # Custom exceptions
+│   ├── utils/                      # Utility functions
+│   └── services/                   # Core services (logging, analytics)
+├── features/                       # Feature-based organization
+│   ├── authentication/
+│   │   ├── data/                   # Data layer (repositories, data sources)
+│   │   ├── domain/                 # Business logic (entities, use cases)
+│   │   └── presentation/           # UI layer (widgets, providers)
+│   ├── goals/
+│   ├── parties/
+│   ├── proofs/
+│   └── challenges/
+├── shared/                         # Shared widgets and utilities
+│   ├── widgets/                    # Reusable UI components
+│   ├── theme/                      # App theme and styling
+│   └── navigation/                 # Navigation configuration
+└── main.dart                       # App entry point
 ```
 
-### State Management Pattern
-- **Provider Pattern**: Using `ChangeNotifier` with Provider package
-- **Stream-based**: Real-time updates via Firestore streams
-- **Separation of Concerns**: Actions, State, Streams, Repositories
+### 3.2 Feature Structure
+Each feature follows clean architecture principles:
 
-### Key Providers
-1. **GoalsProvider** (`lib/features/goals/providers/goals_provider.dart`)
-   - Manages user's personal goals
-   - CRUD operations for goals
-   - Real-time goal updates via streams
+```
+feature_name/
+├── data/
+│   ├── datasources/
+│   │   ├── feature_local_datasource.dart     # Local storage (Hive, SQLite)
+│   │   └── feature_remote_datasource.dart    # Remote API (Firebase, REST)
+│   ├── models/                               # Data transfer objects
+│   └── repositories/                         # Repository implementations
+├── domain/
+│   ├── entities/                             # Business entities
+│   ├── repositories/                         # Repository interfaces
+│   └── usecases/                            # Business logic use cases
+└── presentation/
+    ├── providers/                            # State management
+    ├── pages/                               # Full screen widgets
+    └── widgets/                             # Feature-specific widgets
+```
 
-2. **PartyProvider** (`lib/features/party/providers/party_provider.dart`)
-   - Manages party/group functionality
-   - Challenge lifecycle (start, lock-in, cancel)
-   - Member management and permissions
-   - Proof approval/denial
+### 3.3 State Management with Riverpod
+Use Riverpod for state management with clear separation of concerns:
 
-### Data Models
-
-#### Goal Model (Dual Format - Legacy & New)
-**Legacy Format** (`goal_model.dart`):
 ```dart
-class Goal {
-  String id, ownerId, goalName, goalType, goalCriteria;
-  int goalFrequency;
-  bool active;
-  Map<String, String> currentWeekCompletions; // "date" -> "completed"/"pending"/"denied"
-  Map<String, dynamic>? challenge; // Raw challenge data
+// Domain layer - Use cases
+@riverpod
+class CreateGoalUseCase extends _$CreateGoalUseCase {
+  @override
+  GoalRepository build() => ref.read(goalRepositoryProvider);
+  
+  Future<Result<Goal>> call(CreateGoalParams params) async {
+    return await build().createGoal(params);
+  }
+}
+
+// Presentation layer - State providers
+@riverpod
+class GoalListNotifier extends _$GoalListNotifier {
+  @override
+  AsyncValue<List<Goal>> build() {
+    return const AsyncValue.loading();
+  }
+  
+  Future<void> loadGoals() async {
+    state = const AsyncValue.loading();
+    
+    final result = await ref.read(getGoalsUseCaseProvider).call();
+    
+    result.when(
+      success: (goals) => state = AsyncValue.data(goals),
+      failure: (error) => state = AsyncValue.error(error, StackTrace.current),
+    );
+  }
+}
+
+// UI layer - Consumer widgets
+class GoalListPage extends ConsumerWidget {
+  const GoalListPage({super.key});
+  
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final goalsAsync = ref.watch(goalListNotifierProvider);
+    
+    return goalsAsync.when(
+      data: (goals) => GoalListView(goals: goals),
+      loading: () => const LoadingWidget(),
+      error: (error, stack) => ErrorWidget(error),
+    );
+  }
 }
 ```
 
-**New Format** (`goal_model_new.dart`):
+## 4. Testing Strategy
+
+### 4.1 Testing Pyramid
+- **Unit Tests (70%)**: Business logic, use cases, utilities
+- **Widget Tests (20%)**: UI components and user interactions
+- **Integration Tests (10%)**: Critical user flows and data persistence
+
+### 4.2 Test Organization
+```
+test/
+├── unit/
+│   ├── core/
+│   └── features/
+│       ├── goals/
+│       │   ├── domain/
+│       │   │   ├── entities/
+│       │   │   └── usecases/
+│       │   └── data/
+│       │       ├── models/
+│       │       └── repositories/
+├── widget/
+│   ├── features/
+│   └── shared/
+│       └── widgets/
+├── integration/
+│   ├── flows/
+│   └── data/
+└── helpers/
+    ├── fixtures/
+    ├── mocks/
+    └── test_utils.dart
+```
+
+## 5. Approved Packages
+
+### 5.1 Core Dependencies
+```yaml
+dependencies:
+  flutter:
+    sdk: flutter
+  
+  # State Management
+  flutter_riverpod: ^2.4.9
+  riverpod_annotation: ^2.3.3
+  
+  # Dependency Injection
+  get_it: ^7.6.4
+  injectable: ^2.3.2
+  
+  # Navigation
+  go_router: ^12.1.3
+  
+  # Backend & Database
+  firebase_core: ^2.24.2
+  firebase_auth: ^4.15.3
+  firebase_firestore: ^4.13.6
+  firebase_storage: ^11.5.6
+  
+  # Local Storage
+  hive: ^2.2.3
+  hive_flutter: ^1.1.0
+  
+  # Networking
+  dio: ^5.3.3
+  connectivity_plus: ^5.0.2
+  
+  # Image Handling
+  image_picker: ^1.0.4
+  cached_network_image: ^3.3.0
+  image: ^4.1.3
+  
+  # Utilities
+  equatable: ^2.0.5
+  json_annotation: ^4.8.1
+  uuid: ^4.2.1
+  
+  # Logging
+  logger: ^2.0.2+1
+  
+  # Date/Time
+  intl: ^0.19.0
+  
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  
+  # Testing
+  mockito: ^5.4.4
+  integration_test:
+    sdk: flutter
+  
+  # Code Generation
+  build_runner: ^2.4.7
+  riverpod_generator: ^2.3.9
+  injectable_generator: ^2.4.1
+  json_serializable: ^6.7.1
+  hive_generator: ^2.0.1
+  
+  # Linting
+  flutter_lints: ^3.0.1
+  custom_lint: ^0.5.7
+  riverpod_lint: ^2.3.7
+```
+
+### 5.2 Package Usage Guidelines
+
+#### State Management (Riverpod)
+- Use `@riverpod` annotation for code generation
+- Prefer `AsyncNotifier` for complex state management
+- Use `Ref` for dependency injection between providers
+
+#### Database (Firebase + Hive)
+- Firebase for remote data and real-time synchronization
+- Hive for local caching and offline storage
+- Repository pattern to abstract data sources
+
+#### Navigation (GoRouter)
+- Declarative routing configuration
+- Type-safe route parameters
+- Deep linking support for invitations
+
+#### Image Handling
+- `image_picker` for camera/gallery access
+- `cached_network_image` for displaying remote images
+- `image` package for compression and processing
+
+### 5.3 Prohibited Packages
+- **Provider** (replaced by Riverpod)
+- **Bloc** (replaced by Riverpod)
+- **SharedPreferences** (replaced by Hive)
+- **http** (replaced by Dio for better features)
+- **Any state management other than Riverpod**
+
+## 6. Performance Guidelines
+
+### 6.1 Widget Performance
 ```dart
-abstract class Goal {
-  ChallengeData? challengeData;
+// Use const constructors whenever possible
+const Icon(Icons.camera);
+
+// Prefer StatelessWidget over StatefulWidget when state isn't needed
+class GoalTitle extends StatelessWidget {
+  const GoalTitle({required this.title, super.key});
+  final String title;
+  
+  @override
+  Widget build(BuildContext context) {
+    return Text(title, style: Theme.of(context).textTheme.headlineMedium);
+  }
 }
 
-class ChallengeData {
-  Map<String, String> completions;    // date -> status
-  List<Proof> proofs;                 // For total goals
-  Map<String, Proof> dailyProofs;     // For weekly goals
-}
-```
-
-#### Party Model
-```dart
-class PartyState {
-  String? partyId, partyName, partyLeaderId;
-  List<String> members, lockedInMembers, optedOutMembers;
-  Map<String, Map<String, dynamic>> memberDetails;
-  Map<String, dynamic>? activeChallenge, pendingChallenge;
-  Map<String, dynamic> memberWagers;
-  int challengeStartDay;
-  bool isLoading;
-}
-```
-
-### Key Features Implementation
-
-#### 1. Challenge Dashboard (`lib/features/challenge/screens/challenge_dashboard.dart`)
-- **Your Progress**: Shows user's active goals with colored progress indicators
-- **Party Progress**: Displays all party members' goal progress
-- **Proof Notifications**: Instagram/Snapchat-style story interface for pending proofs
-- **Challenge Header**: Shows challenge status (preparation, active, locked-in)
-
-#### 2. Proof System
-**Submission** (`lib/features/proof_submission/`):
-- Image capture/selection
-- Text description
-- Date selection (today/yesterday)
-
-**Approval** (`lib/features/party/widgets/proof_approval_widget.dart`):
-- Story-style horizontal scrolling interface
-- Full-screen proof viewer with approve/deny buttons
-- Real-time updates via streams
-
-#### 3. Progress Indicators (`lib/features/challenge/widgets/compact_progress_bar.dart`)
-**Weekly Goals**: 7-segment progress bar (M-T-W-T-F-S-S)
-- Blue: Planned
-- Yellow: Pending approval
-- Green: Approved/Completed
-- Grey: Default/Skipped
-- Dark Red: Denied
-
-**Total Goals**: Stacked progress bar
-- Yellow layer: Pending proofs + approved proofs
-- Green layer: Approved proofs only
-
-## Backend Architecture (Firebase)
-
-### Firebase Services Used
-1. **Authentication**: User login/registration
-2. **Firestore**: Real-time database
-3. **Storage**: Image/file uploads for proof photos
-4. **Security Rules**: Access control for data
-
-### Firestore Data Structure
-
-#### Users Collection (`users/`)
-```
-users/{userId} {
-  email: string,
-  username?: string,
-  displayName?: string,
-  createdAt: timestamp
-}
-```
-
-#### User Goals Collection (`userGoals/`)
-```
-userGoals/{userId} {
-  goals: [
-    {
-      id: string,
-      ownerId: string,
-      goalName: string,
-      goalType: "weekly" | "total",
-      goalCriteria: string,
-      goalFrequency: number,
-      active: boolean,
-      currentWeekCompletions: {
-        "YYYY-MM-DD": "completed" | "pending" | "denied" | "skipped"
-      },
-      challenge?: {
-        completions: {
-          "YYYY-MM-DD": "completed" | "pending" | "denied"
+// Use Consumer widgets to limit rebuild scope
+Widget build(BuildContext context) {
+  return Column(
+    children: [
+      const StaticHeader(),
+      Consumer(
+        builder: (context, ref, child) {
+          final goals = ref.watch(goalsProvider);
+          return GoalsList(goals: goals);
         },
-        proofs: {
-          // For weekly goals (Map)
-          "YYYY-MM-DD": {
-            proofText: string,
-            imageUrl?: string,
-            status: "pending" | "approved" | "denied",
-            submissionDate: string,
-            approvedBy?: string,
-            approvedAt?: string
-          }
-        } | [
-          // For total goals (Array)
-          {
-            proofText: string,
-            imageUrl?: string,
-            status: "pending" | "approved" | "denied",
-            submissionDate: string,
-            approvedBy?: string,
-            approvedAt?: string
-          }
-        ]
-      }
+      ),
+    ],
+  );
+}
+```
+
+### 6.2 Memory Management
+```dart
+// Dispose of resources properly
+class _CameraScreenState extends State<CameraScreen> {
+  CameraController? _controller;
+  StreamSubscription? _subscription;
+  
+  @override
+  void dispose() {
+    _controller?.dispose();
+    _subscription?.cancel();
+    super.dispose();
+  }
+}
+```
+
+### 6.3 Network Optimization
+```dart
+// Implement proper caching strategies
+@riverpod
+Future<List<Goal>> goals(GoalsRef ref) async {
+  // Check cache first
+  final cached = await ref.read(localGoalCacheProvider).getGoals();
+  if (cached.isNotEmpty) {
+    return cached;
+  }
+  
+  // Fetch from network
+  final remote = await ref.read(goalServiceProvider).fetchGoals();
+  
+  // Update cache
+  await ref.read(localGoalCacheProvider).storeGoals(remote);
+  
+  return remote;
+}
+```
+
+## 7. Security Guidelines
+
+### 7.1 Authentication
+```dart
+// Always validate authentication state
+@riverpod
+Stream<User?> authState(AuthStateRef ref) {
+  return ref.read(authServiceProvider).authStateChanges();
+}
+```
+
+### 7.2 Data Validation
+```dart
+// Validate all user inputs
+class GoalValidator {
+  static String? validateGoalName(String? name) {
+    if (name == null || name.trim().isEmpty) {
+      return 'Goal name is required';
     }
-  ]
-}
-```
-
-#### Parties Collection (`parties/`)
-```
-parties/{partyId} {
-  partyName: string,
-  partyLeaderId: string,
-  members: string[], // Array of user IDs
-  createdAt: timestamp,
-  
-  // Challenge state
-  activeChallenge?: {
-    challengeId: string,
-    startDate: string,
-    endDate: string,
-    status: "active"
-  },
-  
-  pendingChallenge?: {
-    challengeId: string,
-    status: "preparation",
-    lockedInMembers: string[],
-    optedOutMembers: string[],
-    memberWagers: {
-      [userId]: number
+    
+    if (name.length > 100) {
+      return 'Goal name must be 100 characters or less';
     }
-  },
+    
+    return null;
+  }
+}
+```
+
+### 7.3 File Upload Security
+```dart
+// Validate file types and sizes
+class ImageUploadValidator {
+  static const List<String> allowedExtensions = ['jpg', 'jpeg', 'png'];
+  static const int maxFileSizeBytes = 5 * 1024 * 1024; // 5MB
   
-  challengeStartDay: number // 0-6 (Sunday-Saturday)
+  static Result<void> validateImage(File imageFile) {
+    // Check file size and extension
+    if (imageFile.lengthSync() > maxFileSizeBytes) {
+      return Failure(FileTooLargeException());
+    }
+    
+    final extension = path.extension(imageFile.path).toLowerCase();
+    if (!allowedExtensions.contains(extension.substring(1))) {
+      return Failure(InvalidFileTypeException());
+    }
+    
+    return Success(null);
+  }
 }
 ```
 
-#### Invites Collection (`invites/`)
-```
-invites/{inviteId} {
-  partyId: string,
-  inviterEmail: string,
-  inviteeEmail: string,
-  status: "pending" | "accepted" | "declined" | "cancelled",
-  createdAt: timestamp,
-  expiresAt: timestamp
-}
-```
+---
 
-#### Proof Events Collection (`proofEvents/`)
-```
-proofEvents/{partyId}/events/{eventId} {
-  type: "submitted" | "approved" | "denied",
-  userId: string,
-  goalId: string,
-  proofDate?: string, // For weekly goals
-  data: {
-    proofText?: string,
-    imageUrl?: string,
-    goalName?: string,
-    goalType?: string,
-    approvedBy?: string,
-    deniedBy?: string
-  },
-  timestamp: timestamp
-}
-```
-
-### Storage Structure
-```
-gs://bucket/
-├── proofs/
-│   └── {userId}/
-│       └── {goalId}/
-│           └── {timestamp}_{filename}
-└── profile-images/
-    └── {userId}/
-        └── profile_{timestamp}
-```
-
-## Data Flow Architecture
-
-### 1. Goal Management Flow
-```
-User Input → GoalsProvider → GoalsActions → GoalsRepository → Firestore
-                ↓
-GoalsStreamManager ← Firestore (real-time updates)
-                ↓
-GoalsProvider → UI Components
-```
-
-### 2. Party Management Flow
-```
-User Action → PartyProvider → PartyActions → PartyRepository → Firestore
-                ↓
-PartyStreamManager ← Firestore (real-time updates)
-                ↓
-PartyProvider → UI Components
-```
-
-### 3. Proof Submission Flow
-```
-User Submits → ProofService → Goal.addProof() → GoalsRepository → Firestore
-                ↓
-ProofStreamManager.emitProofEvent() → Firestore (proofEvents)
-                ↓
-Real-time streams → PendingProofsWidget
-```
-
-### 4. Proof Approval Flow
-```
-User Approves → PartyProvider.approveProof() → Firestore Transaction:
-  1. Update goal.challenge.completions[date] = "completed"
-  2. Update goal.currentWeekCompletions[date] = "completed"
-  3. Mark proof.status = "approved"
-                ↓
-ProofStreamManager.emitProofEvent() → Real-time updates
-                ↓
-UI automatically refreshes via Firestore streams
-```
-
-## Current Technical Debt & Issues
-
-### 1. Data Model Migration Status ✅ COMPLETE
-- **MIGRATION COMPLETE**: Successfully migrated from Legacy (`goal_model.dart`) to New (`goal_model_new.dart`)
-- **Legacy System**: Commented out to prevent conflicts
-- **New System**: Using structured ChallengeData class and proper typed models with template support
-- **Dashboard**: Fully updated with goal templates and challenge integration
-
-### 1.1. Goal System Migration Complete ✅
-- **NEW SYSTEM**: `SimpleGoalsProvider` using `goal_model_new.dart`
-- **Dashboard**: Updated to use new goal models with proper ChallengeData structure
-- **Database**: Uses `userGoals/{userId}` collection with structured goal arrays
-- **Features**: Goal creation, progress tracking, proof submission working
-- **Templates**: Goal templates fully reintegrated with template-based goal creation
-- **Challenges**: Full challenge lifecycle with wagers, lock-in/opt-out functionality
-
-### 1.2. Legacy Systems (COMMENTED OUT - DO NOT UNCOMMENT)
-- **Files**: 
-  - `/lib/features/goals/providers/goals_provider.dart` (old version)
-  - `/lib/features/goals/models/goal_model.dart` (old version)
-  - `/lib/features/party/providers/party_provider.dart` (old version)
-- **Status**: Commented out in `main.dart` to prevent conflicts
-- **Note**: These will cause type conflicts if uncommented. Full migration to new system is complete.
-
-### 2. Stream Management
-- **Multiple stream sources**: Goals, Party, Proofs handled separately
-- **Manual refresh**: Some components try to force refresh instead of relying on streams
-- **Memory leaks**: Potential unclosed stream subscriptions
-
-### 3. State Synchronization
-- **Approval updates**: Must update multiple data structures for compatibility
-- **Real-time sync**: Delays between approval and UI updates
-- **Error handling**: Type casting errors when data formats change
-
-### 4. UI Performance
-- **Screen flashing**: During data updates
-- **Redundant rebuilds**: Components rebuilding unnecessarily
-- **Debug logging**: Excessive console output
-
-## Recommended Restructuring
-
-### 1. Unify Data Models
-- Migrate entirely to new Goal model format
-- Standardize on String-based completion statuses
-- Create proper TypeScript-like interfaces for all data
-
-### 2. Simplify State Management
-- Single source of truth for each data domain
-- Consistent stream-based updates
-- Remove manual refresh mechanisms
-
-### 3. Optimize Real-time Updates
-- Batch related updates in transactions
-- Use Firestore's offline capabilities
-- Implement proper error boundaries
-
-### 4. Performance Improvements
-- Implement proper memoization
-- Use const constructors where possible
-- Optimize stream subscriptions
+*These coding guidelines ensure the AccountabiliBuddies rebuild maintains high code quality, performance, and security standards while being maintainable and testable.*

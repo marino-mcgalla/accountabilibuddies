@@ -1,0 +1,4288 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
+import '../../core/core.dart';
+import '../../shared/widgets/widgets.dart';
+import '../../features/auth/auth.dart';
+import '../../features/goals/goals.dart';
+import '../../features/goals/domain/entities/goal_template.dart' as template;
+import '../../features/goals/presentation/providers/goal_template_providers.dart';
+import '../../features/parties/domain/entities/party.dart';
+import '../../features/parties/domain/entities/party_invite.dart';
+import '../../features/parties/presentation/providers/party_providers.dart';
+import '../../features/challenges/presentation/providers/challenge_providers.dart';
+import '../../features/challenges/domain/entities/challenge.dart';
+
+// Placeholder screens for navigation setup
+// These will be replaced with actual feature screens later
+
+// Global function to show pending invites modal
+void showPendingInvites(BuildContext context, WidgetRef ref, List<PartyInvite> invites) {
+  showModalBottomSheet(
+    context: context,
+    isScrollControlled: true,
+    shape: const RoundedRectangleBorder(
+      borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+    ),
+    builder: (context) => DraggableScrollableSheet(
+      initialChildSize: 0.7,
+      maxChildSize: 0.9,
+      minChildSize: 0.5,
+      expand: false,
+      builder: (context, scrollController) => Column(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Theme.of(context).colorScheme.surface,
+              borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+            ),
+            child: Row(
+              children: [
+                const Icon(Icons.mail),
+                const SizedBox(width: 8),
+                Text(
+                  'Party Invitations (${invites.length})',
+                  style: Theme.of(context).textTheme.titleLarge,
+                ),
+                const Spacer(),
+                IconButton(
+                  onPressed: () => Navigator.of(context).pop(),
+                  icon: const Icon(Icons.close),
+                ),
+              ],
+            ),
+          ),
+          Expanded(
+            child: ListView.builder(
+              controller: scrollController,
+              padding: const EdgeInsets.all(16),
+              itemCount: invites.length,
+              itemBuilder: (context, index) {
+                final invite = invites[index];
+                return Card(
+                  margin: const EdgeInsets.only(bottom: 12),
+                  child: Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            CircleAvatar(
+                              backgroundColor: Theme.of(context).colorScheme.primary,
+                              child: Text(
+                                invite.partyName[0].toUpperCase(),
+                                style: const TextStyle(color: Colors.white),
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    invite.partyName,
+                                    style: Theme.of(context).textTheme.titleMedium,
+                                  ),
+                                  Text(
+                                    'Invited by ${invite.inviterName}',
+                                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                      color: Colors.grey[600],
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 12),
+                        Row(
+                          children: [
+                            Icon(
+                              Icons.schedule,
+                              size: 16,
+                              color: Colors.grey[600],
+                            ),
+                            const SizedBox(width: 4),
+                            Text(
+                              'Expires in ${invite.daysUntilExpiration} days',
+                              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                color: Colors.grey[600],
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 16),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: OutlinedButton(
+                                onPressed: () async {
+                                  Navigator.of(context).pop();
+                                  final controller = ref.read(partyControllerProvider);
+                                  final success = await controller.declineInvite(invite.id);
+                                  
+                                  if (context.mounted) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(
+                                        content: Text(success 
+                                            ? 'Invite declined' 
+                                            : 'Failed to decline invite'),
+                                        backgroundColor: success ? Colors.orange : Colors.red,
+                                      ),
+                                    );
+                                  }
+                                },
+                                child: const Text('Decline'),
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: ElevatedButton(
+                                onPressed: () async {
+                                  Navigator.of(context).pop();
+                                  final controller = ref.read(partyControllerProvider);
+                                  final success = await controller.acceptInvite(invite.id);
+                                  
+                                  if (context.mounted) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      success
+                                          ? SnackBar(content: Text('Joined ${invite.partyName}!'))
+                                          : const SnackBar(
+                                              content: Text('Failed to accept invite'),
+                                              backgroundColor: Colors.red,
+                                            ),
+                                    );
+                                  }
+                                },
+                                child: const Text('Accept'),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              },
+            ),
+          ),
+        ],
+      ),
+    ),
+  );
+}
+
+class SplashScreen extends ConsumerStatefulWidget {
+  const SplashScreen({super.key});
+
+  @override
+  ConsumerState<SplashScreen> createState() => _SplashScreenState();
+}
+
+class _SplashScreenState extends ConsumerState<SplashScreen> {
+  @override
+  void initState() {
+    super.initState();
+    _navigateAfterDelay();
+  }
+
+  void _navigateAfterDelay() async {
+    // Wait for auth state to be determined
+    await Future.delayed(const Duration(milliseconds: 1500));
+    
+    if (mounted) {
+      final authState = ref.read(authControllerProvider);
+      
+      if (authState.isAuthenticated) {
+        if (authState.isOnboarded) {
+          context.go(AppRoutes.dashboard);
+        } else {
+          context.go(AppRoutes.onboarding);
+        }
+      } else {
+        context.go(AppRoutes.authLogin);
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return const Scaffold(
+      body: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.flag, size: 64),
+            SizedBox(height: 16),
+            Text('AccountabiliBuddies', style: TextStyle(fontSize: 24)),
+            SizedBox(height: 32),
+            AppLoading(),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class OnboardingScreen extends ConsumerStatefulWidget {
+  const OnboardingScreen({super.key});
+
+  @override
+  ConsumerState<OnboardingScreen> createState() => _OnboardingScreenState();
+}
+
+class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
+  final PageController _pageController = PageController();
+  int _currentPage = 0;
+  
+  final List<OnboardingPage> _pages = [
+    OnboardingPage(
+      title: 'Welcome to AccountabiliBuddies!',
+      description: 'Stay accountable to your goals with help from friends and the power of social proof.',
+      icon: Icons.flag,
+    ),
+    OnboardingPage(
+      title: 'Set Your Goals',
+      description: 'Create meaningful goals and track your progress with daily, weekly, or monthly targets.',
+      icon: Icons.track_changes,
+    ),
+    OnboardingPage(
+      title: 'Submit Proof',
+      description: 'Share photo evidence of your progress and get validated by your accountability buddies.',
+      icon: Icons.camera_alt,
+    ),
+    OnboardingPage(
+      title: 'Build Your Party',
+      description: 'Invite friends or join groups to create accountability partnerships that work.',
+      icon: Icons.group,
+    ),
+  ];
+
+  @override
+  void dispose() {
+    _pageController.dispose();
+    super.dispose();
+  }
+
+  void _nextPage() {
+    if (_currentPage < _pages.length - 1) {
+      _pageController.nextPage(
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeInOut,
+      );
+    } else {
+      _completeOnboarding();
+    }
+  }
+
+  void _previousPage() {
+    if (_currentPage > 0) {
+      _pageController.previousPage(
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeInOut,
+      );
+    }
+  }
+
+  void _completeOnboarding() async {
+    try {
+      await ref.read(authControllerProvider.notifier).markAsOnboarded();
+      if (mounted) {
+        context.go(AppRoutes.dashboard);
+      }
+    } catch (e) {
+      // If marking as onboarded fails, still allow them to proceed
+      // but log the error
+      logger.error('OnboardingScreen: Failed to mark user as onboarded', error: e);
+      if (mounted) {
+        context.go(AppRoutes.dashboard);
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: SafeArea(
+        child: Column(
+          children: [
+            // Skip button
+            if (_currentPage < _pages.length - 1)
+              Align(
+                alignment: Alignment.topRight,
+                child: TextButton(
+                  onPressed: _completeOnboarding,
+                  child: const Text('Skip'),
+                ),
+              ),
+            
+            // Page content
+            Expanded(
+              child: PageView.builder(
+                controller: _pageController,
+                onPageChanged: (index) {
+                  setState(() {
+                    _currentPage = index;
+                  });
+                },
+                itemCount: _pages.length,
+                itemBuilder: (context, index) {
+                  final page = _pages[index];
+                  return Padding(
+                    padding: const EdgeInsets.all(32.0),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          page.icon,
+                          size: 120,
+                          color: Theme.of(context).primaryColor,
+                        ),
+                        const SizedBox(height: 48),
+                        Text(
+                          page.title,
+                          style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                            fontWeight: FontWeight.bold,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                        const SizedBox(height: 24),
+                        Text(
+                          page.description,
+                          style: Theme.of(context).textTheme.bodyLarge,
+                          textAlign: TextAlign.center,
+                        ),
+                      ],
+                    ),
+                  );
+                },
+              ),
+            ),
+            
+            // Page indicators
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: _pages.asMap().entries.map((entry) {
+                return Container(
+                  width: 8,
+                  height: 8,
+                  margin: const EdgeInsets.symmetric(horizontal: 4),
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: _currentPage == entry.key
+                        ? Theme.of(context).primaryColor
+                        : Colors.grey.shade300,
+                  ),
+                );
+              }).toList(),
+            ),
+            
+            const SizedBox(height: 24),
+            
+            // Navigation buttons
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 32.0),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  if (_currentPage > 0)
+                    TextButton(
+                      onPressed: _previousPage,
+                      child: const Text('Previous'),
+                    )
+                  else
+                    const SizedBox.shrink(),
+                  
+                  ElevatedButton(
+                    onPressed: _nextPage,
+                    child: Text(_currentPage == _pages.length - 1 ? 'Get Started' : 'Next'),
+                  ),
+                ],
+              ),
+            ),
+            
+            const SizedBox(height: 32),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class OnboardingPage {
+  final String title;
+  final String description;
+  final IconData icon;
+
+  OnboardingPage({
+    required this.title,
+    required this.description,
+    required this.icon,
+  });
+}
+
+class LoginScreen extends ConsumerStatefulWidget {
+  const LoginScreen({super.key});
+
+  @override
+  ConsumerState<LoginScreen> createState() => _LoginScreenState();
+}
+
+class _LoginScreenState extends ConsumerState<LoginScreen> {
+  final _formKey = GlobalKey<FormState>();
+  final _emailController = TextEditingController();
+  final _passwordController = TextEditingController();
+
+  @override
+  void dispose() {
+    _emailController.dispose();
+    _passwordController.dispose();
+    super.dispose();
+  }
+
+  void _onLoginPressed() async {
+    if (_formKey.currentState?.validate() ?? false) {
+      await ref.read(authControllerProvider.notifier).signInWithEmail(
+        _emailController.text.trim(),
+        _passwordController.text,
+      );
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final authState = ref.watch(authControllerProvider);
+    
+    return Scaffold(
+      appBar: AppBar(title: const Text('Login')),
+      body: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Form(
+          key: _formKey,
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Icon(Icons.flag, size: 64),
+              const SizedBox(height: 32),
+              TextFormField(
+                controller: _emailController,
+                decoration: const InputDecoration(
+                  labelText: 'Email',
+                  border: OutlineInputBorder(),
+                ),
+                keyboardType: TextInputType.emailAddress,
+                validator: (value) {
+                  if (value == null || value.isEmpty) {
+                    return 'Please enter your email';
+                  }
+                  if (!RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(value)) {
+                    return 'Please enter a valid email';
+                  }
+                  return null;
+                },
+              ),
+              const SizedBox(height: 16),
+              TextFormField(
+                controller: _passwordController,
+                decoration: const InputDecoration(
+                  labelText: 'Password',
+                  border: OutlineInputBorder(),
+                ),
+                obscureText: true,
+                validator: (value) {
+                  if (value == null || value.isEmpty) {
+                    return 'Please enter your password';
+                  }
+                  return null;
+                },
+              ),
+              const SizedBox(height: 24),
+              if (authState.isLoading)
+                const CircularProgressIndicator()
+              else
+                ElevatedButton(
+                  onPressed: _onLoginPressed,
+                  child: const Text('Login'),
+                ),
+              const SizedBox(height: 16),
+              TextButton(
+                onPressed: () => context.go(AppRoutes.authRegister),
+                child: const Text('Don\'t have an account? Register'),
+              ),
+              if (authState.error != null)
+                Padding(
+                  padding: const EdgeInsets.only(top: 16),
+                  child: Text(
+                    authState.error!,
+                    style: const TextStyle(color: Colors.red),
+                  ),
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class RegisterScreen extends ConsumerStatefulWidget {
+  const RegisterScreen({super.key});
+
+  @override
+  ConsumerState<RegisterScreen> createState() => _RegisterScreenState();
+}
+
+class _RegisterScreenState extends ConsumerState<RegisterScreen> {
+  final _formKey = GlobalKey<FormState>();
+  final _emailController = TextEditingController();
+  final _passwordController = TextEditingController();
+  final _nameController = TextEditingController();
+
+  @override
+  void dispose() {
+    _emailController.dispose();
+    _passwordController.dispose();
+    _nameController.dispose();
+    super.dispose();
+  }
+
+  void _onRegisterPressed() async {
+    if (_formKey.currentState?.validate() ?? false) {
+      await ref.read(authControllerProvider.notifier).signUpWithEmail(
+        _emailController.text.trim(),
+        _passwordController.text,
+        _nameController.text.trim().isEmpty ? null : _nameController.text.trim(),
+      );
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final authState = ref.watch(authControllerProvider);
+    
+    return Scaffold(
+      appBar: AppBar(title: const Text('Register')),
+      body: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Form(
+          key: _formKey,
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Icon(Icons.flag, size: 64),
+              const SizedBox(height: 32),
+              TextFormField(
+                controller: _nameController,
+                decoration: const InputDecoration(
+                  labelText: 'Name (optional)',
+                  border: OutlineInputBorder(),
+                ),
+                textCapitalization: TextCapitalization.words,
+              ),
+              const SizedBox(height: 16),
+              TextFormField(
+                controller: _emailController,
+                decoration: const InputDecoration(
+                  labelText: 'Email',
+                  border: OutlineInputBorder(),
+                ),
+                keyboardType: TextInputType.emailAddress,
+                validator: (value) {
+                  if (value == null || value.isEmpty) {
+                    return 'Please enter your email';
+                  }
+                  if (!RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(value)) {
+                    return 'Please enter a valid email';
+                  }
+                  return null;
+                },
+              ),
+              const SizedBox(height: 16),
+              TextFormField(
+                controller: _passwordController,
+                decoration: const InputDecoration(
+                  labelText: 'Password',
+                  border: OutlineInputBorder(),
+                ),
+                obscureText: true,
+                validator: (value) {
+                  if (value == null || value.isEmpty) {
+                    return 'Please enter your password';
+                  }
+                  if (value.length < 6) {
+                    return 'Password must be at least 6 characters';
+                  }
+                  return null;
+                },
+              ),
+              const SizedBox(height: 24),
+              if (authState.isLoading)
+                const CircularProgressIndicator()
+              else
+                ElevatedButton(
+                  onPressed: _onRegisterPressed,
+                  child: const Text('Register'),
+                ),
+              const SizedBox(height: 16),
+              TextButton(
+                onPressed: () => context.go(AppRoutes.authLogin),
+                child: const Text('Already have an account? Login'),
+              ),
+              if (authState.error != null)
+                Padding(
+                  padding: const EdgeInsets.only(top: 16),
+                  child: Text(
+                    authState.error!,
+                    style: const TextStyle(color: Colors.red),
+                  ),
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class ForgotPasswordScreen extends StatelessWidget {
+  const ForgotPasswordScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('Forgot Password')),
+      body: const Center(
+        child: Text('Forgot Password Screen'),
+      ),
+    );
+  }
+}
+
+class DashboardScreen extends ConsumerWidget {
+  const DashboardScreen({super.key});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final user = ref.watch(userProvider);
+    final pendingInvitesAsync = ref.watch(pendingInvitesProvider);
+    
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Dashboard'),
+        actions: [
+          // Notification badge for pending invites
+          pendingInvitesAsync.when(
+            data: (invites) {
+              if (invites.isEmpty) {
+                return const SizedBox.shrink();
+              }
+              return Stack(
+                children: [
+                  IconButton(
+                    icon: const Icon(Icons.notifications),
+                    onPressed: () => showPendingInvites(context, ref, invites),
+                  ),
+                  Positioned(
+                    right: 8,
+                    top: 8,
+                    child: Container(
+                      padding: const EdgeInsets.all(2),
+                      decoration: BoxDecoration(
+                        color: Colors.red,
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      constraints: const BoxConstraints(
+                        minWidth: 16,
+                        minHeight: 16,
+                      ),
+                      child: Text(
+                        '${invites.length}',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 12,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                    ),
+                  ),
+                ],
+              );
+            },
+            loading: () => const SizedBox.shrink(),
+            error: (_, __) => const SizedBox.shrink(),
+          ),
+          IconButton(
+            icon: const Icon(Icons.settings),
+            onPressed: () => context.go(AppRoutes.settings),
+          ),
+        ],
+      ),
+      body: RefreshIndicator(
+        onRefresh: () async {
+          // TODO: Refresh goals and party data
+        },
+        child: SingleChildScrollView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Welcome section
+              _buildWelcomeSection(context, user),
+              const SizedBox(height: 24),
+              
+              // Quick stats
+              _buildQuickStats(context),
+              const SizedBox(height: 24),
+              
+              // Current challenge section
+              _buildCurrentChallengeSection(context, ref),
+              const SizedBox(height: 24),
+              
+              // Active goals section
+              _buildActiveGoalsSection(context),
+              const SizedBox(height: 24),
+              
+              // Parties section (with pending invites indicator)
+              _buildPartiesSection(context, ref),
+              const SizedBox(height: 24),
+              
+              // Recent activity
+              _buildRecentActivitySection(context),
+              const SizedBox(height: 24),
+              
+              // Quick actions
+              _buildQuickActionsSection(context),
+            ],
+          ),
+        ),
+      ),
+      floatingActionButton: FloatingActionButton(
+        onPressed: () => context.go('${AppRoutes.goals}/create'),
+        tooltip: 'Create Goal',
+        child: const Icon(Icons.add),
+      ),
+    );
+  }
+
+
+  Widget _buildWelcomeSection(BuildContext context, UserModel? user) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Row(
+          children: [
+            CircleAvatar(
+              radius: 30,
+              backgroundColor: Theme.of(context).primaryColor,
+              child: user?.photoUrl != null 
+                  ? ClipOval(
+                      child: Image.network(
+                        user!.photoUrl!,
+                        width: 60,
+                        height: 60,
+                        fit: BoxFit.cover,
+                      ),
+                    )
+                  : Text(
+                      user?.displayName?.substring(0, 1).toUpperCase() ?? 
+                      user?.email.substring(0, 1).toUpperCase() ?? 'U',
+                      style: const TextStyle(
+                        fontSize: 24,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                      ),
+                    ),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Welcome back, ${user?.displayName ?? user?.email.split('@')[0] ?? 'User'}!',
+                    style: Theme.of(context).textTheme.headlineSmall,
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'Let\'s make today count!',
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      color: Colors.grey[600],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildQuickStats(BuildContext context) {
+    return Consumer(
+      builder: (context, ref, child) {
+        final statsAsync = ref.watch(userStatsProvider);
+        
+        return statsAsync.when(
+          data: (stats) => Row(
+            children: [
+              Expanded(
+                child: _buildStatCard(
+                  context,
+                  title: 'Active Goals',
+                  value: '${stats.activeGoals}',
+                  icon: Icons.track_changes,
+                  color: Colors.blue,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: _buildStatCard(
+                  context,
+                  title: 'Progress',
+                  value: '${(stats.averageProgress * 100).toInt()}%',
+                  icon: Icons.trending_up,
+                  color: Colors.green,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: _buildStatCard(
+                  context,
+                  title: 'Completed',
+                  value: '${stats.completedGoals}',
+                  icon: Icons.check_circle,
+                  color: Colors.orange,
+                ),
+              ),
+            ],
+          ),
+          loading: () => Row(
+            children: [
+              Expanded(
+                child: _buildStatCard(
+                  context,
+                  title: 'Active Goals',
+                  value: '...',
+                  icon: Icons.track_changes,
+                  color: Colors.blue,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: _buildStatCard(
+                  context,
+                  title: 'Progress',
+                  value: '...',
+                  icon: Icons.trending_up,
+                  color: Colors.green,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: _buildStatCard(
+                  context,
+                  title: 'Completed',
+                  value: '...',
+                  icon: Icons.check_circle,
+                  color: Colors.orange,
+                ),
+              ),
+            ],
+          ),
+          error: (error, stack) => Text('Error loading stats'),
+        );
+      },
+    );
+  }
+
+  Widget _buildStatCard(
+    BuildContext context, {
+    required String title,
+    required String value,
+    required IconData icon,
+    required Color color,
+  }) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          children: [
+            Icon(icon, color: color, size: 32),
+            const SizedBox(height: 8),
+            Text(
+              value,
+              style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                fontWeight: FontWeight.bold,
+                color: color,
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              title,
+              style: Theme.of(context).textTheme.bodySmall,
+              textAlign: TextAlign.center,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildCurrentChallengeSection(BuildContext context, WidgetRef ref) {
+    final partiesAsync = ref.watch(partiesProvider);
+    
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Text(
+              'Current Challenge',
+              style: Theme.of(context).textTheme.headlineSmall,
+            ),
+            const Spacer(),
+            TextButton(
+              onPressed: () => context.go(AppRoutes.party),
+              child: const Text('View Parties'),
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        Card(
+          child: partiesAsync.when(
+            data: (parties) {
+              if (parties.isEmpty) {
+                return Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    children: [
+                      Icon(
+                        Icons.event_busy,
+                        size: 48,
+                        color: Colors.grey[400],
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        'No active challenge',
+                        style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                          color: Colors.grey[600],
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        'Join a party to participate in challenges!',
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: Colors.grey[600],
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                    ],
+                  ),
+                );
+              }
+              
+              // Check all parties for active challenges
+              return _ActiveChallengeDisplay(parties: parties);
+            },
+            loading: () => const Padding(
+              padding: EdgeInsets.all(16),
+              child: Center(child: CircularProgressIndicator()),
+            ),
+            error: (error, stack) => _buildNoChallengeCard(context),
+          ),
+        ),
+      ],
+    );
+  }
+  
+  Widget _buildChallengeCard(BuildContext context, Challenge challenge, Party party) {
+    return Padding(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              CircleAvatar(
+                backgroundColor: Theme.of(context).primaryColor,
+                child: Text(
+                  party.name[0].toUpperCase(),
+                  style: const TextStyle(color: Colors.white),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      challenge.name,
+                      style: Theme.of(context).textTheme.titleMedium,
+                    ),
+                    Text(
+                      'Party: ${party.name}',
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: Colors.grey[600],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: _getChallengeStatusColor(challenge.status).withOpacity(0.2),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Text(
+                  challenge.status.name.toUpperCase(),
+                  style: TextStyle(
+                    color: _getChallengeStatusColor(challenge.status),
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Icon(
+                Icons.calendar_today,
+                size: 16,
+                color: Colors.grey[600],
+              ),
+              const SizedBox(width: 4),
+              Text(
+                '${_formatChallengeDate(challenge.startDate)} - ${_formatChallengeDate(challenge.endDate)}',
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: Colors.grey[600],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          if (challenge.status == ChallengeStatus.pending) ...[
+            Row(
+              children: [
+                Icon(
+                  Icons.access_time,
+                  size: 16,
+                  color: Colors.orange,
+                ),
+                const SizedBox(width: 4),
+                Text(
+                  'Waiting for members to commit',
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: Colors.orange,
+                  ),
+                ),
+              ],
+            ),
+          ],
+          const SizedBox(height: 12),
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton(
+              onPressed: () => context.go(AppRoutesExtension.partyDetail(party.id)),
+              child: Text(challenge.status == ChallengeStatus.pending 
+                  ? 'Set Your Goals' 
+                  : 'View Challenge'),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+  
+  Widget _buildNoChallengeCard(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        children: [
+          Icon(
+            Icons.event_busy,
+            size: 48,
+            color: Colors.grey[400],
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'No active challenge',
+            style: Theme.of(context).textTheme.titleMedium?.copyWith(
+              color: Colors.grey[600],
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            'Check back soon or ask your party leader to start one!',
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+              color: Colors.grey[600],
+            ),
+            textAlign: TextAlign.center,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ActiveChallengeDisplay extends ConsumerWidget {
+  const _ActiveChallengeDisplay({required this.parties});
+  
+  final List<Party> parties;
+  
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    for (final party in parties) {
+      final currentChallengeAsync = ref.watch(currentChallengeProvider(party.id));
+      
+      final challenge = currentChallengeAsync.valueOrNull;
+      if (challenge != null) {
+        return _buildChallengeCard(context, challenge, party);
+      }
+    }
+    
+    // No challenges found in any party
+    return _buildNoChallengeCard(context);
+  }
+  
+  Widget _buildChallengeCard(BuildContext context, Challenge challenge, Party party) {
+    return Padding(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              CircleAvatar(
+                backgroundColor: Theme.of(context).primaryColor,
+                child: Text(
+                  party.name[0].toUpperCase(),
+                  style: const TextStyle(color: Colors.white),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      challenge.name,
+                      style: Theme.of(context).textTheme.titleMedium,
+                    ),
+                    Text(
+                      'Party: ${party.name}',
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: Colors.grey[600],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: _getChallengeStatusColor(challenge.status).withOpacity(0.2),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Text(
+                  challenge.status.name.toUpperCase(),
+                  style: TextStyle(
+                    color: _getChallengeStatusColor(challenge.status),
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Icon(
+                Icons.calendar_today,
+                size: 16,
+                color: Colors.grey[600],
+              ),
+              const SizedBox(width: 4),
+              Text(
+                '${_formatChallengeDate(challenge.startDate)} - ${_formatChallengeDate(challenge.endDate)}',
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: Colors.grey[600],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          if (challenge.status == ChallengeStatus.pending) ...[
+            Row(
+              children: [
+                Icon(
+                  Icons.access_time,
+                  size: 16,
+                  color: Colors.orange,
+                ),
+                const SizedBox(width: 4),
+                Text(
+                  'Waiting for members to commit',
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: Colors.orange,
+                  ),
+                ),
+              ],
+            ),
+          ],
+          const SizedBox(height: 12),
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton(
+              onPressed: () => context.go(AppRoutesExtension.partyDetail(party.id)),
+              child: Text(challenge.status == ChallengeStatus.pending 
+                  ? 'Set Your Goals' 
+                  : 'View Challenge'),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+  
+  Widget _buildNoChallengeCard(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        children: [
+          Icon(
+            Icons.event_busy,
+            size: 48,
+            color: Colors.grey[400],
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'No active challenge',
+            style: Theme.of(context).textTheme.titleMedium?.copyWith(
+              color: Colors.grey[600],
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            'Check back soon or ask your party leader to start one!',
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+              color: Colors.grey[600],
+            ),
+            textAlign: TextAlign.center,
+          ),
+        ],
+      ),
+    );
+  }
+  
+  Color _getChallengeStatusColor(ChallengeStatus status) {
+    switch (status) {
+      case ChallengeStatus.pending:
+        return Colors.orange;
+      case ChallengeStatus.active:
+        return Colors.green;
+      case ChallengeStatus.settling:
+        return Colors.blue;
+      case ChallengeStatus.completed:
+        return Colors.purple;
+      case ChallengeStatus.cancelled:
+        return Colors.red;
+    }
+  }
+  
+  String _formatChallengeDate(DateTime date) {
+    final months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    return '${months[date.month - 1]} ${date.day}';
+  }
+}
+
+class DashboardScreen extends ConsumerWidget {
+  const DashboardScreen({super.key});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final user = ref.watch(userProvider);
+    final pendingInvitesAsync = ref.watch(pendingInvitesProvider);
+    
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Dashboard'),
+        actions: [
+          // Notification badge for pending invites
+          pendingInvitesAsync.when(
+            data: (invites) {
+              if (invites.isEmpty) {
+                return const SizedBox.shrink();
+              }
+              return Stack(
+                children: [
+                  IconButton(
+                    icon: const Icon(Icons.notifications),
+                    onPressed: () => showPendingInvites(context, ref, invites),
+                  ),
+                  Positioned(
+                    right: 8,
+                    top: 8,
+                    child: Container(
+                      padding: const EdgeInsets.all(2),
+                      decoration: BoxDecoration(
+                        color: Colors.red,
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      constraints: const BoxConstraints(
+                        minWidth: 16,
+                        minHeight: 16,
+                      ),
+                      child: Text(
+                        '${invites.length}',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 12,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                    ),
+                  ),
+                ],
+              );
+            },
+            loading: () => const SizedBox.shrink(),
+            error: (_, __) => const SizedBox.shrink(),
+          ),
+          IconButton(
+            icon: const Icon(Icons.settings),
+            onPressed: () => context.go(AppRoutes.settings),
+          ),
+        ],
+      ),
+      body: RefreshIndicator(
+        onRefresh: () async {
+          // TODO: Refresh goals and party data
+        },
+        child: SingleChildScrollView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Welcome section
+              _buildWelcomeSection(context, user),
+              const SizedBox(height: 24),
+              
+              // Quick stats
+              _buildQuickStats(context),
+              const SizedBox(height: 24),
+              
+              // Current challenge section
+              _buildCurrentChallengeSection(context, ref),
+              const SizedBox(height: 24),
+              
+              // Active goals section
+              _buildActiveGoalsSection(context),
+              const SizedBox(height: 24),
+              
+              // Parties section (with pending invites indicator)
+              _buildPartiesSection(context, ref),
+              const SizedBox(height: 24),
+              
+              // Recent activity
+              _buildRecentActivitySection(context),
+              const SizedBox(height: 24),
+              
+              // Quick actions
+              _buildQuickActionsSection(context),
+            ],
+          ),
+        ),
+      ),
+      floatingActionButton: FloatingActionButton(
+        onPressed: () => context.go('${AppRoutes.goals}/create'),
+        tooltip: 'Create Goal',
+        child: const Icon(Icons.add),
+      ),
+    );
+  }
+
+
+  Widget _buildWelcomeSection(BuildContext context, UserModel? user) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Row(
+          children: [
+            CircleAvatar(
+              radius: 30,
+              backgroundColor: Theme.of(context).primaryColor,
+              child: user?.photoUrl != null 
+                  ? ClipOval(
+                      child: Image.network(
+                        user!.photoUrl!,
+                        width: 60,
+                        height: 60,
+                        fit: BoxFit.cover,
+                      ),
+                    )
+                  : Text(
+                      user?.displayName?.substring(0, 1).toUpperCase() ?? 
+                      user?.email.substring(0, 1).toUpperCase() ?? 'U',
+                      style: const TextStyle(
+                        fontSize: 24,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                      ),
+                    ),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Welcome back, ${user?.displayName ?? user?.email.split('@')[0] ?? 'User'}!',
+                    style: Theme.of(context).textTheme.headlineSmall,
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'Let\'s make today count!',
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      color: Colors.grey[600],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildQuickStats(BuildContext context) {
+    return Consumer(
+      builder: (context, ref, child) {
+        final statsAsync = ref.watch(userStatsProvider);
+        
+        return statsAsync.when(
+          data: (stats) => Row(
+            children: [
+              Expanded(
+                child: _buildStatCard(
+                  context,
+                  title: 'Active Goals',
+                  value: '${stats.activeGoals}',
+                  icon: Icons.track_changes,
+                  color: Colors.blue,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: _buildStatCard(
+                  context,
+                  title: 'Progress',
+                  value: '${(stats.averageProgress * 100).toInt()}%',
+                  icon: Icons.trending_up,
+                  color: Colors.green,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: _buildStatCard(
+                  context,
+                  title: 'Completed',
+                  value: '${stats.completedGoals}',
+                  icon: Icons.check_circle,
+                  color: Colors.orange,
+                ),
+              ),
+            ],
+          ),
+          loading: () => Row(
+            children: [
+              Expanded(
+                child: _buildStatCard(
+                  context,
+                  title: 'Active Goals',
+                  value: '...',
+                  icon: Icons.track_changes,
+                  color: Colors.blue,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: _buildStatCard(
+                  context,
+                  title: 'Progress',
+                  value: '...',
+                  icon: Icons.trending_up,
+                  color: Colors.green,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: _buildStatCard(
+                  context,
+                  title: 'Completed',
+                  value: '...',
+                  icon: Icons.check_circle,
+                  color: Colors.orange,
+                ),
+              ),
+            ],
+          ),
+          error: (error, stack) => Text('Error loading stats'),
+        );
+      },
+    );
+  }
+
+  Widget _buildStatCard(
+    BuildContext context, {
+    required String title,
+    required String value,
+    required IconData icon,
+    required Color color,
+  }) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          children: [
+            Icon(icon, color: color, size: 32),
+            const SizedBox(height: 8),
+            Text(
+              value,
+              style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                fontWeight: FontWeight.bold,
+                color: color,
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              title,
+              style: Theme.of(context).textTheme.bodySmall,
+              textAlign: TextAlign.center,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildCurrentChallengeSection(BuildContext context, WidgetRef ref) {
+    final partiesAsync = ref.watch(partiesProvider);
+    
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Text(
+              'Current Challenge',
+              style: Theme.of(context).textTheme.headlineSmall,
+            ),
+            const Spacer(),
+            TextButton(
+              onPressed: () => context.go(AppRoutes.party),
+              child: const Text('View Parties'),
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        Card(
+          child: partiesAsync.when(
+            data: (parties) {
+              if (parties.isEmpty) {
+                return Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    children: [
+                      Icon(
+                        Icons.event_busy,
+                        size: 48,
+                        color: Colors.grey[400],
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        'No active challenge',
+                        style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                          color: Colors.grey[600],
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        'Join a party to participate in challenges!',
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: Colors.grey[600],
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                    ],
+                  ),
+                );
+              }
+              
+              // Check all parties for active challenges
+              return _ActiveChallengeDisplay(parties: parties);
+            },
+            loading: () => const Padding(
+              padding: EdgeInsets.all(16),
+              child: Center(child: CircularProgressIndicator()),
+            ),
+            error: (error, stack) => Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                children: [
+                  Icon(
+                    Icons.event_busy,
+                    size: 48,
+                    color: Colors.grey[400],
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'No active challenge',
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                      color: Colors.grey[600],
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'Error loading challenges',
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: Colors.grey[600],
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildActiveGoalsSection(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Consumer(
+          builder: (context, ref, child) {
+            final activeTemplates = ref.watch(activeGoalTemplatesProvider);
+            
+            return Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  'Goal Templates (${activeTemplates.length})',
+                  style: Theme.of(context).textTheme.headlineSmall,
+                ),
+                TextButton(
+                  onPressed: () => context.go(AppRoutes.goals),
+                  child: const Text('View All'),
+                ),
+              ],
+            );
+          },
+        ),
+        const SizedBox(height: 12),
+        Consumer(
+          builder: (context, ref, child) {
+            final activeTemplates = ref.watch(activeGoalTemplatesProvider);
+            
+            if (activeTemplates.isEmpty) {
+              return Card(
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Text(
+                    'No goal templates yet. Create your first template to get started!',
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      color: Colors.grey[600],
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                ),
+              );
+            }
+            
+            return Column(
+              children: activeTemplates.take(3).map((template) => 
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 8),
+                  child: _buildDashboardTemplateCard(context, template),
+                )
+              ).toList(),
+            );
+          },
+        ),
+      ],
+    );
+  }
+
+  Widget _buildDashboardTemplateCard(BuildContext context, template.GoalTemplate goalTemplate) {
+    return Card(
+      child: ListTile(
+        leading: CircleAvatar(
+          backgroundColor: Theme.of(context).primaryColor,
+          child: Icon(
+            _getTemplateIcon(goalTemplate.category),
+            color: Colors.white,
+          ),
+        ),
+        title: Text(goalTemplate.title),
+        subtitle: Text(
+          '${goalTemplate.categoryDisplay} • ${goalTemplate.goalTypeDisplay}${goalTemplate.plannedFrequency != null ? ' • Planned: ${goalTemplate.plannedFrequency}/week' : ''}',
+          style: TextStyle(color: Colors.grey[600]),
+        ),
+        trailing: IconButton(
+          icon: const Icon(Icons.play_arrow),
+          onPressed: () {
+            // TODO: Navigate to create goal instance
+          },
+        ),
+        onTap: () {
+          // TODO: Navigate to template details
+        },
+      ),
+    );
+  }
+
+  Widget _buildPartiesSection(BuildContext context, WidgetRef ref) {
+    final partiesAsync = ref.watch(partiesProvider);
+    final pendingInvitesAsync = ref.watch(pendingInvitesProvider);
+    
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Text(
+              'My Parties',
+              style: Theme.of(context).textTheme.headlineSmall,
+            ),
+            const Spacer(),
+            // Show pending invites badge
+            pendingInvitesAsync.when(
+              data: (invites) {
+                if (invites.isNotEmpty) {
+                  return Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: Colors.red,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Text(
+                      '${invites.length} pending invite${invites.length == 1 ? '' : 's'}',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  );
+                }
+                return const SizedBox.shrink();
+              },
+              loading: () => const SizedBox.shrink(),
+              error: (_, __) => const SizedBox.shrink(),
+            ),
+            TextButton(
+              onPressed: () => context.go(AppRoutes.party),
+              child: const Text('View All'),
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        Card(
+          child: partiesAsync.when(
+            data: (parties) {
+              if (parties.isEmpty) {
+                return Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    children: [
+                      Icon(
+                        Icons.group_add,
+                        size: 48,
+                        color: Colors.grey[400],
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        'No parties yet',
+                        style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                          color: Colors.grey[600],
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        'Create or join a party to start collaborating!',
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: Colors.grey[600],
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                      const SizedBox(height: 16),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                        children: [
+                          ElevatedButton.icon(
+                            onPressed: () => context.go('${AppRoutes.party}/create'),
+                            icon: const Icon(Icons.add),
+                            label: const Text('Create Party'),
+                          ),
+                          OutlinedButton.icon(
+                            onPressed: () => context.go('${AppRoutes.party}/join'),
+                            icon: const Icon(Icons.group_add),
+                            label: const Text('Join Party'),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                );
+              }
+              
+              return Column(
+                children: parties.take(2).map((party) => 
+                  ListTile(
+                    leading: CircleAvatar(
+                      backgroundColor: Theme.of(context).primaryColor,
+                      child: Text(
+                        party.name[0].toUpperCase(),
+                        style: const TextStyle(color: Colors.white),
+                      ),
+                    ),
+                    title: Text(party.name),
+                    subtitle: Text('${party.memberCount} members'),
+                    trailing: const Icon(Icons.arrow_forward_ios, size: 16),
+                    onTap: () => context.go(AppRoutesExtension.partyDetail(party.id)),
+                  ),
+                ).toList(),
+              );
+            },
+            loading: () => const Padding(
+              padding: EdgeInsets.all(32),
+              child: Center(child: CircularProgressIndicator()),
+            ),
+            error: (_, __) => Padding(
+              padding: const EdgeInsets.all(16),
+              child: Text(
+                'Error loading parties',
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                  color: Colors.grey[600],
+                ),
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildRecentActivitySection(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Recent Activity',
+          style: Theme.of(context).textTheme.headlineSmall,
+        ),
+        const SizedBox(height: 12),
+        Card(
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              children: [
+                _buildActivityItem(
+                  context,
+                  icon: Icons.check_circle,
+                  iconColor: Colors.green,
+                  title: 'Daily Exercise completed',
+                  subtitle: '2 hours ago',
+                ),
+                const Divider(),
+                _buildActivityItem(
+                  context,
+                  icon: Icons.group_add,
+                  iconColor: Colors.blue,
+                  title: 'John joined your party',
+                  subtitle: '5 hours ago',
+                ),
+                const Divider(),
+                _buildActivityItem(
+                  context,
+                  icon: Icons.photo_camera,
+                  iconColor: Colors.orange,
+                  title: 'Proof submitted for Reading',
+                  subtitle: '1 day ago',
+                ),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildActivityItem(
+    BuildContext context, {
+    required IconData icon,
+    required Color iconColor,
+    required String title,
+    required String subtitle,
+  }) {
+    return Row(
+      children: [
+        Icon(icon, color: iconColor),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                title,
+                style: Theme.of(context).textTheme.bodyMedium,
+              ),
+              Text(
+                subtitle,
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: Colors.grey[600],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildQuickActionsSection(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Quick Actions',
+          style: Theme.of(context).textTheme.headlineSmall,
+        ),
+        const SizedBox(height: 12),
+        Row(
+          children: [
+            Expanded(
+              child: _buildActionButton(
+                context,
+                title: 'Create Goal',
+                icon: Icons.add_circle,
+                onPressed: () => context.go('${AppRoutes.goals}/create'),
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: _buildActionButton(
+                context,
+                title: 'Join Party',
+                icon: Icons.group_add,
+                onPressed: () => context.go('${AppRoutes.party}/join'),
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _buildActionButton(
+    BuildContext context, {
+    required String title,
+    required IconData icon,
+    required VoidCallback onPressed,
+  }) {
+    return ElevatedButton.icon(
+      onPressed: onPressed,
+      icon: Icon(icon),
+      label: Text(title),
+      style: ElevatedButton.styleFrom(
+        padding: const EdgeInsets.symmetric(vertical: 16),
+      ),
+    );
+  }
+
+
+  IconData _getTemplateIcon(template.GoalCategory category) {
+    switch (category) {
+      case template.GoalCategory.health:
+        return Icons.health_and_safety;
+      case template.GoalCategory.fitness:
+        return Icons.fitness_center;
+      case template.GoalCategory.learning:
+        return Icons.school;
+      case template.GoalCategory.habits:
+        return Icons.loop;
+      case template.GoalCategory.career:
+        return Icons.work;
+      case template.GoalCategory.personal:
+        return Icons.person;
+      case template.GoalCategory.other:
+        return Icons.category;
+    }
+  }
+}
+
+class GoalsScreen extends ConsumerWidget {
+  const GoalsScreen({super.key});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('My Goals'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.add),
+            onPressed: () => context.go('${AppRoutes.goals}/create'),
+          ),
+        ],
+      ),
+      body: RefreshIndicator(
+        onRefresh: () async {
+          // TODO: Refresh goals from repository
+        },
+        child: CustomScrollView(
+          slivers: [
+            // Filter and sort options
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                        decoration: BoxDecoration(
+                          color: Colors.grey[100],
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Row(
+                          children: [
+                            const Icon(Icons.search, size: 20),
+                            const SizedBox(width: 8),
+                            Text(
+                              'Search goals...',
+                              style: TextStyle(color: Colors.grey[600]),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    IconButton(
+                      icon: const Icon(Icons.filter_list),
+                      onPressed: () => _showFilterDialog(context),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            
+            // Goal categories
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Categories',
+                      style: Theme.of(context).textTheme.titleMedium,
+                    ),
+                    const SizedBox(height: 12),
+                    SizedBox(
+                      height: 40,
+                      child: ListView(
+                        scrollDirection: Axis.horizontal,
+                        children: [
+                          _buildCategoryChip('All', true),
+                          _buildCategoryChip('Health', false),
+                          _buildCategoryChip('Learning', false),
+                          _buildCategoryChip('Fitness', false),
+                          _buildCategoryChip('Habits', false),
+                          _buildCategoryChip('Career', false),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            
+            const SliverToBoxAdapter(child: SizedBox(height: 16)),
+            
+            // Active templates
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: Consumer(
+                  builder: (context, ref, child) {
+                    final activeTemplates = ref.watch(activeGoalTemplatesProvider);
+                    return Text(
+                      'Active Templates (${activeTemplates.length})',
+                      style: Theme.of(context).textTheme.titleMedium,
+                    );
+                  },
+                ),
+              ),
+            ),
+            
+            const SliverToBoxAdapter(child: SizedBox(height: 12)),
+            
+            Consumer(
+              builder: (context, ref, child) {
+                final activeTemplates = ref.watch(activeGoalTemplatesProvider);
+                
+                if (activeTemplates.isEmpty) {
+                  return SliverToBoxAdapter(
+                    child: Padding(
+                      padding: const EdgeInsets.all(32),
+                      child: Column(
+                        children: [
+                          Icon(Icons.flag_outlined, size: 64, color: Colors.grey[400]),
+                          const SizedBox(height: 16),
+                          Text(
+                            'No goal templates yet',
+                            style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                              color: Colors.grey[600],
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            'Create your first template to get started!',
+                            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                              color: Colors.grey[600],
+                            ),
+                          ),
+                          const SizedBox(height: 16),
+                          ElevatedButton.icon(
+                            onPressed: () => context.go('${AppRoutes.goals}/create'),
+                            icon: const Icon(Icons.add),
+                            label: const Text('Create Template'),
+                          ),
+                        ],
+                      ),
+                    ),
+                  );
+                }
+                
+                return SliverList(
+                  delegate: SliverChildBuilderDelegate(
+                    (context, index) {
+                      final template = activeTemplates[index];
+                      return Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                        child: _buildTemplateCard(context, ref, template),
+                      );
+                    },
+                    childCount: activeTemplates.length,
+                  ),
+                );
+              },
+            ),
+            
+            const SliverToBoxAdapter(child: SizedBox(height: 16)),
+            
+            // Archived templates
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: Consumer(
+                  builder: (context, ref, child) {
+                    final archivedTemplates = ref.watch(archivedGoalTemplatesProvider);
+                    return Text(
+                      'Archived Templates (${archivedTemplates.length})',
+                      style: Theme.of(context).textTheme.titleMedium,
+                    );
+                  },
+                ),
+              ),
+            ),
+            
+            const SliverToBoxAdapter(child: SizedBox(height: 12)),
+            
+            Consumer(
+              builder: (context, ref, child) {
+                final archivedTemplates = ref.watch(archivedGoalTemplatesProvider);
+                
+                if (archivedTemplates.isEmpty) {
+                  return SliverToBoxAdapter(
+                    child: Padding(
+                      padding: const EdgeInsets.all(32),
+                      child: Text(
+                        'No archived templates yet',
+                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                          color: Colors.grey[600],
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                    ),
+                  );
+                }
+                
+                return SliverList(
+                  delegate: SliverChildBuilderDelegate(
+                    (context, index) {
+                      final template = archivedTemplates[index];
+                      return Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                        child: _buildArchivedTemplateCard(context, ref, template),
+                      );
+                    },
+                    childCount: archivedTemplates.length,
+                  ),
+                );
+              },
+            ),
+            
+            const SliverToBoxAdapter(child: SizedBox(height: 100)),
+          ],
+        ),
+      ),
+      floatingActionButton: FloatingActionButton(
+        onPressed: () => context.go('${AppRoutes.goals}/create'),
+        tooltip: 'Create Goal',
+        child: const Icon(Icons.add),
+      ),
+    );
+  }
+
+  Widget _buildCategoryChip(String label, bool isSelected) {
+    return Padding(
+      padding: const EdgeInsets.only(right: 8),
+      child: FilterChip(
+        label: Text(label),
+        selected: isSelected,
+        onSelected: (selected) {
+          // TODO: Handle category selection
+        },
+      ),
+    );
+  }
+
+
+
+  void _showFilterDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Filter Goals'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              title: const Text('All Goals'),
+              leading: Radio<String>(
+                value: 'all',
+                groupValue: 'all',
+                onChanged: (value) {},
+              ),
+            ),
+            ListTile(
+              title: const Text('Active Only'),
+              leading: Radio<String>(
+                value: 'active',
+                groupValue: 'all',
+                onChanged: (value) {},
+              ),
+            ),
+            ListTile(
+              title: const Text('Overdue Only'),
+              leading: Radio<String>(
+                value: 'overdue',
+                groupValue: 'all',
+                onChanged: (value) {},
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Apply'),
+          ),
+        ],
+      ),
+    );
+  }
+
+
+  Widget _buildTemplateCard(BuildContext context, WidgetRef ref, template.GoalTemplate goalTemplate) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(
+                  _getTemplateIcon(goalTemplate.category),
+                  color: Theme.of(context).primaryColor,
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    goalTemplate.title,
+                    style: Theme.of(context).textTheme.titleMedium,
+                  ),
+                ),
+                PopupMenuButton<String>(
+                  onSelected: (value) => _handleTemplateAction(context, ref, goalTemplate, value),
+                  itemBuilder: (context) => [
+                    const PopupMenuItem(
+                      value: 'edit',
+                      child: Row(
+                        children: [
+                          Icon(Icons.edit),
+                          SizedBox(width: 8),
+                          Text('Edit'),
+                        ],
+                      ),
+                    ),
+                    const PopupMenuItem(
+                      value: 'archive',
+                      child: Row(
+                        children: [
+                          Icon(Icons.archive),
+                          SizedBox(width: 8),
+                          Text('Archive'),
+                        ],
+                      ),
+                    ),
+                    const PopupMenuItem(
+                      value: 'delete',
+                      child: Row(
+                        children: [
+                          Icon(Icons.delete, color: Colors.red),
+                          SizedBox(width: 8),
+                          Text('Delete', style: TextStyle(color: Colors.red)),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Text(
+              goalTemplate.description,
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                color: Colors.grey[600],
+              ),
+            ),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                Text(
+                  goalTemplate.categoryDisplay,
+                  style: Theme.of(context).textTheme.bodySmall,
+                ),
+                const SizedBox(width: 16),
+                Text(
+                  goalTemplate.goalTypeDisplay,
+                  style: Theme.of(context).textTheme.bodySmall,
+                ),
+                if (goalTemplate.plannedFrequency != null) ...[
+                  const SizedBox(width: 16),
+                  Text(
+                    'Planned: ${goalTemplate.plannedFrequency}/week',
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: Theme.of(context).primaryColor,
+                    ),
+                  ),
+                ],
+              ],
+            ),
+            if (goalTemplate.totalInstances > 0) ...[
+              const SizedBox(height: 8),
+              Text(
+                'Used ${goalTemplate.totalInstances} times • ${(goalTemplate.averageCompletionRate * 100).toInt()}% avg completion',
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: Colors.grey[600],
+                ),
+              ),
+            ],
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: () {
+                      // TODO: Navigate to template details
+                    },
+                    icon: const Icon(Icons.info_outline),
+                    label: const Text('Details'),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: ElevatedButton.icon(
+                    onPressed: () {
+                      // TODO: Create goal instance from template
+                    },
+                    icon: const Icon(Icons.play_arrow),
+                    label: const Text('Use Template'),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildArchivedTemplateCard(BuildContext context, WidgetRef ref, template.GoalTemplate goalTemplate) {
+    return Card(
+      color: Colors.grey.shade50,
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Row(
+          children: [
+            const Icon(Icons.archive, color: Colors.grey),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    goalTemplate.title,
+                    style: Theme.of(context).textTheme.titleMedium,
+                  ),
+                  Text(
+                    'Archived • ${goalTemplate.categoryDisplay}',
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: Colors.grey[600],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            TextButton(
+              onPressed: () {
+                _handleUnarchiveTemplate(context, ref, goalTemplate);
+              },
+              child: const Text('Unarchive'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _handleTemplateAction(BuildContext context, WidgetRef ref, template.GoalTemplate goalTemplate, String action) {
+    switch (action) {
+      case 'edit':
+        // TODO: Navigate to edit template screen
+        break;
+      case 'archive':
+        _showArchiveConfirmation(context, ref, goalTemplate);
+        break;
+      case 'delete':
+        _showDeleteTemplateConfirmation(context, ref, goalTemplate);
+        break;
+    }
+  }
+
+  void _showArchiveConfirmation(BuildContext context, WidgetRef ref, template.GoalTemplate goalTemplate) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Archive Template'),
+        content: Text('Are you sure you want to archive "${goalTemplate.title}"? You can unarchive it later.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () async {
+              Navigator.of(context).pop();
+              
+              final success = await ref.read(goalTemplateControllerProvider).archiveTemplate(goalTemplate.id);
+              
+              if (context.mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text(success 
+                        ? 'Template "${goalTemplate.title}" archived'
+                        : 'Failed to archive template'),
+                    backgroundColor: success ? Colors.green : Colors.red,
+                  ),
+                );
+              }
+            },
+            child: const Text('Archive'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _handleUnarchiveTemplate(BuildContext context, WidgetRef ref, template.GoalTemplate goalTemplate) async {
+    final success = await ref.read(goalTemplateControllerProvider).unarchiveTemplate(goalTemplate.id);
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(success 
+              ? 'Template "${goalTemplate.title}" unarchived'
+              : 'Failed to unarchive template'),
+          backgroundColor: success ? Colors.green : Colors.red,
+        ),
+      );
+    }
+  }
+
+  void _showDeleteTemplateConfirmation(BuildContext context, WidgetRef ref, template.GoalTemplate goalTemplate) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Delete Template'),
+        content: Text('Are you sure you want to permanently delete "${goalTemplate.title}"? This action cannot be undone.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () async {
+              Navigator.of(context).pop();
+              
+              final success = await ref.read(goalTemplateControllerProvider).deleteTemplate(goalTemplate.id);
+              
+              if (context.mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text(success 
+                        ? 'Template "${goalTemplate.title}" deleted'
+                        : 'Failed to delete template'),
+                    backgroundColor: success ? Colors.green : Colors.red,
+                  ),
+                );
+              }
+            },
+            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+  }
+
+
+
+
+  IconData _getTemplateIcon(template.GoalCategory category) {
+    switch (category) {
+      case template.GoalCategory.health:
+        return Icons.health_and_safety;
+      case template.GoalCategory.fitness:
+        return Icons.fitness_center;
+      case template.GoalCategory.learning:
+        return Icons.school;
+      case template.GoalCategory.habits:
+        return Icons.loop;
+      case template.GoalCategory.career:
+        return Icons.work;
+      case template.GoalCategory.personal:
+        return Icons.person;
+      case template.GoalCategory.other:
+        return Icons.category;
+    }
+  }
+}
+
+
+class CreateGoalScreen extends ConsumerStatefulWidget {
+  const CreateGoalScreen({super.key});
+
+  @override
+  ConsumerState<CreateGoalScreen> createState() => _CreateGoalScreenState();
+}
+
+class _CreateGoalScreenState extends ConsumerState<CreateGoalScreen> {
+  final _formKey = GlobalKey<FormState>();
+  final _titleController = TextEditingController();
+  final _descriptionController = TextEditingController();
+  final _targetCountController = TextEditingController(text: '1');
+  final _tagsController = TextEditingController();
+  
+  template.GoalCategory _selectedCategory = template.GoalCategory.personal;
+  template.GoalType _selectedGoalType = template.GoalType.daily;
+  DateTime? _dueDate;
+  bool _isLoading = false;
+
+  @override
+  void dispose() {
+    _titleController.dispose();
+    _descriptionController.dispose();
+    _targetCountController.dispose();
+    _tagsController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _createGoal() async {
+    if (!_formKey.currentState!.validate()) return;
+
+    setState(() => _isLoading = true);
+
+    final controller = ref.read(goalTemplateControllerProvider);
+    final tags = _tagsController.text
+        .split(',')
+        .map((tag) => tag.trim())
+        .where((tag) => tag.isNotEmpty)
+        .toList();
+
+    // Parse planned frequency only if provided
+    int? plannedFrequency;
+    if (_targetCountController.text.trim().isNotEmpty) {
+      plannedFrequency = int.tryParse(_targetCountController.text);
+    }
+
+    final success = await controller.createTemplate(
+      title: _titleController.text.trim(),
+      description: _descriptionController.text.trim(),
+      category: _selectedCategory,
+      goalType: _selectedGoalType,
+      plannedFrequency: plannedFrequency,
+      tags: tags,
+    );
+
+    if (mounted) {
+      setState(() => _isLoading = false);
+
+      if (success) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Goal template created successfully!'),
+            backgroundColor: Colors.green,
+          ),
+        );
+        Navigator.of(context).pop();
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Failed to create goal template. Please try again.'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _selectDueDate() async {
+    final date = await showDatePicker(
+      context: context,
+      initialDate: _dueDate ?? DateTime.now().add(const Duration(days: 30)),
+      firstDate: DateTime.now(),
+      lastDate: DateTime.now().add(const Duration(days: 365)),
+    );
+    
+    if (date != null) {
+      setState(() => _dueDate = date);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Create Goal Template'),
+        actions: [
+          if (_isLoading)
+            const Center(
+              child: SizedBox(
+                width: 20,
+                height: 20,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              ),
+            )
+          else
+            TextButton(
+              onPressed: _createGoal,
+              child: const Text('Save'),
+            ),
+        ],
+      ),
+      body: Form(
+        key: _formKey,
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Info text about templates
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.blue.shade50,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.blue.shade200),
+                ),
+                child: Row(
+                  children: [
+                    Icon(Icons.info_outline, color: Colors.blue.shade600),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        'Create a goal template that you can use to set up weekly goal instances during challenges.',
+                        style: TextStyle(color: Colors.blue.shade700),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 16),
+
+              // Title field
+              TextFormField(
+                controller: _titleController,
+                decoration: const InputDecoration(
+                  labelText: 'Goal Template Title',
+                  hintText: 'e.g., Exercise daily',
+                  border: OutlineInputBorder(),
+                ),
+                validator: (value) {
+                  if (value == null || value.trim().isEmpty) {
+                    return 'Please enter a goal title';
+                  }
+                  if (value.trim().length < 3) {
+                    return 'Title must be at least 3 characters';
+                  }
+                  return null;
+                },
+                textCapitalization: TextCapitalization.sentences,
+              ),
+              const SizedBox(height: 16),
+
+              // Description field
+              TextFormField(
+                controller: _descriptionController,
+                decoration: const InputDecoration(
+                  labelText: 'Description',
+                  hintText: 'Describe your goal in detail...',
+                  border: OutlineInputBorder(),
+                ),
+                maxLines: 3,
+                validator: (value) {
+                  if (value == null || value.trim().isEmpty) {
+                    return 'Please enter a description';
+                  }
+                  return null;
+                },
+                textCapitalization: TextCapitalization.sentences,
+              ),
+              const SizedBox(height: 16),
+
+              // Category selection
+              Text(
+                'Category',
+                style: Theme.of(context).textTheme.titleMedium,
+              ),
+              const SizedBox(height: 8),
+              DropdownButtonFormField<template.GoalCategory>(
+                value: _selectedCategory,
+                decoration: const InputDecoration(
+                  border: OutlineInputBorder(),
+                ),
+                items: template.GoalCategory.values.map((category) {
+                  return DropdownMenuItem(
+                    value: category,
+                    child: Row(
+                      children: [
+                        Icon(_getCategoryIcon(category)),
+                        const SizedBox(width: 8),
+                        Text(category.name.toUpperCase()),
+                      ],
+                    ),
+                  );
+                }).toList(),
+                onChanged: (value) {
+                  if (value != null) {
+                    setState(() => _selectedCategory = value);
+                  }
+                },
+              ),
+              const SizedBox(height: 16),
+
+              // Frequency selection
+              Text(
+                'Frequency',
+                style: Theme.of(context).textTheme.titleMedium,
+              ),
+              const SizedBox(height: 8),
+              DropdownButtonFormField<template.GoalType>(
+                value: _selectedGoalType,
+                decoration: const InputDecoration(
+                  labelText: 'Goal Type',
+                  border: OutlineInputBorder(),
+                ),
+                items: template.GoalType.values.map((goalType) {
+                  return DropdownMenuItem(
+                    value: goalType,
+                    child: Text(_getGoalTypeLabel(goalType)),
+                  );
+                }).toList(),
+                onChanged: (value) {
+                  if (value != null) {
+                    setState(() => _selectedGoalType = value);
+                  }
+                },
+              ),
+              const SizedBox(height: 16),
+
+              // Planned frequency (optional)
+              TextFormField(
+                controller: _targetCountController,
+                decoration: InputDecoration(
+                  labelText: 'Planned Frequency (Optional)',
+                  hintText: _getPlannedFrequencyHint(),
+                  helperText: 'You can change this when setting up each week',
+                  border: const OutlineInputBorder(),
+                ),
+                keyboardType: TextInputType.number,
+                validator: (value) {
+                  if (value != null && value.trim().isNotEmpty) {
+                    final count = int.tryParse(value);
+                    if (count == null || count <= 0) {
+                      return 'Please enter a valid positive number';
+                    }
+                  }
+                  return null;
+                },
+              ),
+              const SizedBox(height: 16),
+
+              // Due date (optional)
+              Text(
+                'Due Date (Optional)',
+                style: Theme.of(context).textTheme.titleMedium,
+              ),
+              const SizedBox(height: 8),
+              InkWell(
+                onTap: _selectDueDate,
+                child: Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    border: Border.all(color: Colors.grey),
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.calendar_today),
+                      const SizedBox(width: 8),
+                      Text(
+                        _dueDate != null
+                            ? '${_dueDate!.day}/${_dueDate!.month}/${_dueDate!.year}'
+                            : 'Select due date',
+                        style: TextStyle(
+                          color: _dueDate != null ? null : Colors.grey[600],
+                        ),
+                      ),
+                      const Spacer(),
+                      if (_dueDate != null)
+                        IconButton(
+                          icon: const Icon(Icons.clear),
+                          onPressed: () => setState(() => _dueDate = null),
+                        ),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+
+              // Tags (optional)
+              TextFormField(
+                controller: _tagsController,
+                decoration: const InputDecoration(
+                  labelText: 'Tags (Optional)',
+                  hintText: 'health, fitness, personal (comma-separated)',
+                  border: OutlineInputBorder(),
+                ),
+              ),
+              const SizedBox(height: 32),
+
+              // Create button
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: _isLoading ? null : _createGoal,
+                  style: ElevatedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                  ),
+                  child: _isLoading
+                      ? const SizedBox(
+                          height: 20,
+                          width: 20,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Text('Create Template'),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  String _getGoalTypeLabel(template.GoalType goalType) {
+    switch (goalType) {
+      case template.GoalType.daily:
+        return 'Daily (max 1 per day)';
+      case template.GoalType.total:
+        return 'Total (multiple per day allowed)';
+    }
+  }
+
+  String _getPlannedFrequencyHint() {
+    switch (_selectedGoalType) {
+      case template.GoalType.daily:
+        return 'How many days per week do you plan? (1-7)';
+      case template.GoalType.total:
+        return 'How many times total per week do you plan?';
+    }
+  }
+
+  IconData _getCategoryIcon(template.GoalCategory category) {
+    switch (category) {
+      case template.GoalCategory.health:
+        return Icons.health_and_safety;
+      case template.GoalCategory.fitness:
+        return Icons.fitness_center;
+      case template.GoalCategory.learning:
+        return Icons.school;
+      case template.GoalCategory.habits:
+        return Icons.loop;
+      case template.GoalCategory.career:
+        return Icons.work;
+      case template.GoalCategory.personal:
+        return Icons.person;
+      case template.GoalCategory.other:
+        return Icons.category;
+    }
+  }
+}
+
+class EditGoalScreen extends StatelessWidget {
+  const EditGoalScreen({super.key, required this.goalId});
+
+  final String goalId;
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('Edit Goal')),
+      body: Center(
+        child: Text('Edit Goal Screen: $goalId'),
+      ),
+    );
+  }
+}
+
+class GoalDetailsScreen extends StatelessWidget {
+  const GoalDetailsScreen({super.key, required this.goalId});
+
+  final String goalId;
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('Goal Details')),
+      body: Center(
+        child: Text('Goal Details Screen: $goalId'),
+      ),
+    );
+  }
+}
+
+class SubmitProofScreen extends StatelessWidget {
+  const SubmitProofScreen({super.key, required this.goalId});
+
+  final String goalId;
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('Submit Proof')),
+      body: Center(
+        child: Text('Submit Proof Screen: $goalId'),
+      ),
+    );
+  }
+}
+
+class PartyScreen extends ConsumerWidget {
+  const PartyScreen({super.key});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final partiesAsync = ref.watch(partiesProvider);
+    final pendingInvitesAsync = ref.watch(pendingInvitesProvider);
+    
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('My Parties'),
+        actions: [
+          // Notification badge for pending invites
+          pendingInvitesAsync.when(
+            data: (invites) {
+              if (invites.isEmpty) {
+                return const SizedBox.shrink();
+              }
+              return Stack(
+                children: [
+                  IconButton(
+                    icon: const Icon(Icons.notifications),
+                    onPressed: () => showPendingInvites(context, ref, invites),
+                  ),
+                  Positioned(
+                    right: 8,
+                    top: 8,
+                    child: Container(
+                      padding: const EdgeInsets.all(2),
+                      decoration: BoxDecoration(
+                        color: Colors.red,
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      constraints: const BoxConstraints(
+                        minWidth: 16,
+                        minHeight: 16,
+                      ),
+                      child: Text(
+                        '${invites.length}',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 12,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                    ),
+                  ),
+                ],
+              );
+            },
+            loading: () => const SizedBox.shrink(),
+            error: (_, __) => const SizedBox.shrink(),
+          ),
+          IconButton(
+            icon: const Icon(Icons.add),
+            onPressed: () => context.go('${AppRoutes.party}/create'),
+          ),
+        ],
+      ),
+      body: RefreshIndicator(
+        onRefresh: () async {
+          ref.invalidate(partiesProvider);
+        },
+        child: partiesAsync.when(
+          data: (parties) {
+            if (parties.isEmpty) {
+              return _buildEmptyState(context);
+            }
+            
+            return ListView.builder(
+              padding: const EdgeInsets.all(16),
+              itemCount: parties.length,
+              itemBuilder: (context, index) {
+                final party = parties[index];
+                return Padding(
+                  padding: const EdgeInsets.only(bottom: 12),
+                  child: _buildPartyCard(context, ref, party),
+                );
+              },
+            );
+          },
+          loading: () => const Center(child: CircularProgressIndicator()),
+          error: (error, stack) => Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Icon(Icons.error_outline, size: 64, color: Colors.grey),
+                const SizedBox(height: 16),
+                Text(
+                  'Failed to load parties',
+                  style: Theme.of(context).textTheme.titleMedium,
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  error.toString(),
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: Colors.grey[600],
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 16),
+                ElevatedButton(
+                  onPressed: () => ref.invalidate(partiesProvider),
+                  child: const Text('Retry'),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: () => context.go('${AppRoutes.party}/join'),
+        icon: const Icon(Icons.group_add),
+        label: const Text('Join Party'),
+      ),
+    );
+  }
+
+  Widget _buildEmptyState(BuildContext context) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(32),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.group_outlined, size: 64, color: Colors.grey[400]),
+            const SizedBox(height: 16),
+            Text(
+              'No parties yet',
+              style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                color: Colors.grey[600],
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Create your first party or join an existing one to get started!',
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                color: Colors.grey[600],
+              ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 24),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                ElevatedButton.icon(
+                  onPressed: () => context.go('${AppRoutes.party}/create'),
+                  icon: const Icon(Icons.add),
+                  label: const Text('Create Party'),
+                ),
+                const SizedBox(width: 16),
+                OutlinedButton.icon(
+                  onPressed: () => context.go('${AppRoutes.party}/join'),
+                  icon: const Icon(Icons.group_add),
+                  label: const Text('Join Party'),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildPartyCard(BuildContext context, WidgetRef ref, Party party) {
+    final user = ref.watch(userProvider);
+    final isOwner = user != null && party.isOwner(user.id);
+    
+    return Card(
+      child: InkWell(
+        onTap: () => context.go(AppRoutesExtension.partyDetail(party.id)),
+        borderRadius: BorderRadius.circular(12),
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                CircleAvatar(
+                  backgroundColor: Theme.of(context).primaryColor,
+                  child: Text(
+                    party.name.substring(0, 1).toUpperCase(),
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Text(
+                            party.name,
+                            style: Theme.of(context).textTheme.titleMedium,
+                          ),
+                          if (isOwner) ...[
+                            const SizedBox(width: 8),
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 6,
+                                vertical: 2,
+                              ),
+                              decoration: BoxDecoration(
+                                color: Theme.of(context).primaryColor,
+                                borderRadius: BorderRadius.circular(4),
+                              ),
+                              child: const Text(
+                                'OWNER',
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
+                      if (party.description.isNotEmpty) ...[
+                        const SizedBox(height: 4),
+                        Text(
+                          party.description,
+                          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                            color: Colors.grey[600],
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+                PopupMenuButton<String>(
+                  onSelected: (value) => _handlePartyAction(context, ref, party, value),
+                  itemBuilder: (context) => [
+                    const PopupMenuItem(
+                      value: 'view',
+                      child: Row(
+                        children: [
+                          Icon(Icons.visibility),
+                          SizedBox(width: 8),
+                          Text('View Members'),
+                        ],
+                      ),
+                    ),
+                    const PopupMenuItem(
+                      value: 'invite',
+                      child: Row(
+                        children: [
+                          Icon(Icons.share),
+                          SizedBox(width: 8),
+                          Text('Share Invite Code'),
+                        ],
+                      ),
+                    ),
+                    const PopupMenuItem(
+                      value: 'invite_email',
+                      child: Row(
+                        children: [
+                          Icon(Icons.email),
+                          SizedBox(width: 8),
+                          Text('Invite by Email'),
+                        ],
+                      ),
+                    ),
+                    if (isOwner) ...[
+                      const PopupMenuItem(
+                        value: 'delete',
+                        child: Row(
+                          children: [
+                            Icon(Icons.delete, color: Colors.red),
+                            SizedBox(width: 8),
+                            Text('Delete Party', style: TextStyle(color: Colors.red)),
+                          ],
+                        ),
+                      ),
+                    ] else ...[
+                      const PopupMenuItem(
+                        value: 'leave',
+                        child: Row(
+                          children: [
+                            Icon(Icons.exit_to_app, color: Colors.orange),
+                            SizedBox(width: 8),
+                            Text('Leave Party', style: TextStyle(color: Colors.orange)),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                Icon(Icons.group, size: 16, color: Colors.grey[600]),
+                const SizedBox(width: 4),
+                Text(
+                  '${party.memberCount} ${party.memberCount == 1 ? 'member' : 'members'}',
+                  style: Theme.of(context).textTheme.bodySmall,
+                ),
+                const SizedBox(width: 16),
+                Icon(Icons.vpn_key, size: 16, color: Colors.grey[600]),
+                const SizedBox(width: 4),
+                Text(
+                  party.inviteCode,
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    fontFamily: 'monospace',
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    ),
+    );
+  }
+
+  void _handlePartyAction(BuildContext context, WidgetRef ref, Party party, String action) {
+    switch (action) {
+      case 'view':
+        // TODO: Navigate to party members screen
+        break;
+      case 'invite':
+        _shareInviteCode(context, party);
+        break;
+      case 'invite_email':
+        _showInviteByEmailDialog(context, ref, party);
+        break;
+      case 'leave':
+        _showLeaveConfirmation(context, ref, party);
+        break;
+      case 'delete':
+        _showDeleteConfirmation(context, ref, party);
+        break;
+    }
+  }
+
+  void _shareInviteCode(BuildContext context, Party party) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Invite Code'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text('Share this code with friends to join "${party.name}":'),
+            const SizedBox(height: 16),
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Colors.grey[100],
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.grey[300]!),
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text(
+                    party.inviteCode,
+                    style: const TextStyle(
+                      fontSize: 24,
+                      fontWeight: FontWeight.bold,
+                      fontFamily: 'monospace',
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Close'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              // TODO: Implement actual sharing
+              Navigator.of(context).pop();
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Invite code copied!')),
+              );
+            },
+            child: const Text('Copy Code'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showInviteByEmailDialog(BuildContext context, WidgetRef ref, Party party) {
+    final emailController = TextEditingController();
+    final formKey = GlobalKey<FormState>();
+    bool isLoading = false;
+
+    showDialog(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setState) => AlertDialog(
+          title: Text('Invite to "${party.name}"'),
+          content: Form(
+            key: formKey,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Text('Enter the email address of the person you want to invite:'),
+                const SizedBox(height: 16),
+                TextFormField(
+                  controller: emailController,
+                  decoration: const InputDecoration(
+                    labelText: 'Email Address',
+                    hintText: 'friend@example.com',
+                    border: OutlineInputBorder(),
+                    prefixIcon: Icon(Icons.email),
+                  ),
+                  keyboardType: TextInputType.emailAddress,
+                  validator: (value) {
+                    if (value == null || value.trim().isEmpty) {
+                      return 'Please enter an email address';
+                    }
+                    if (!RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(value)) {
+                      return 'Please enter a valid email address';
+                    }
+                    return null;
+                  },
+                ),
+                const SizedBox(height: 8),
+                const Text(
+                  'They will receive an in-app notification to join your party.',
+                  style: TextStyle(fontSize: 12, color: Colors.grey),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: isLoading ? null : () => Navigator.of(context).pop(),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: isLoading ? null : () async {
+                if (!formKey.currentState!.validate()) return;
+
+                setState(() => isLoading = true);
+
+                final user = ref.read(userProvider);
+                if (user == null) {
+                  setState(() => isLoading = false);
+                  return;
+                }
+
+                final controller = ref.read(partyControllerProvider);
+                final success = await controller.sendInvite(
+                  partyId: party.id,
+                  inviteeEmail: emailController.text.trim(),
+                );
+
+                setState(() => isLoading = false);
+
+                if (context.mounted) {
+                  Navigator.of(context).pop();
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text(success 
+                          ? 'Invite sent to ${emailController.text.trim()}!'
+                          : 'Failed to send invite. Please try again.'),
+                      backgroundColor: success ? Colors.green : Colors.red,
+                    ),
+                  );
+                }
+              },
+              child: isLoading 
+                  ? const SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Text('Send Invite'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showLeaveConfirmation(BuildContext context, WidgetRef ref, Party party) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Leave Party'),
+        content: Text('Are you sure you want to leave "${party.name}"?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () async {
+              Navigator.of(context).pop();
+              
+              final success = await ref.read(partyControllerProvider).leaveParty(party.id);
+              
+              if (context.mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text(success 
+                        ? 'Left "${party.name}" successfully'
+                        : 'Failed to leave party'),
+                    backgroundColor: success ? Colors.green : Colors.red,
+                  ),
+                );
+              }
+            },
+            style: TextButton.styleFrom(foregroundColor: Colors.orange),
+            child: const Text('Leave'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showDeleteConfirmation(BuildContext context, WidgetRef ref, Party party) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Delete Party'),
+        content: Text('Are you sure you want to permanently delete "${party.name}"? This action cannot be undone.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () async {
+              Navigator.of(context).pop();
+              
+              final success = await ref.read(partyControllerProvider).deleteParty(party.id);
+              
+              if (context.mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text(success 
+                        ? 'Party "${party.name}" deleted'
+                        : 'Failed to delete party'),
+                    backgroundColor: success ? Colors.green : Colors.red,
+                  ),
+                );
+              }
+            },
+            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showPendingInvites(BuildContext context, WidgetRef ref, List<PartyInvite> invites) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) => DraggableScrollableSheet(
+        initialChildSize: 0.7,
+        maxChildSize: 0.9,
+        minChildSize: 0.5,
+        expand: false,
+        builder: (context, scrollController) => Column(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Theme.of(context).colorScheme.surface,
+                borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.mail),
+                  const SizedBox(width: 8),
+                  Text(
+                    'Party Invitations (${invites.length})',
+                    style: Theme.of(context).textTheme.titleLarge,
+                  ),
+                  const Spacer(),
+                  IconButton(
+                    onPressed: () => Navigator.of(context).pop(),
+                    icon: const Icon(Icons.close),
+                  ),
+                ],
+              ),
+            ),
+            Expanded(
+              child: ListView.builder(
+                controller: scrollController,
+                padding: const EdgeInsets.all(16),
+                itemCount: invites.length,
+                itemBuilder: (context, index) {
+                  final invite = invites[index];
+                  return Card(
+                    margin: const EdgeInsets.only(bottom: 12),
+                    child: Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              CircleAvatar(
+                                backgroundColor: Theme.of(context).colorScheme.primary,
+                                child: Text(
+                                  invite.partyName[0].toUpperCase(),
+                                  style: const TextStyle(color: Colors.white),
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      invite.partyName,
+                                      style: Theme.of(context).textTheme.titleMedium,
+                                    ),
+                                    Text(
+                                      'Invited by ${invite.inviterName}',
+                                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                        color: Colors.grey[600],
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 12),
+                          Row(
+                            children: [
+                              Icon(
+                                Icons.schedule,
+                                size: 16,
+                                color: Colors.grey[600],
+                              ),
+                              const SizedBox(width: 4),
+                              Text(
+                                'Expires in ${invite.daysUntilExpiration} days',
+                                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                  color: Colors.grey[600],
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 16),
+                          Row(
+                            children: [
+                              Expanded(
+                                child: OutlinedButton(
+                                  onPressed: () async {
+                                    final controller = ref.read(partyControllerProvider);
+                                    final success = await controller.declineInvite(invite.id);
+                                    if (context.mounted) {
+                                      if (success) {
+                                        ScaffoldMessenger.of(context).showSnackBar(
+                                          const SnackBar(content: Text('Invitation declined')),
+                                        );
+                                      } else {
+                                        ScaffoldMessenger.of(context).showSnackBar(
+                                          const SnackBar(content: Text('Failed to decline invitation')),
+                                        );
+                                      }
+                                    }
+                                  },
+                                  child: const Text('Decline'),
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: ElevatedButton(
+                                  onPressed: () async {
+                                    final controller = ref.read(partyControllerProvider);
+                                    final success = await controller.acceptInvite(invite.id);
+                                    if (context.mounted) {
+                                      if (success) {
+                                        Navigator.of(context).pop();
+                                        ScaffoldMessenger.of(context).showSnackBar(
+                                          SnackBar(content: Text('Joined ${invite.partyName}!')),
+                                        );
+                                      } else {
+                                        ScaffoldMessenger.of(context).showSnackBar(
+                                          const SnackBar(content: Text('Failed to join party')),
+                                        );
+                                      }
+                                    }
+                                  },
+                                  child: const Text('Accept'),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class CreatePartyScreen extends ConsumerStatefulWidget {
+  const CreatePartyScreen({super.key});
+
+  @override
+  ConsumerState<CreatePartyScreen> createState() => _CreatePartyScreenState();
+}
+
+class _CreatePartyScreenState extends ConsumerState<CreatePartyScreen> {
+  final _formKey = GlobalKey<FormState>();
+  final _nameController = TextEditingController();
+  final _descriptionController = TextEditingController();
+  bool _isLoading = false;
+
+  @override
+  void dispose() {
+    _nameController.dispose();
+    _descriptionController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _createParty() async {
+    if (!_formKey.currentState!.validate()) return;
+
+    setState(() => _isLoading = true);
+
+    final controller = ref.read(partyControllerProvider);
+    final success = await controller.createParty(
+      name: _nameController.text.trim(),
+      description: _descriptionController.text.trim(),
+    );
+
+    if (mounted) {
+      setState(() => _isLoading = false);
+
+      if (success) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Party created successfully!'),
+            backgroundColor: Colors.green,
+          ),
+        );
+        Navigator.of(context).pop();
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Failed to create party. Please try again.'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Create Party'),
+        actions: [
+          if (_isLoading)
+            const Center(
+              child: SizedBox(
+                width: 20,
+                height: 20,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              ),
+            )
+          else
+            TextButton(
+              onPressed: _createParty,
+              child: const Text('Create'),
+            ),
+        ],
+      ),
+      body: Form(
+        key: _formKey,
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Info section
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Colors.blue.shade50,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.blue.shade200),
+                ),
+                child: Row(
+                  children: [
+                    Icon(Icons.info_outline, color: Colors.blue.shade600),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        'Create a party to invite friends and family to participate in accountability challenges together.',
+                        style: TextStyle(color: Colors.blue.shade700),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 24),
+
+              // Party name field
+              TextFormField(
+                controller: _nameController,
+                decoration: const InputDecoration(
+                  labelText: 'Party Name',
+                  hintText: 'e.g., Fitness Buddies, Study Group',
+                  border: OutlineInputBorder(),
+                  prefixIcon: Icon(Icons.group),
+                ),
+                validator: (value) {
+                  if (value == null || value.trim().isEmpty) {
+                    return 'Please enter a party name';
+                  }
+                  if (value.trim().length < 3) {
+                    return 'Party name must be at least 3 characters';
+                  }
+                  if (value.trim().length > 50) {
+                    return 'Party name must be 50 characters or less';
+                  }
+                  return null;
+                },
+                textCapitalization: TextCapitalization.words,
+              ),
+              const SizedBox(height: 16),
+
+              // Description field
+              TextFormField(
+                controller: _descriptionController,
+                decoration: const InputDecoration(
+                  labelText: 'Description (Optional)',
+                  hintText: 'What is this party about?',
+                  border: OutlineInputBorder(),
+                  prefixIcon: Icon(Icons.description),
+                ),
+                maxLines: 3,
+                textCapitalization: TextCapitalization.sentences,
+                validator: (value) {
+                  if (value != null && value.trim().length > 200) {
+                    return 'Description must be 200 characters or less';
+                  }
+                  return null;
+                },
+              ),
+              const SizedBox(height: 24),
+
+              // Info about invite codes
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Colors.green.shade50,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.green.shade200),
+                ),
+                child: Column(
+                  children: [
+                    Row(
+                      children: [
+                        Icon(Icons.vpn_key, color: Colors.green.shade600),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Text(
+                            'Invite Code',
+                            style: TextStyle(
+                              color: Colors.green.shade700,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      'A unique 6-character invite code will be automatically generated for your party. Share this code with friends so they can join your party.',
+                      style: TextStyle(color: Colors.green.shade700),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 32),
+
+              // Create button
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: _isLoading ? null : _createParty,
+                  style: ElevatedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                  ),
+                  child: _isLoading
+                      ? const SizedBox(
+                          height: 20,
+                          width: 20,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Text('Create Party'),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class JoinPartyScreen extends ConsumerStatefulWidget {
+  const JoinPartyScreen({super.key});
+
+  @override
+  ConsumerState<JoinPartyScreen> createState() => _JoinPartyScreenState();
+}
+
+class _JoinPartyScreenState extends ConsumerState<JoinPartyScreen> {
+  final _formKey = GlobalKey<FormState>();
+  final _codeController = TextEditingController();
+  bool _isLoading = false;
+
+  @override
+  void dispose() {
+    _codeController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _joinParty() async {
+    if (!_formKey.currentState!.validate()) return;
+
+    setState(() => _isLoading = true);
+
+    final controller = ref.read(partyControllerProvider);
+    final success = await controller.joinParty(_codeController.text.trim().toUpperCase());
+
+    if (mounted) {
+      setState(() => _isLoading = false);
+
+      if (success) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Successfully joined party!'),
+            backgroundColor: Colors.green,
+          ),
+        );
+        Navigator.of(context).pop();
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Invalid invite code or failed to join party.'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Join Party'),
+        actions: [
+          if (_isLoading)
+            const Center(
+              child: SizedBox(
+                width: 20,
+                height: 20,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              ),
+            )
+          else
+            TextButton(
+              onPressed: _joinParty,
+              child: const Text('Join'),
+            ),
+        ],
+      ),
+      body: Form(
+        key: _formKey,
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Info section
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Colors.blue.shade50,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.blue.shade200),
+                ),
+                child: Row(
+                  children: [
+                    Icon(Icons.info_outline, color: Colors.blue.shade600),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        'Enter the 6-character invite code shared by a party member to join their accountability group.',
+                        style: TextStyle(color: Colors.blue.shade700),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 32),
+
+              // Invite code field
+              TextFormField(
+                controller: _codeController,
+                decoration: const InputDecoration(
+                  labelText: 'Invite Code',
+                  hintText: 'ABC123',
+                  border: OutlineInputBorder(),
+                  prefixIcon: Icon(Icons.vpn_key),
+                ),
+                textCapitalization: TextCapitalization.characters,
+                maxLength: 6,
+                style: const TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  fontFamily: 'monospace',
+                  letterSpacing: 2,
+                ),
+                validator: (value) {
+                  if (value == null || value.trim().isEmpty) {
+                    return 'Please enter an invite code';
+                  }
+                  if (value.trim().length != 6) {
+                    return 'Invite code must be exactly 6 characters';
+                  }
+                  // Check if only alphanumeric
+                  if (!RegExp(r'^[A-Z0-9]+$').hasMatch(value.trim().toUpperCase())) {
+                    return 'Invite code can only contain letters and numbers';
+                  }
+                  return null;
+                },
+                onChanged: (value) {
+                  // Auto-format to uppercase
+                  final upperValue = value.toUpperCase();
+                  if (upperValue != value) {
+                    _codeController.value = _codeController.value.copyWith(
+                      text: upperValue,
+                      selection: TextSelection.collapsed(offset: upperValue.length),
+                    );
+                  }
+                },
+              ),
+              const SizedBox(height: 24),
+
+              // Instructions
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Colors.grey.shade50,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.grey.shade300),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Icon(Icons.help_outline, color: Colors.grey.shade600),
+                        const SizedBox(width: 8),
+                        Text(
+                          'How to get an invite code:',
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            color: Colors.grey.shade700,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      '1. Ask a party member to share their invite code\n'
+                      '2. Find the code in their party details\n'
+                      '3. Enter the 6-character code above',
+                      style: TextStyle(color: Colors.grey.shade600),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 32),
+
+              // Join button
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: _isLoading ? null : _joinParty,
+                  style: ElevatedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                  ),
+                  child: _isLoading
+                      ? const SizedBox(
+                          height: 20,
+                          width: 20,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Text('Join Party'),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class InviteToPartyScreen extends StatelessWidget {
+  const InviteToPartyScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('Invite to Party')),
+      body: const Center(
+        child: Text('Invite to Party Screen'),
+      ),
+    );
+  }
+}
+
+class PartyMembersScreen extends StatelessWidget {
+  const PartyMembersScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('Party Members')),
+      body: const Center(
+        child: Text('Party Members Screen'),
+      ),
+    );
+  }
+}
+
+class ProofApprovalsScreen extends StatelessWidget {
+  const ProofApprovalsScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('Proof Approvals')),
+      body: const Center(
+        child: Text('Proof Approvals Screen'),
+      ),
+    );
+  }
+}
+
+class ProfileScreen extends StatelessWidget {
+  const ProfileScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('Profile')),
+      body: const Center(
+        child: Text('Profile Screen'),
+      ),
+    );
+  }
+}
+
+class EditProfileScreen extends StatelessWidget {
+  const EditProfileScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('Edit Profile')),
+      body: const Center(
+        child: Text('Edit Profile Screen'),
+      ),
+    );
+  }
+}
+
+class SettingsScreen extends StatelessWidget {
+  const SettingsScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('Settings')),
+      body: const Center(
+        child: Text('Settings Screen'),
+      ),
+    );
+  }
+}
+
+class NotificationSettingsScreen extends StatelessWidget {
+  const NotificationSettingsScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('Notification Settings')),
+      body: const Center(
+        child: Text('Notification Settings Screen'),
+      ),
+    );
+  }
+}
+
+class PrivacySettingsScreen extends StatelessWidget {
+  const PrivacySettingsScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('Privacy Settings')),
+      body: const Center(
+        child: Text('Privacy Settings Screen'),
+      ),
+    );
+  }
+}
+
+class AboutScreen extends StatelessWidget {
+  const AboutScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('About')),
+      body: const Center(
+        child: Text('About Screen'),
+      ),
+    );
+  }
+}

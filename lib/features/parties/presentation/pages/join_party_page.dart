@@ -64,7 +64,7 @@ class _JoinPartyPageState extends ConsumerState<JoinPartyPage> {
                       Text(
                         'Enter the invite code shared by your friend to join their accountability party.',
                         style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                          color: Colors.grey[600],
+                          color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7),
                         ),
                       ),
                     ],
@@ -260,7 +260,7 @@ class _JoinPartyPageState extends ConsumerState<JoinPartyPage> {
                       Text(
                         '${party.memberCount} member${party.memberCount == 1 ? '' : 's'}',
                         style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                          color: Colors.grey[600],
+                          color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7),
                         ),
                       ),
                     ],
@@ -311,13 +311,13 @@ class _JoinPartyPageState extends ConsumerState<JoinPartyPage> {
                   Icon(
                     Icons.calendar_today,
                     size: 16,
-                    color: Colors.grey[600],
+                    color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7),
                   ),
                   const SizedBox(width: 8),
                   Text(
                     'Created ${_formatDate(party.createdAt)}',
                     style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: Colors.grey[600],
+                      color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7),
                     ),
                   ),
                 ],

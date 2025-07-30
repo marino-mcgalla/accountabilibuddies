@@ -59,6 +59,9 @@ abstract class PartyRepository {
   /// Watch pending invites for real-time updates
   Stream<Result<List<PartyInvite>>> watchPendingInvites(String userEmail);
 
+  /// Watch sent invites for real-time updates
+  Stream<Result<List<PartyInvite>>> watchSentInvites(String userId);
+
   /// Cleanup expired invitations
   Future<Result<int>> cleanupExpiredInvites();
 }

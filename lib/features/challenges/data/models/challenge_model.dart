@@ -18,6 +18,7 @@ class ChallengeModel {
     required this.createdAt,
     required this.updatedAt,
     this.commitmentDeadline,
+    this.totalPool = 0.0,
     this.metadata = const {},
   });
 
@@ -37,6 +38,7 @@ class ChallengeModel {
   final DateTime updatedAt;
   @JsonKey(fromJson: _timestampFromJsonNullable, toJson: _timestampToJsonNullable)
   final DateTime? commitmentDeadline;
+  final double totalPool;
   final Map<String, dynamic> metadata;
 
   factory ChallengeModel.fromJson(Map<String, dynamic> json) =>
@@ -71,6 +73,7 @@ class ChallengeModel {
       createdAt: challenge.createdAt,
       updatedAt: challenge.updatedAt,
       commitmentDeadline: challenge.commitmentDeadline,
+      totalPool: challenge.totalPool,
       metadata: challenge.metadata,
     );
   }
@@ -91,6 +94,7 @@ class ChallengeModel {
       createdAt: createdAt,
       updatedAt: updatedAt,
       commitmentDeadline: commitmentDeadline,
+      totalPool: totalPool,
       metadata: metadata,
     );
   }

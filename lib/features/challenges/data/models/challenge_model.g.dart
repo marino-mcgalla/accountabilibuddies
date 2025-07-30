@@ -20,6 +20,7 @@ ChallengeModel _$ChallengeModelFromJson(Map<String, dynamic> json) =>
       updatedAt: ChallengeModel._timestampFromJson(json['updatedAt']),
       commitmentDeadline:
           ChallengeModel._timestampFromJsonNullable(json['commitmentDeadline']),
+      totalPool: (json['totalPool'] as num?)?.toDouble() ?? 0.0,
       metadata: json['metadata'] as Map<String, dynamic>? ?? const {},
     );
 
@@ -37,5 +38,6 @@ Map<String, dynamic> _$ChallengeModelToJson(ChallengeModel instance) =>
       'updatedAt': ChallengeModel._timestampToJson(instance.updatedAt),
       'commitmentDeadline':
           ChallengeModel._timestampToJsonNullable(instance.commitmentDeadline),
+      'totalPool': instance.totalPool,
       'metadata': instance.metadata,
     };

@@ -58,30 +58,35 @@ class CreateChallengeUseCase {
         ));
       }
 
-      // Check if there's already an active or pending challenge
+      // Check if there's already an active challenge
       final currentChallengeResult = await _challengeRepository.getCurrentChallenge(params.partyId);
       if (currentChallengeResult.isFailure) {
         return Result.failure(currentChallengeResult.failureOrNull!);
       }
 
       final currentChallenge = currentChallengeResult.valueOrNull;
-      if (currentChallenge != null && !currentChallenge.hasEnded) {
+      if (currentChallenge != null) {
         return Result.failure(const ValidationFailure(
-          message: 'There is already an active challenge for this party',
+          message: 'There is already an active challenge for this party. Please wait for it to complete before starting a new one.',
         ));
       }
 
       // Validate dates
+      // Note: We allow past start dates to enable "late start" scenarios where
+      // users want to start mid-week but still end on Sunday
       final now = DateTime.now();
-      if (params.startDate.isBefore(now)) {
-        return Result.failure(const ValidationFailure(
-          message: 'Start date cannot be in the past',
-        ));
-      }
 
       if (params.endDate.isBefore(params.startDate)) {
         return Result.failure(const ValidationFailure(
           message: 'End date must be after start date',
+        ));
+      }
+
+      // Validate maximum duration (7 days)
+      final duration = params.endDate.difference(params.startDate);
+      if (duration.inDays > 7) {
+        return Result.failure(const ValidationFailure(
+          message: 'Challenge duration cannot exceed 7 days',
         ));
       }
 
@@ -92,7 +97,7 @@ class CreateChallengeUseCase {
         ));
       }
 
-      // Create the challenge
+      // Create the challenge as active immediately
       final challenge = Challenge(
         id: '', // Will be set by repository
         partyId: params.partyId,
@@ -100,7 +105,7 @@ class CreateChallengeUseCase {
         description: params.description,
         startDate: params.startDate,
         endDate: params.endDate,
-        status: ChallengeStatus.pending,
+        status: ChallengeStatus.active,
         createdBy: params.createdBy,
         createdAt: now,
         updatedAt: now,

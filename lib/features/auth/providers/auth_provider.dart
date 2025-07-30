@@ -33,7 +33,7 @@ final currentUserProvider = FutureProvider<UserModel?>((ref) async {
 class AuthController extends StateNotifier<AuthState> {
   final AuthRepository _authRepository;
 
-  AuthController(this._authRepository) : super(const AuthState.initial()) {
+  AuthController(this._authRepository) : super(const AuthState.loading()) {
     _listenToAuthChanges();
   }
 

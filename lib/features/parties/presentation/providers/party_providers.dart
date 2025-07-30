@@ -51,7 +51,7 @@ final partyProvider = StreamProvider.family<Party?, String>((ref, partyId) {
   });
 });
 
-// Pending invites provider
+// Pending invites provider (invites received by the user)
 final pendingInvitesProvider = StreamProvider<List<PartyInvite>>((ref) {
   final repository = ref.watch(partyRepositoryProvider);
   final user = ref.watch(userProvider);
@@ -70,6 +70,40 @@ final pendingInvitesProvider = StreamProvider<List<PartyInvite>>((ref) {
       },
     );
   });
+});
+
+// Sent invites provider (invites sent by the user)
+final sentInvitesProvider = StreamProvider<List<PartyInvite>>((ref) {
+  final repository = ref.watch(partyRepositoryProvider);
+  final user = ref.watch(userProvider);
+  
+  if (user == null) {
+    logger.debug('SentInvitesProvider: No user found');
+    return Stream.value(<PartyInvite>[]);
+  }
+  
+  return repository.watchSentInvites(user.id).map((result) {
+    return result.fold(
+      onSuccess: (invites) => invites,
+      onFailure: (failure) {
+        logger.error('SentInvitesProvider: Error loading sent invites', error: failure);
+        return <PartyInvite>[];
+      },
+    );
+  });
+});
+
+// Combined invites provider (both sent and received)
+final allInvitesProvider = StreamProvider<List<PartyInvite>>((ref) {
+  final receivedInvitesAsync = ref.watch(pendingInvitesProvider);
+  final sentInvitesAsync = ref.watch(sentInvitesProvider);
+  
+  // Combine both lists
+  final receivedInvites = receivedInvitesAsync.valueOrNull ?? [];
+  final sentInvites = sentInvitesAsync.valueOrNull ?? [];
+  
+  // Return combined list
+  return Stream.value([...receivedInvites, ...sentInvites]);
 });
 
 // Party controller for actions
@@ -114,6 +148,32 @@ class PartyController {
 
     final result = await repository.createParty(party);
     return result.isSuccess;
+  }
+
+  Future<String?> createPartyAndGetId({
+    required String name,
+    required String description,
+  }) async {
+    final inviteCode = await repository.generateInviteCode();
+    
+    final party = Party(
+      id: '', // Will be set by repository
+      name: name,
+      description: description,
+      ownerId: userId,
+      memberIds: [userId], // Owner is automatically a member
+      inviteCode: inviteCode,
+      status: PartyStatus.active,
+      createdAt: DateTime.now(),
+      updatedAt: DateTime.now(),
+      metadata: {},
+    );
+
+    final result = await repository.createParty(party);
+    return result.fold(
+      onSuccess: (createdParty) => createdParty.id,
+      onFailure: (_) => null,
+    );
   }
 
   Future<bool> joinParty(String inviteCode) async {

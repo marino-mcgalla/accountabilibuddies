@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Camera Permission Test</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+        }
+        button {
+            background-color: #4CAF50;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            margin: 10px 5px;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        button:disabled {
+            background-color: #cccccc;
+            cursor: not-allowed;
+        }
+        video {
+            width: 100%;
+            max-width: 600px;
+            height: auto;
+            border: 2px solid #ddd;
+            border-radius: 4px;
+            margin: 20px 0;
+        }
+        .status {
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 4px;
+            font-weight: bold;
+        }
+        .success {
+            background-color: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .error {
+            background-color: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        .warning {
+            background-color: #fff3cd;
+            color: #856404;
+            border: 1px solid #ffeeba;
+        }
+        .info {
+            background-color: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+        .hidden {
+            display: none;
+        }
+        pre {
+            background-color: #f4f4f4;
+            padding: 10px;
+            border-radius: 4px;
+            overflow-x: auto;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Camera Permission Test for AccountabiliBuddies</h1>
+        
+        <div id="protocolWarning" class="status warning hidden">
+            ⚠️ Camera access requires HTTPS or localhost. Current protocol: <span id="currentProtocol"></span>
+        </div>
+        
+        <div id="status" class="status info">
+            Ready to test camera permissions
+        </div>
+        
+        <button id="checkPermission" onclick="checkCameraPermission()">Check Camera Permission</button>
+        <button id="requestPermission" onclick="requestCameraAccess()">Request Camera Access</button>
+        <button id="startCamera" onclick="startCamera()" disabled>Start Camera</button>
+        <button id="stopCamera" onclick="stopCamera()" disabled>Stop Camera</button>
+        <button id="takePhoto" onclick="takePhoto()" disabled>Take Photo</button>
+        
+        <video id="video" class="hidden" autoplay playsinline></video>
+        <canvas id="canvas" class="hidden"></canvas>
+        <img id="photo" class="hidden" alt="Captured photo">
+        
+        <h2>Debug Information:</h2>
+        <pre id="debugInfo"></pre>
+    </div>
+
+    <script>
+        let stream = null;
+        const video = document.getElementById('video');
+        const canvas = document.getElementById('canvas');
+        const photo = document.getElementById('photo');
+        const statusEl = document.getElementById('status');
+        const debugEl = document.getElementById('debugInfo');
+        
+        // Check protocol on load
+        window.onload = function() {
+            updateDebugInfo();
+            
+            const protocol = window.location.protocol;
+            const hostname = window.location.hostname;
+            
+            if (protocol !== 'https:' && hostname !== 'localhost' && hostname !== '127.0.0.1') {
+                document.getElementById('protocolWarning').classList.remove('hidden');
+                document.getElementById('currentProtocol').textContent = protocol + '//' + hostname;
+            }
+        };
+        
+        function updateStatus(message, type = 'info') {
+            statusEl.textContent = message;
+            statusEl.className = `status ${type}`;
+        }
+        
+        function updateDebugInfo() {
+            const info = {
+                'User Agent': navigator.userAgent,
+                'Protocol': window.location.protocol,
+                'Hostname': window.location.hostname,
+                'Secure Context': window.isSecureContext,
+                'MediaDevices Available': 'mediaDevices' in navigator,
+                'getUserMedia Available': 'getUserMedia' in navigator.mediaDevices || false
+            };
+            
+            debugEl.textContent = JSON.stringify(info, null, 2);
+        }
+        
+        async function checkCameraPermission() {
+            try {
+                if (!navigator.permissions) {
+                    updateStatus('Permissions API not supported in this browser', 'warning');
+                    return;
+                }
+                
+                const result = await navigator.permissions.query({ name: 'camera' });
+                updateStatus(`Camera permission state: ${result.state}`, 
+                    result.state === 'granted' ? 'success' : 'info');
+                
+                result.onchange = function() {
+                    updateStatus(`Camera permission changed to: ${this.state}`, 
+                        this.state === 'granted' ? 'success' : 'info');
+                };
+                
+            } catch (error) {
+                updateStatus(`Error checking permission: ${error.message}`, 'error');
+            }
+        }
+        
+        async function requestCameraAccess() {
+            try {
+                updateStatus('Requesting camera access...', 'info');
+                
+                if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+                    throw new Error('getUserMedia is not supported in this browser');
+                }
+                
+                // Request camera access
+                const constraints = {
+                    video: {
+                        facingMode: 'user', // Front camera
+                        width: { ideal: 1280 },
+                        height: { ideal: 720 }
+                    }
+                };
+                
+                stream = await navigator.mediaDevices.getUserMedia(constraints);
+                updateStatus('Camera access granted!', 'success');
+                
+                // Enable camera buttons
+                document.getElementById('startCamera').disabled = false;
+                
+                // Stop the stream immediately (just testing permission)
+                stream.getTracks().forEach(track => track.stop());
+                stream = null;
+                
+            } catch (error) {
+                let errorMessage = error.message;
+                
+                if (error.name === 'NotAllowedError') {
+                    errorMessage = 'Camera access denied. Please allow camera access in your browser settings.';
+                } else if (error.name === 'NotFoundError') {
+                    errorMessage = 'No camera found on this device.';
+                } else if (error.name === 'NotReadableError') {
+                    errorMessage = 'Camera is already in use by another application.';
+                } else if (error.name === 'OverconstrainedError') {
+                    errorMessage = 'Camera doesn\'t support the requested resolution.';
+                }
+                
+                updateStatus(`Error: ${errorMessage}`, 'error');
+                console.error('getUserMedia error:', error);
+            }
+        }
+        
+        async function startCamera() {
+            try {
+                updateStatus('Starting camera...', 'info');
+                
+                const constraints = {
+                    video: {
+                        facingMode: 'user',
+                        width: { ideal: 1280 },
+                        height: { ideal: 720 }
+                    }
+                };
+                
+                stream = await navigator.mediaDevices.getUserMedia(constraints);
+                video.srcObject = stream;
+                video.classList.remove('hidden');
+                
+                updateStatus('Camera is running', 'success');
+                
+                document.getElementById('startCamera').disabled = true;
+                document.getElementById('stopCamera').disabled = false;
+                document.getElementById('takePhoto').disabled = false;
+                
+            } catch (error) {
+                updateStatus(`Error starting camera: ${error.message}`, 'error');
+            }
+        }
+        
+        function stopCamera() {
+            if (stream) {
+                stream.getTracks().forEach(track => track.stop());
+                stream = null;
+                video.srcObject = null;
+                video.classList.add('hidden');
+                photo.classList.add('hidden');
+                
+                updateStatus('Camera stopped', 'info');
+                
+                document.getElementById('startCamera').disabled = false;
+                document.getElementById('stopCamera').disabled = true;
+                document.getElementById('takePhoto').disabled = true;
+            }
+        }
+        
+        function takePhoto() {
+            if (!stream) return;
+            
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            canvas.getContext('2d').drawImage(video, 0, 0);
+            
+            const dataUrl = canvas.toDataURL('image/jpeg');
+            photo.src = dataUrl;
+            photo.classList.remove('hidden');
+            
+            updateStatus('Photo captured!', 'success');
+        }
+    </script>
+</body>
+</html>

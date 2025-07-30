@@ -1,6 +1,6 @@
 import '../../../../core/core.dart';
 import '../entities/challenge.dart';
-import '../entities/challenge_commitment.dart';
+import '../entities/user_challenge_participation.dart';
 
 /// Repository interface for challenge management
 abstract class ChallengeRepository {
@@ -28,33 +28,27 @@ abstract class ChallengeRepository {
   /// Watch a specific challenge (real-time updates)
   Stream<Result<Challenge>> watchChallenge(String challengeId);
 
-  /// Get all commitments for a challenge
-  Future<Result<List<ChallengeCommitment>>> getChallengeCommitments(String challengeId);
+  /// Get all participations for a challenge
+  Future<Result<List<UserChallengeParticipation>>> getChallengeParticipations(String challengeId);
 
-  /// Get a specific user's commitment for a challenge
-  Future<Result<ChallengeCommitment?>> getUserCommitment(String challengeId, String userId);
+  /// Get a specific user's participation for a challenge
+  Future<Result<UserChallengeParticipation?>> getUserParticipation(String challengeId, String userId);
 
-  /// Create or update a user's commitment to a challenge
-  Future<Result<ChallengeCommitment>> saveCommitment(ChallengeCommitment commitment);
+  /// Create or update a user's participation in a challenge
+  Future<Result<UserChallengeParticipation>> saveParticipation(UserChallengeParticipation participation);
 
-  /// Delete a user's commitment
-  Future<Result<void>> deleteCommitment(String commitmentId);
+  /// Delete a user's participation
+  Future<Result<void>> deleteParticipation(String challengeId, String userId);
 
-  /// Watch commitments for a challenge (real-time updates)
-  Stream<Result<List<ChallengeCommitment>>> watchChallengeCommitments(String challengeId);
+  /// Watch participations for a challenge (real-time updates)
+  Stream<Result<List<UserChallengeParticipation>>> watchChallengeParticipations(String challengeId);
 
-  /// Watch a specific user's commitment (real-time updates)
-  Stream<Result<ChallengeCommitment?>> watchUserCommitment(String challengeId, String userId);
+  /// Watch a specific user's participation (real-time updates)
+  Stream<Result<UserChallengeParticipation?>> watchUserParticipation(String challengeId, String userId);
 
-  /// Start a challenge (transition from pending to active)
-  Future<Result<Challenge>> startChallenge(String challengeId);
-
-  /// Complete a challenge (transition from active to settling)
-  Future<Result<Challenge>> completeChallenge(String challengeId);
+  /// Move challenge to summary phase (transition from active to summary)
+  Future<Result<Challenge>> moveToSummary(String challengeId);
 
   /// Cancel a challenge
   Future<Result<Challenge>> cancelChallenge(String challengeId);
-
-  /// Settle a challenge (transition from settling to completed)
-  Future<Result<Challenge>> settleChallenge(String challengeId);
 }

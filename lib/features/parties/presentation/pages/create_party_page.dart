@@ -64,7 +64,7 @@ class _CreatePartyPageState extends ConsumerState<CreatePartyPage> {
                       Text(
                         'Start an accountability group where you and your friends can challenge each other to achieve your goals together.',
                         style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                          color: Colors.grey[600],
+                          color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7),
                         ),
                       ),
                     ],
@@ -251,7 +251,7 @@ class _CreatePartyPageState extends ConsumerState<CreatePartyPage> {
     try {
       final controller = ref.read(partyControllerProvider);
       
-      final success = await controller.createParty(
+      final partyId = await controller.createPartyAndGetId(
         name: _nameController.text.trim(),
         description: _descriptionController.text.trim().isEmpty 
             ? 'A group focused on achieving goals together!'
@@ -259,22 +259,17 @@ class _CreatePartyPageState extends ConsumerState<CreatePartyPage> {
       );
 
       if (mounted) {
-        if (success) {
+        if (partyId != null) {
           // Show success message
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text('Party "${_nameController.text.trim()}" created successfully!'),
               backgroundColor: Colors.green,
-              action: SnackBarAction(
-                label: 'View',
-                textColor: Colors.white,
-                onPressed: () => context.go('/party'),
-              ),
             ),
           );
           
-          // Navigate back to parties list
-          context.go('/party');
+          // Navigate directly to the new party detail page
+          context.go('/party/$partyId');
         } else {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(

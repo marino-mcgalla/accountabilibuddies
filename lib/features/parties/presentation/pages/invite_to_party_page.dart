@@ -123,7 +123,7 @@ class _InviteToPartyPageState extends ConsumerState<InviteToPartyPage> with Sing
                               Text(
                                 'Send email invitations to friends',
                                 style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                                  color: Colors.grey[600],
+                                  color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7),
                                 ),
                               ),
                             ],
@@ -274,7 +274,7 @@ class _InviteToPartyPageState extends ConsumerState<InviteToPartyPage> with Sing
                             Text(
                               'Share the invite code with friends',
                               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                                color: Colors.grey[600],
+                                color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7),
                               ),
                             ),
                           ],
@@ -314,7 +314,7 @@ class _InviteToPartyPageState extends ConsumerState<InviteToPartyPage> with Sing
                 Text(
                   'Invite Code',
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: Colors.grey[600],
+                    color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7),
                   ),
                 ),
                 const SizedBox(height: 8),
@@ -481,7 +481,7 @@ class _InviteToPartyPageState extends ConsumerState<InviteToPartyPage> with Sing
                 Text(
                   description,
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: Colors.grey[600],
+                    color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7),
                   ),
                 ),
               ],

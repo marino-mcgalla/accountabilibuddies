@@ -1,18 +1,20 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../data/repositories/firebase_challenge_repository.dart';
 import '../../domain/entities/challenge.dart';
-import '../../domain/entities/challenge_commitment.dart';
+import '../../domain/entities/user_challenge_participation.dart';
 import '../../domain/repositories/challenge_repository.dart';
 import '../../domain/usecases/create_challenge_usecase.dart';
-import '../../domain/usecases/commit_to_challenge_usecase.dart';
+import '../../domain/usecases/participate_in_challenge_usecase.dart';
 import '../../domain/usecases/get_current_challenge_usecase.dart';
 import '../../domain/usecases/get_party_challenges_usecase.dart';
 import '../../domain/usecases/start_challenge_usecase.dart';
 import '../../../parties/data/repositories/firebase_party_repository.dart';
+import 'proof_providers.dart';
 
-// Repository provider
+// Repository providers
 final challengeRepositoryProvider = Provider<ChallengeRepository>((ref) {
-  return FirebaseChallengeRepository();
+  final proofRepository = ref.watch(proofRepositoryProvider);
+  return FirebaseChallengeRepository(proofRepository: proofRepository);
 });
 
 // Use case providers
@@ -22,9 +24,9 @@ final createChallengeUseCaseProvider = Provider<CreateChallengeUseCase>((ref) {
   return CreateChallengeUseCase(challengeRepository, partyRepository);
 });
 
-final commitToChallengeUseCaseProvider = Provider<CommitToChallengeUseCase>((ref) {
+final participateInChallengeUseCaseProvider = Provider<ParticipateInChallengeUseCase>((ref) {
   final challengeRepository = ref.watch(challengeRepositoryProvider);
-  return CommitToChallengeUseCase(challengeRepository);
+  return ParticipateInChallengeUseCase(challengeRepository);
 });
 
 final getCurrentChallengeUseCaseProvider = Provider<GetCurrentChallengeUseCase>((ref) {
@@ -55,14 +57,19 @@ final partyChallengesProvider = StreamProvider.family<List<Challenge>, String>((
   });
 });
 
-final currentChallengeProvider = FutureProvider.family<Challenge?, String>((ref, partyId) async {
-  final useCase = ref.watch(getCurrentChallengeUseCaseProvider);
-  final result = await useCase.call(partyId);
+final currentChallengeProvider = StreamProvider.family<Challenge?, String>((ref, partyId) {
+  final repository = ref.watch(challengeRepositoryProvider);
   
-  return result.fold(
-    onSuccess: (challenge) => challenge,
-    onFailure: (failure) => null,
-  );
+  return repository.watchChallenges(partyId).map((result) {
+    return result.fold(
+      onSuccess: (challenges) {
+        // Find the first active challenge
+        final activeChallenges = challenges.where((c) => c.status == ChallengeStatus.active).toList();
+        return activeChallenges.isEmpty ? null : activeChallenges.first;
+      },
+      onFailure: (failure) => null,
+    );
+  });
 });
 
 final challengeProvider = StreamProvider.family<Challenge?, String>((ref, challengeId) {
@@ -76,24 +83,25 @@ final challengeProvider = StreamProvider.family<Challenge?, String>((ref, challe
   });
 });
 
-final challengeCommitmentsProvider = StreamProvider.family<List<ChallengeCommitment>, String>((ref, challengeId) {
+final challengeParticipationsProvider = StreamProvider.family<List<UserChallengeParticipation>, String>((ref, challengeId) {
   final repository = ref.watch(challengeRepositoryProvider);
   
-  return repository.watchChallengeCommitments(challengeId).map((result) {
+  return repository.watchChallengeParticipations(challengeId).map((result) {
     return result.fold(
-      onSuccess: (commitments) => commitments,
-      onFailure: (failure) => <ChallengeCommitment>[],
+      onSuccess: (participations) => participations,
+      onFailure: (failure) => <UserChallengeParticipation>[],
     );
   });
 });
 
-final userCommitmentProvider = StreamProvider.family<ChallengeCommitment?, ({String challengeId, String userId})>((ref, params) {
+final userParticipationProvider = StreamProvider.family<UserChallengeParticipation?, ({String challengeId, String userId})>((ref, params) {
   final repository = ref.watch(challengeRepositoryProvider);
   
-  return repository.watchUserCommitment(params.challengeId, params.userId).map((result) {
+  return repository.watchUserParticipation(params.challengeId, params.userId).map((result) {
     return result.fold(
-      onSuccess: (commitment) => commitment,
+      onSuccess: (participation) => participation,
       onFailure: (failure) => null,
     );
   });
 });
+

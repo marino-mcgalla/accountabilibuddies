@@ -2,16 +2,20 @@ import 'package:equatable/equatable.dart';
 
 /// Represents the status of a challenge
 enum ChallengeStatus {
-  /// Challenge created, waiting for member commitments
-  pending,
-  /// All members committed, challenge is active
+  /// Challenge is active and accepting participation
   active,
-  /// Challenge week completed, calculating results
-  settling,
-  /// Challenge completed and settled
-  completed,
+  /// Challenge week completed, in summary/review phase
+  summary,
   /// Challenge was cancelled
   cancelled,
+  
+  // Deprecated enum values for backwards compatibility
+  @Deprecated('Use active instead')
+  pending,
+  @Deprecated('Use summary instead')
+  settling,
+  @Deprecated('Use summary instead')
+  completed,
 }
 
 /// Represents a wagering period/challenge within a party
@@ -28,6 +32,7 @@ class Challenge extends Equatable {
     required this.createdAt,
     required this.updatedAt,
     this.commitmentDeadline,
+    this.totalPool = 0.0,
     this.metadata = const {},
   });
 
@@ -64,36 +69,40 @@ class Challenge extends Equatable {
   /// Deadline for members to commit to the challenge
   final DateTime? commitmentDeadline;
   
+  /// Total wager pool from all participants
+  final double totalPool;
+  
   /// Additional metadata for the challenge
   final Map<String, dynamic> metadata;
 
   /// Display name for challenge status
   String get statusDisplay {
     switch (status) {
-      case ChallengeStatus.pending:
-        return 'Waiting for Commitments';
       case ChallengeStatus.active:
         return 'Active';
-      case ChallengeStatus.settling:
-        return 'Calculating Results';
-      case ChallengeStatus.completed:
-        return 'Completed';
+      case ChallengeStatus.summary:
+        return 'Summary Phase';
       case ChallengeStatus.cancelled:
         return 'Cancelled';
+      // Handle deprecated enum values
+      case ChallengeStatus.pending:
+        return 'Pending (Deprecated)';
+      case ChallengeStatus.settling:
+        return 'Settling (Deprecated)';
+      case ChallengeStatus.completed:
+        return 'Completed (Deprecated)';
     }
   }
 
   /// Check if the challenge is currently accepting commitments
-  bool get isAcceptingCommitments => 
-      status == ChallengeStatus.pending && 
-      (commitmentDeadline == null || DateTime.now().isBefore(commitmentDeadline!));
+  bool get isAcceptingCommitments => status == ChallengeStatus.active;
 
   /// Check if the challenge is currently active
   bool get isActive => status == ChallengeStatus.active;
 
   /// Check if the challenge has ended
   bool get hasEnded => 
-      status == ChallengeStatus.completed || 
+      status == ChallengeStatus.summary || 
       status == ChallengeStatus.cancelled ||
       DateTime.now().isAfter(endDate);
 
@@ -109,7 +118,7 @@ class Challenge extends Equatable {
 
   /// Progress percentage (0.0 to 1.0) based on time elapsed
   double get timeProgress {
-    if (!isActive) return status == ChallengeStatus.completed ? 1.0 : 0.0;
+    if (!isActive) return status == ChallengeStatus.summary ? 1.0 : 0.0;
     
     final now = DateTime.now();
     if (now.isBefore(startDate)) return 0.0;
@@ -133,6 +142,7 @@ class Challenge extends Equatable {
     DateTime? createdAt,
     DateTime? updatedAt,
     DateTime? commitmentDeadline,
+    double? totalPool,
     Map<String, dynamic>? metadata,
   }) {
     return Challenge(
@@ -147,6 +157,7 @@ class Challenge extends Equatable {
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
       commitmentDeadline: commitmentDeadline ?? this.commitmentDeadline,
+      totalPool: totalPool ?? this.totalPool,
       metadata: metadata ?? this.metadata,
     );
   }
@@ -164,8 +175,67 @@ class Challenge extends Equatable {
         createdAt,
         updatedAt,
         commitmentDeadline,
+        totalPool,
         metadata,
       ];
+
+  /// Create a new weekly challenge starting from the next Monday
+  static Challenge createWeeklyChallenge({
+    required String partyId,
+    required String createdBy,
+    String? description,
+  }) {
+    final now = DateTime.now();
+    final startOfWeek = _getNextMonday(now);
+    final endOfWeek = startOfWeek.add(const Duration(days: 6, hours: 23, minutes: 59, seconds: 59));
+    
+    return Challenge(
+      id: '', // Will be set by repository
+      partyId: partyId,
+      name: 'Week of ${_formatWeekRange(startOfWeek, endOfWeek)}',
+      description: description ?? 'Weekly challenge',
+      startDate: startOfWeek,
+      endDate: endOfWeek,
+      status: ChallengeStatus.active,
+      createdBy: createdBy,
+      createdAt: now,
+      updatedAt: now,
+    );
+  }
+
+  /// Get the next Monday from given date (or today if today is Monday)
+  static DateTime _getNextMonday(DateTime date) {
+    final now = DateTime(date.year, date.month, date.day);
+    final weekday = now.weekday;
+    
+    if (weekday == DateTime.monday) {
+      return now; // Today is Monday
+    } else {
+      final daysUntilMonday = DateTime.monday - weekday + 7;
+      return now.add(Duration(days: daysUntilMonday % 7));
+    }
+  }
+
+  /// Format week range for display
+  static String _formatWeekRange(DateTime start, DateTime end) {
+    final startMonth = _getMonthAbbreviation(start.month);
+    final endMonth = _getMonthAbbreviation(end.month);
+    
+    if (start.month == end.month) {
+      return '$startMonth ${start.day}-${end.day}, ${start.year}';
+    } else {
+      return '$startMonth ${start.day} - $endMonth ${end.day}, ${start.year}';
+    }
+  }
+
+  /// Get month abbreviation
+  static String _getMonthAbbreviation(int month) {
+    const months = [
+      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
+    ];
+    return months[month - 1];
+  }
 
   @override
   String toString() => 'Challenge(id: $id, name: $name, status: $status)';

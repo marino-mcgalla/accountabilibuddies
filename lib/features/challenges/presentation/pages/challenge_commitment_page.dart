@@ -1,9 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/core.dart';
+import '../../../auth/providers/auth_provider.dart';
 import '../../../goals/domain/entities/goal_template.dart';
+import '../../../goals/presentation/providers/goal_template_providers.dart';
 import '../../domain/entities/challenge.dart';
-import '../../domain/entities/challenge_commitment.dart';
+import '../../domain/entities/challenge_goal.dart';
+import '../../domain/entities/goal_commitment.dart';
+import '../../domain/entities/user_challenge_participation.dart';
+import '../providers/challenge_providers.dart';
 import '../widgets/goal_selection_widget.dart';
 import '../widgets/wager_setting_widget.dart';
 
@@ -111,14 +116,55 @@ class _ChallengeCommitmentPageState extends ConsumerState<ChallengeCommitmentPag
                   ),
                   const SizedBox(height: 16),
                   
-                  // TODO: Replace with actual goal templates from provider
-                  GoalSelectionWidget(
-                    availableGoals: _getMockGoalTemplates(),
-                    selectedGoalConfigs: _selectedGoalConfigs,
-                    onGoalConfigsChanged: (configs) {
-                      setState(() {
-                        _selectedGoalConfigs = configs;
-                      });
+                  Consumer(
+                    builder: (context, ref, child) {
+                      final user = ref.watch(userProvider);
+                      if (user == null) {
+                        return const Card(
+                          child: Padding(
+                            padding: EdgeInsets.all(16),
+                            child: Text('Please log in to select goals'),
+                          ),
+                        );
+                      }
+
+                      final goalTemplatesAsync = ref.watch(goalTemplatesProvider);
+                      
+                      return goalTemplatesAsync.when(
+                        data: (goalTemplates) {
+                          final activeGoals = goalTemplates
+                              .where((goal) => goal.status == GoalTemplateStatus.active)
+                              .toList();
+                              
+                          return GoalSelectionWidget(
+                            availableGoals: activeGoals,
+                            selectedGoalConfigs: _selectedGoalConfigs,
+                            onGoalConfigsChanged: (configs) {
+                              setState(() {
+                                _selectedGoalConfigs = configs;
+                              });
+                            },
+                          );
+                        },
+                        loading: () => const Card(
+                          child: Padding(
+                            padding: EdgeInsets.all(16),
+                            child: Center(child: CircularProgressIndicator()),
+                          ),
+                        ),
+                        error: (error, stack) => Card(
+                          child: Padding(
+                            padding: const EdgeInsets.all(16),
+                            child: Column(
+                              children: [
+                                const Icon(Icons.error_outline, size: 48),
+                                const SizedBox(height: 8),
+                                Text('Error loading goal templates: $error'),
+                              ],
+                            ),
+                          ),
+                        ),
+                      );
                     },
                   ),
                   
@@ -131,7 +177,7 @@ class _ChallengeCommitmentPageState extends ConsumerState<ChallengeCommitmentPag
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    'Choose how much you\'re willing to risk. You\'ll only keep your wager if you achieve 100% completion.',
+                    'Choose how much you\'re willing to risk. You\'ll only keep your wager if you achieve 100% completion. All wagers go into the weekly pool. Enter \$0 to play for accountability only.',
                     style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                       color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7),
                     ),
@@ -187,7 +233,7 @@ class _ChallengeCommitmentPageState extends ConsumerState<ChallengeCommitmentPag
                 Expanded(
                   flex: 2,
                   child: ElevatedButton(
-                    onPressed: _isLoading || _selectedGoalConfigs.isEmpty 
+                    onPressed: _isLoading || _selectedGoalConfigs.isEmpty || _wagerAmount == null || _wagerAmount! < 0
                         ? null 
                         : () => _commitToChallenge(),
                     child: _isLoading
@@ -208,24 +254,76 @@ class _ChallengeCommitmentPageState extends ConsumerState<ChallengeCommitmentPag
   }
 
   void _commitToChallenge() async {
+    final user = ref.read(userProvider);
+    if (user == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('You must be logged in to commit to a challenge'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
     setState(() {
       _isLoading = true;
     });
 
     try {
-      // TODO: Implement actual commitment logic using use cases
-      await Future.delayed(const Duration(seconds: 2)); // Simulate API call
+      final challengeRepository = ref.read(challengeRepositoryProvider);
       
+      // Create goals map from selected goal configs
+      final goalsMap = <String, ChallengeGoal>{};
+      for (final config in _selectedGoalConfigs) {
+        final goalId = config.goalId;
+        goalsMap[goalId] = ChallengeGoal(
+          name: config.goalName,
+          templateId: config.goalId,
+          targetFrequency: config.weeklyFrequency,
+          description: config.description ?? '',
+          goalType: config.goalType,
+          completedDates: const [],
+          parameters: config.parameters,
+        );
+      }
+      
+      // Create the user's participation with embedded goals
+      final participation = UserChallengeParticipation(
+        id: '', // Will be set by repository
+        challengeId: widget.challenge.id,
+        userId: user.id,
+        userName: user.displayName ?? user.email,
+        status: ParticipationStatus.lockedIn,
+        goals: goalsMap,
+        wagerAmount: _wagerAmount,
+        wagerCurrency: 'USD',
+        lockedInDate: DateTime.now(),
+        createdAt: DateTime.now(),
+        updatedAt: DateTime.now(),
+        metadata: {},
+      );
+
+      logger.debug('Creating participation for user ${user.id} in challenge ${widget.challenge.id} with ${goalsMap.length} goals');
+      final participationResult = await challengeRepository.saveParticipation(participation);
+      
+      if (participationResult.isFailure) {
+        throw Exception('Failed to save participation: ${participationResult.failureOrNull!.message}');
+      }
+
+      final savedParticipation = participationResult.valueOrNull!;
+      logger.debug('Participation created with ID: ${savedParticipation.id}');
+
       if (mounted) {
         Navigator.of(context).pop(true); // Return true to indicate success
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Successfully committed to challenge!'),
+          SnackBar(
+            content: Text('Successfully committed to challenge with ${goalsMap.length} goals!'),
             backgroundColor: Colors.green,
           ),
         );
       }
-    } catch (e) {
+    } catch (e, stackTrace) {
+      logger.error('Error committing to challenge', error: e, stackTrace: stackTrace);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -248,7 +346,7 @@ class _ChallengeCommitmentPageState extends ConsumerState<ChallengeCommitmentPag
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Opt Out of Challenge'),
-        content: const Text('Are you sure you want to opt out of this challenge? You can still change your mind before the commitment deadline.'),
+        content: const Text('Are you sure you want to opt out of this challenge? This will remove any existing commitment you may have.'),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(false),
@@ -266,13 +364,28 @@ class _ChallengeCommitmentPageState extends ConsumerState<ChallengeCommitmentPag
     );
 
     if (confirm == true) {
+      final user = ref.read(userProvider);
+      if (user == null) return;
+
       setState(() {
         _isLoading = true;
       });
 
       try {
-        // TODO: Implement actual opt-out logic using use cases
-        await Future.delayed(const Duration(seconds: 1)); // Simulate API call
+        final challengeRepository = ref.read(challengeRepositoryProvider);
+        
+        // Check if user has an existing participation
+        final participationResult = await challengeRepository.getUserParticipation(
+          widget.challenge.id, 
+          user.id,
+        );
+        
+        if (participationResult.isSuccess && participationResult.valueOrNull != null) {
+          // Delete the participation (goals are embedded, so they get deleted automatically)
+          await challengeRepository.deleteParticipation(widget.challenge.id, user.id);
+          
+          logger.debug('Removed participation for user ${user.id}');
+        }
         
         if (mounted) {
           Navigator.of(context).pop(false); // Return false to indicate opt-out
@@ -282,7 +395,8 @@ class _ChallengeCommitmentPageState extends ConsumerState<ChallengeCommitmentPag
             ),
           );
         }
-      } catch (e) {
+      } catch (e, stackTrace) {
+        logger.error('Error opting out of challenge', error: e, stackTrace: stackTrace);
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
@@ -307,54 +421,6 @@ class _ChallengeCommitmentPageState extends ConsumerState<ChallengeCommitmentPag
 
   String _formatDateTime(DateTime dateTime) {
     return '${_formatDate(dateTime)} at ${dateTime.hour}:${dateTime.minute.toString().padLeft(2, '0')}';
-  }
-
-  // TODO: Replace with actual goal templates from provider
-  List<GoalTemplate> _getMockGoalTemplates() {
-    return [
-      GoalTemplate(
-        id: '1',
-        userId: 'user1',
-        title: 'Morning Workout',
-        description: 'Complete a 30-minute workout session',
-        category: GoalCategory.fitness,
-        goalType: GoalType.daily,
-        plannedFrequency: 5,
-        tags: ['fitness', 'morning'],
-        status: GoalTemplateStatus.active,
-        createdAt: DateTime.now().subtract(const Duration(days: 30)),
-        updatedAt: DateTime.now().subtract(const Duration(days: 1)),
-        metadata: {},
-      ),
-      GoalTemplate(
-        id: '2',
-        userId: 'user1',
-        title: 'Read for 30 minutes',
-        description: 'Read books or educational material',
-        category: GoalCategory.learning,
-        goalType: GoalType.daily,
-        plannedFrequency: 7,
-        tags: ['reading', 'education'],
-        status: GoalTemplateStatus.active,
-        createdAt: DateTime.now().subtract(const Duration(days: 15)),
-        updatedAt: DateTime.now().subtract(const Duration(days: 1)),
-        metadata: {},
-      ),
-      GoalTemplate(
-        id: '3',
-        userId: 'user1',
-        title: 'Meditate',
-        description: '10-15 minutes of mindfulness meditation',
-        category: GoalCategory.health,
-        goalType: GoalType.daily,
-        plannedFrequency: 3,
-        tags: ['meditation', 'mindfulness'],
-        status: GoalTemplateStatus.active,
-        createdAt: DateTime.now().subtract(const Duration(days: 7)),
-        updatedAt: DateTime.now().subtract(const Duration(days: 1)),
-        metadata: {},
-      ),
-    ];
   }
 }
 

@@ -19,31 +19,61 @@ class CreateChallengePage extends ConsumerStatefulWidget {
 
 class _CreateChallengePageState extends ConsumerState<CreateChallengePage> {
   final _formKey = GlobalKey<FormState>();
+  final _descriptionController = TextEditingController();
   
-  DateTime _startDate = DateTime.now().add(const Duration(days: 1));
-  DateTime _endDate = DateTime.now().add(const Duration(days: 8));
-  DateTime? _commitmentDeadline;
-  bool _hasCommitmentDeadline = true;
+  late DateTime _startDate;
+  late DateTime _endDate;
+  late String _challengeName;
   bool _isLoading = false;
 
   @override
   void initState() {
     super.initState();
-    // Default to next Monday for start date
-    _startDate = _getNextMonday();
-    _endDate = _startDate.add(const Duration(days: 6)); // Sunday
-    _commitmentDeadline = _startDate.subtract(const Duration(hours: 12)); // Sunday noon
+    // Use the helper method from Challenge entity to get next Monday
+    _initializeDates();
   }
 
-  DateTime _getNextMonday() {
+  void _initializeDates() {
     final now = DateTime.now();
-    final daysUntilMonday = (DateTime.monday - now.weekday + 7) % 7;
-    final nextMonday = now.add(Duration(days: daysUntilMonday == 0 ? 7 : daysUntilMonday));
-    return DateTime(nextMonday.year, nextMonday.month, nextMonday.day);
+    _startDate = _getNextMonday(now);
+    _endDate = _startDate.add(const Duration(days: 6, hours: 23, minutes: 59, seconds: 59));
+    _challengeName = _formatWeekRange(_startDate, _endDate);
+  }
+
+  DateTime _getNextMonday(DateTime date) {
+    final today = DateTime(date.year, date.month, date.day);
+    final weekday = today.weekday;
+    
+    if (weekday == DateTime.monday) {
+      return today; // Today is Monday
+    } else {
+      final daysUntilMonday = DateTime.monday - weekday + 7;
+      return today.add(Duration(days: daysUntilMonday % 7));
+    }
+  }
+
+  String _formatWeekRange(DateTime start, DateTime end) {
+    final startMonth = _getMonthAbbreviation(start.month);
+    final endMonth = _getMonthAbbreviation(end.month);
+    
+    if (start.month == end.month) {
+      return 'Week of $startMonth ${start.day}-${end.day}, ${start.year}';
+    } else {
+      return 'Week of $startMonth ${start.day} - $endMonth ${end.day}, ${start.year}';
+    }
+  }
+
+  String _getMonthAbbreviation(int month) {
+    const months = [
+      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
+    ];
+    return months[month - 1];
   }
 
   @override
   void dispose() {
+    _descriptionController.dispose();
     super.dispose();
   }
 
@@ -107,12 +137,12 @@ class _CreateChallengePageState extends ConsumerState<CreateChallengePage> {
                       Row(
                         children: [
                           Icon(
-                            Icons.preview,
+                            Icons.flag,
                             color: Theme.of(context).colorScheme.onSecondaryContainer,
                           ),
                           const SizedBox(width: 8),
                           Text(
-                            'Challenge Preview',
+                            'New Challenge',
                             style: Theme.of(context).textTheme.titleMedium?.copyWith(
                               color: Theme.of(context).colorScheme.onSecondaryContainer,
                             ),
@@ -121,14 +151,42 @@ class _CreateChallengePageState extends ConsumerState<CreateChallengePage> {
                       ),
                       const SizedBox(height: 12),
                       Text(
-                        _generateChallengeName(),
-                        style: Theme.of(context).textTheme.titleSmall,
+                        _challengeName,
+                        style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
-                      const SizedBox(height: 4),
+                      const SizedBox(height: 8),
                       Text(
-                        'Members will commit to their personal goals for this week',
-                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                          color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7),
+                        '${_formatDate(_startDate)} - ${_formatDate(_endDate)}',
+                        style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                          color: Theme.of(context).colorScheme.onSurface.withOpacity(0.8),
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: Theme.of(context).colorScheme.primaryContainer.withOpacity(0.5),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Row(
+                          children: [
+                            Icon(
+                              Icons.info_outline,
+                              color: Theme.of(context).colorScheme.onPrimaryContainer,
+                              size: 16,
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                'Members can join anytime and lock in their personal goals with custom wagers.',
+                                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                  color: Theme.of(context).colorScheme.onPrimaryContainer,
+                                ),
+                              ),
+                            ),
+                          ],
                         ),
                       ),
                     ],
@@ -137,109 +195,129 @@ class _CreateChallengePageState extends ConsumerState<CreateChallengePage> {
               ),
               const SizedBox(height: 24),
 
-              // Date Selection
+              // Date Range Section
               Text(
-                'Challenge Duration',
+                'Challenge Dates',
                 style: Theme.of(context).textTheme.titleMedium,
               ),
               const SizedBox(height: 16),
-
-              // Start Date
-              ListTile(
-                leading: const Icon(Icons.calendar_today),
-                title: const Text('Start Date'),
-                subtitle: Text(_formatDate(_startDate)),
-                trailing: const Icon(Icons.chevron_right),
-                onTap: () => _selectStartDate(context),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(8),
-                  side: BorderSide(
-                    color: Theme.of(context).colorScheme.outline.withOpacity(0.3),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 8),
-
-              // End Date
-              ListTile(
-                leading: const Icon(Icons.event),
-                title: const Text('End Date'),
-                subtitle: Text(_formatDate(_endDate)),
-                trailing: const Icon(Icons.chevron_right),
-                onTap: () => _selectEndDate(context),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(8),
-                  side: BorderSide(
-                    color: Theme.of(context).colorScheme.outline.withOpacity(0.3),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 8),
-
-              // Duration Display
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: Theme.of(context).colorScheme.secondaryContainer.withOpacity(0.3),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Row(
-                  children: [
-                    Icon(
-                      Icons.timer,
-                      color: Theme.of(context).colorScheme.onSecondaryContainer,
-                    ),
-                    const SizedBox(width: 8),
-                    Text(
-                      'Duration: ${_endDate.difference(_startDate).inDays + 1} days',
-                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        color: Theme.of(context).colorScheme.onSecondaryContainer,
+              
+              Row(
+                children: [
+                  Expanded(
+                    child: InkWell(
+                      onTap: () => _selectStartDate(context),
+                      borderRadius: BorderRadius.circular(8),
+                      child: Container(
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          border: Border.all(
+                            color: Theme.of(context).colorScheme.outline,
+                          ),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                Icon(
+                                  Icons.calendar_today,
+                                  size: 16,
+                                  color: Theme.of(context).colorScheme.primary,
+                                ),
+                                const SizedBox(width: 4),
+                                Text(
+                                  'Start Date',
+                                  style: Theme.of(context).textTheme.labelMedium,
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              _formatDate(_startDate),
+                              style: Theme.of(context).textTheme.bodyLarge,
+                            ),
+                          ],
+                        ),
                       ),
                     ),
-                  ],
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: InkWell(
+                      onTap: () => _selectEndDate(context),
+                      borderRadius: BorderRadius.circular(8),
+                      child: Container(
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          border: Border.all(
+                            color: Theme.of(context).colorScheme.outline,
+                          ),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                Icon(
+                                  Icons.event,
+                                  size: 16,
+                                  color: Theme.of(context).colorScheme.primary,
+                                ),
+                                const SizedBox(width: 4),
+                                Text(
+                                  'End Date',
+                                  style: Theme.of(context).textTheme.labelMedium,
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              _formatDate(_endDate),
+                              style: Theme.of(context).textTheme.bodyLarge,
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'Maximum challenge duration: 7 days',
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
                 ),
               ),
               const SizedBox(height: 24),
 
-              // Commitment Deadline
+              // Optional Description
               Text(
-                'Commitment Settings',
+                'Challenge Description (Optional)',
                 style: Theme.of(context).textTheme.titleMedium,
               ),
               const SizedBox(height: 16),
-
-              CheckboxListTile(
-                value: _hasCommitmentDeadline,
-                onChanged: (value) {
-                  setState(() {
-                    _hasCommitmentDeadline = value ?? false;
-                    if (_hasCommitmentDeadline && _commitmentDeadline == null) {
-                      _commitmentDeadline = _startDate.subtract(const Duration(hours: 12));
-                    }
-                  });
-                },
-                title: const Text('Set commitment deadline'),
-                subtitle: const Text('Members must commit by a specific time'),
-                controlAffinity: ListTileControlAffinity.leading,
-                contentPadding: EdgeInsets.zero,
-              ),
-
-              if (_hasCommitmentDeadline) ...[
-                const SizedBox(height: 8),
-                ListTile(
-                  leading: const Icon(Icons.access_time),
-                  title: const Text('Commitment Deadline'),
-                  subtitle: Text(_formatDateTime(_commitmentDeadline!)),
-                  trailing: const Icon(Icons.chevron_right),
-                  onTap: () => _selectCommitmentDeadline(context),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(8),
-                    side: BorderSide(
-                      color: Theme.of(context).colorScheme.outline.withOpacity(0.3),
-                    ),
-                  ),
+              
+              TextFormField(
+                controller: _descriptionController,
+                decoration: const InputDecoration(
+                  labelText: 'Add a theme or motivation for this week',
+                  hintText: 'e.g., "New Year, New Me!" or "Spring Training Week"',
+                  border: OutlineInputBorder(),
+                  prefixIcon: Icon(Icons.edit_note),
                 ),
-              ],
+                maxLines: 2,
+                textCapitalization: TextCapitalization.sentences,
+                validator: (value) {
+                  if (value != null && value.length > 200) {
+                    return 'Description must be less than 200 characters';
+                  }
+                  return null;
+                },
+              ),
 
               const SizedBox(height: 32),
 
@@ -262,7 +340,7 @@ class _CreateChallengePageState extends ConsumerState<CreateChallengePage> {
               ),
               const SizedBox(height: 16),
               Text(
-                'Once created, party members will be notified to set their goals and wagers.',
+                'Once created, party members can immediately start locking in their goals and wagers.',
                 style: Theme.of(context).textTheme.bodySmall?.copyWith(
                   color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7),
                 ),
@@ -275,73 +353,12 @@ class _CreateChallengePageState extends ConsumerState<CreateChallengePage> {
     );
   }
 
-  Future<void> _selectStartDate(BuildContext context) async {
-    final picked = await showDatePicker(
-      context: context,
-      initialDate: _startDate,
-      firstDate: DateTime.now(),
-      lastDate: DateTime.now().add(const Duration(days: 365)),
-    );
-    
-    if (picked != null) {
-      setState(() {
-        _startDate = picked;
-        // Adjust end date if needed
-        if (_endDate.isBefore(_startDate)) {
-          _endDate = _startDate.add(const Duration(days: 6));
-        }
-        // Adjust commitment deadline if needed
-        if (_hasCommitmentDeadline) {
-          _commitmentDeadline = _startDate.subtract(const Duration(hours: 12));
-        }
-      });
-    }
-  }
-
-  Future<void> _selectEndDate(BuildContext context) async {
-    final picked = await showDatePicker(
-      context: context,
-      initialDate: _endDate,
-      firstDate: _startDate,
-      lastDate: _startDate.add(const Duration(days: 365)),
-    );
-    
-    if (picked != null) {
-      setState(() {
-        _endDate = picked;
-      });
-    }
-  }
-
-  Future<void> _selectCommitmentDeadline(BuildContext context) async {
-    final pickedDate = await showDatePicker(
-      context: context,
-      initialDate: _commitmentDeadline ?? _startDate.subtract(const Duration(days: 1)),
-      firstDate: DateTime.now(),
-      lastDate: _startDate,
-    );
-    
-    if (pickedDate != null && context.mounted) {
-      final pickedTime = await showTimePicker(
-        context: context,
-        initialTime: TimeOfDay.fromDateTime(_commitmentDeadline ?? DateTime.now()),
-      );
-      
-      if (pickedTime != null) {
-        setState(() {
-          _commitmentDeadline = DateTime(
-            pickedDate.year,
-            pickedDate.month,
-            pickedDate.day,
-            pickedTime.hour,
-            pickedTime.minute,
-          );
-        });
-      }
-    }
-  }
 
   void _createChallenge() async {
+    if (!_formKey.currentState!.validate()) {
+      return;
+    }
+
     final user = ref.read(userProvider);
     if (user == null) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -360,15 +377,19 @@ class _CreateChallengePageState extends ConsumerState<CreateChallengePage> {
     try {
       final createChallengeUseCase = ref.read(createChallengeUseCaseProvider);
       
+      final description = _descriptionController.text.trim().isNotEmpty
+          ? _descriptionController.text.trim()
+          : 'Weekly challenge for personal goals and accountability';
+      
       final result = await createChallengeUseCase.call(
         CreateChallengeParams(
           partyId: widget.party.id,
           createdBy: user.id,
-          name: _generateChallengeName(),
-          description: 'Members will commit to their personal goals for this week',
+          name: _challengeName,
+          description: description,
           startDate: _startDate,
           endDate: _endDate,
-          commitmentDeadline: _hasCommitmentDeadline ? _commitmentDeadline : null,
+          commitmentDeadline: null, // No longer using commitment deadlines
         ),
       );
 
@@ -411,24 +432,61 @@ class _CreateChallengePageState extends ConsumerState<CreateChallengePage> {
     }
   }
 
+  void _selectStartDate(BuildContext context) async {
+    final DateTime? picked = await showDatePicker(
+      context: context,
+      initialDate: _startDate,
+      firstDate: DateTime.now().subtract(const Duration(days: 30)), // Allow selecting up to 30 days in the past
+      lastDate: DateTime.now().add(const Duration(days: 365)),
+      helpText: 'Select Start Date',
+    );
+    
+    if (picked != null && picked != _startDate) {
+      setState(() {
+        _startDate = picked;
+        
+        // Adjust end date if needed to maintain max 7 days
+        final maxEndDate = _startDate.add(const Duration(days: 7));
+        if (_endDate.isAfter(maxEndDate)) {
+          _endDate = maxEndDate.subtract(const Duration(seconds: 1)); // End at 23:59:59
+        }
+        
+        // Ensure end date is not before start date
+        if (_endDate.isBefore(_startDate)) {
+          _endDate = _startDate.add(const Duration(days: 6, hours: 23, minutes: 59, seconds: 59));
+        }
+        
+        // Update challenge name
+        _challengeName = _formatWeekRange(_startDate, _endDate);
+      });
+    }
+  }
+
+  void _selectEndDate(BuildContext context) async {
+    final maxEndDate = _startDate.add(const Duration(days: 7));
+    
+    final DateTime? picked = await showDatePicker(
+      context: context,
+      initialDate: _endDate.isAfter(maxEndDate) ? maxEndDate : _endDate,
+      firstDate: _startDate,
+      lastDate: maxEndDate,
+      helpText: 'Select End Date',
+    );
+    
+    if (picked != null && picked != _endDate) {
+      setState(() {
+        // Set to end of day (23:59:59)
+        _endDate = DateTime(picked.year, picked.month, picked.day, 23, 59, 59);
+        
+        // Update challenge name
+        _challengeName = _formatWeekRange(_startDate, _endDate);
+      });
+    }
+  }
+
   String _formatDate(DateTime date) {
     final months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
     final weekdays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-    return '${weekdays[date.weekday - 1]}, ${months[date.month - 1]} ${date.day}, ${date.year}';
-  }
-
-  String _formatDateTime(DateTime dateTime) {
-    return '${_formatDate(dateTime)} at ${dateTime.hour.toString().padLeft(2, '0')}:${dateTime.minute.toString().padLeft(2, '0')}';
-  }
-
-  String _generateChallengeName() {
-    final startMonth = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'][_startDate.month - 1];
-    final endMonth = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'][_endDate.month - 1];
-    
-    if (_startDate.month == _endDate.month) {
-      return 'Week of $startMonth ${_startDate.day}-${_endDate.day}, ${_startDate.year}';
-    } else {
-      return 'Week of $startMonth ${_startDate.day} - $endMonth ${_endDate.day}, ${_startDate.year}';
-    }
+    return '${weekdays[date.weekday - 1]}, ${months[date.month - 1]} ${date.day}';
   }
 }

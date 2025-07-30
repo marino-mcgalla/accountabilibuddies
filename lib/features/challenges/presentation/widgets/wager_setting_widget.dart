@@ -28,9 +28,11 @@ class _WagerSettingWidgetState extends State<WagerSettingWidget> {
   @override
   void initState() {
     super.initState();
-    _hasWager = widget.wagerAmount != null && widget.wagerAmount! > 0;
+    _hasWager = true; // Always require a wager
     _controller = TextEditingController(
-      text: _hasWager ? widget.wagerAmount!.toStringAsFixed(2) : '',
+      text: widget.wagerAmount != null && widget.wagerAmount! > 0 
+          ? widget.wagerAmount!.toStringAsFixed(2) 
+          : '',
     );
   }
 
@@ -96,64 +98,49 @@ class _WagerSettingWidgetState extends State<WagerSettingWidget> {
             ),
             const SizedBox(height: 16),
 
-            // No Wager Option
-            CheckboxListTile(
-              value: !_hasWager,
-              onChanged: (value) {
-                setState(() {
-                  _hasWager = !(value ?? false);
-                  if (!_hasWager) {
-                    _controller.clear();
-                  }
-                });
-                _updateWager();
-              },
-              title: const Text('No wager (play for accountability only)'),
-              dense: true,
-              contentPadding: EdgeInsets.zero,
+            // Wager Amount Input
+            Text(
+              'Enter Amount',
+              style: Theme.of(context).textTheme.titleSmall,
             ),
-
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                Expanded(
+                  child: TextFormField(
+                    controller: _controller,
+                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                    inputFormatters: [
+                      FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d{0,2}')),
+                    ],
+                    decoration: InputDecoration(
+                      prefixText: '\$',
+                      hintText: '0.00',
+                      border: const OutlineInputBorder(),
+                      suffixText: widget.currency,
+                    ),
+                    onChanged: (_) => _updateWager(),
+                  ),
+                ),
+              ],
+            ),
             const SizedBox(height: 16),
 
-            // Wager Amount Input
-            if (_hasWager) ...[
-              Text(
-                'Enter Amount',
-                style: Theme.of(context).textTheme.titleSmall,
-              ),
-              const SizedBox(height: 8),
-              Row(
-                children: [
-                  Expanded(
-                    child: TextFormField(
-                      controller: _controller,
-                      keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                      inputFormatters: [
-                        FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d{0,2}')),
-                      ],
-                      decoration: InputDecoration(
-                        prefixText: '\$',
-                        hintText: '0.00',
-                        border: const OutlineInputBorder(),
-                        suffixText: widget.currency,
-                      ),
-                      onChanged: (_) => _updateWager(),
-                    ),
+            // Preset Amounts
+            Text(
+              'Quick Amounts',
+              style: Theme.of(context).textTheme.titleSmall,
+            ),
+            const SizedBox(height: 8),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                  _PresetChip(
+                    amount: 0,
+                    onTap: () => _setPresetAmount(0),
+                    isSelected: _controller.text == '0.00',
                   ),
-                ],
-              ),
-              const SizedBox(height: 16),
-
-              // Preset Amounts
-              Text(
-                'Quick Amounts',
-                style: Theme.of(context).textTheme.titleSmall,
-              ),
-              const SizedBox(height: 8),
-              Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                children: [
                   _PresetChip(
                     amount: 5,
                     onTap: () => _setPresetAmount(5),
@@ -220,7 +207,6 @@ class _WagerSettingWidgetState extends State<WagerSettingWidget> {
                   ],
                 ),
               ),
-            ],
           ],
         ),
       ),

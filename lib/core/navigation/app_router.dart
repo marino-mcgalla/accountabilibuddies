@@ -3,56 +3,70 @@ import 'package:go_router/go_router.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'app_routes.dart';
 import 'main_navigation_shell.dart';
-import 'placeholder_screens.dart' hide LoginScreen, RegisterScreen, ForgotPasswordScreen;
+import 'placeholder_screens.dart' hide LoginScreen, RegisterScreen, ForgotPasswordScreen, DashboardScreen;
 import '../../features/goals/goals.dart';
 import '../../features/auth/auth.dart';
 import '../../features/parties/presentation/pages/party_detail_page.dart';
+import '../../features/parties/presentation/pages/party_list_page.dart';
 import '../../features/parties/presentation/pages/create_party_page.dart';
 import '../../features/parties/presentation/pages/join_party_page.dart';
 import '../../features/parties/presentation/pages/invite_to_party_page.dart';
+import '../../features/challenges/presentation/pages/challenge_summary_page.dart';
+import '../../features/dashboard/presentation/pages/dashboard_page.dart';
 
 // Provider for the GoRouter instance
 final routerProvider = Provider<GoRouter>((ref) {
+  // Watch auth state but handle loading gracefully
   final authState = ref.watch(authControllerProvider);
   
   return GoRouter(
     initialLocation: AppRoutes.splash,
     redirect: (context, state) {
-      final isAuthenticated = authState.isAuthenticated;
-      final isOnboarded = authState.isOnboarded;
-      
-      final currentPath = state.fullPath ?? '';
-      
-      // Handle authentication redirects
-      if (!isAuthenticated) {
-        // Allow access to auth routes when not authenticated
-        if (currentPath.startsWith('/auth') || 
-            currentPath == AppRoutes.splash ||
-            currentPath == AppRoutes.onboarding) {
+      try {
+        
+        // If auth is still loading, stay on current route
+        if (authState.isLoading) {
           return null;
         }
+        
+        final isAuthenticated = authState.isAuthenticated;
+        final isOnboarded = authState.isOnboarded;
+        final currentPath = state.fullPath ?? '';
+        
+        // Handle authentication redirects
+        if (!isAuthenticated) {
+          // Allow access to auth routes when not authenticated
+          if (currentPath.startsWith('/auth') || 
+              currentPath == AppRoutes.splash ||
+              currentPath == AppRoutes.onboarding) {
+            return null;
+          }
+          return AppRoutes.authLogin;
+        }
+        
+        // Handle onboarding redirects
+        if (isAuthenticated && !isOnboarded) {
+          if (currentPath == AppRoutes.onboarding) {
+            return null;
+          }
+          return AppRoutes.onboarding;
+        }
+        
+        // Redirect authenticated users away from auth routes
+        if (isAuthenticated && currentPath.startsWith('/auth')) {
+          return AppRoutes.dashboard;
+        }
+        
+        // Redirect onboarded users away from onboarding
+        if (isOnboarded && currentPath == AppRoutes.onboarding) {
+          return AppRoutes.dashboard;
+        }
+        
+        return null;
+      } catch (e) {
+        // If there's an error with auth state, go to login
         return AppRoutes.authLogin;
       }
-      
-      // Handle onboarding redirects
-      if (isAuthenticated && !isOnboarded) {
-        if (currentPath == AppRoutes.onboarding) {
-          return null;
-        }
-        return AppRoutes.onboarding;
-      }
-      
-      // Redirect authenticated users away from auth routes
-      if (isAuthenticated && currentPath.startsWith('/auth')) {
-        return AppRoutes.dashboard;
-      }
-      
-      // Redirect onboarded users away from onboarding
-      if (isOnboarded && currentPath == AppRoutes.onboarding) {
-        return AppRoutes.dashboard;
-      }
-      
-      return null;
     },
     routes: [
       // Splash Screen
@@ -94,7 +108,7 @@ final routerProvider = Provider<GoRouter>((ref) {
           GoRoute(
             path: AppRoutes.dashboard,
             name: AppRoutes.dashboardName,
-            builder: (context, state) => const DashboardScreen(),
+            builder: (context, state) => const DashboardPage(),
           ),
           
           // Goals
@@ -159,7 +173,18 @@ final routerProvider = Provider<GoRouter>((ref) {
           GoRoute(
             path: AppRoutes.party,
             name: AppRoutes.partyName,
-            builder: (context, state) => const PartyScreen(),
+            redirect: (context, state) {
+              // Get the selected party ID from the dashboard provider
+              final selectedPartyId = ref.read(selectedPartyIdProvider);
+              
+              // If a party is selected, go directly to that party
+              if (selectedPartyId != null) {
+                return '/party/$selectedPartyId';
+              }
+              
+              // Otherwise, go to the party list
+              return '/party/list';
+            },
             routes: [
               GoRoute(
                 path: 'create',
@@ -187,6 +212,11 @@ final routerProvider = Provider<GoRouter>((ref) {
                 path: 'approvals',
                 name: AppRoutes.partyApprovalsName,
                 builder: (context, state) => const ProofApprovalsScreen(),
+              ),
+              GoRoute(
+                path: 'list',
+                name: 'party-list',
+                builder: (context, state) => const PartyListPage(),
               ),
               GoRoute(
                 path: ':partyId',
@@ -236,6 +266,15 @@ final routerProvider = Provider<GoRouter>((ref) {
             builder: (context, state) => const AboutScreen(),
           ),
         ],
+      ),
+      
+      // Challenge Summary (standalone full-screen route)
+      GoRoute(
+        path: '/challenge/summary/:challengeId',
+        name: AppRoutes.challengeSummaryName,
+        builder: (context, state) => ChallengeSummaryPage(
+          challengeId: state.pathParameters['challengeId']!,
+        ),
       ),
     ],
     errorBuilder: (context, state) => Scaffold(

@@ -49,40 +49,16 @@ class StartChallengeUseCase {
         ));
       }
 
-      // Validate challenge state
-      if (challenge.status != ChallengeStatus.pending) {
+      // Validate challenge state - challenges are active upon creation now
+      if (challenge.status != ChallengeStatus.active) {
         return Result.failure(const ValidationFailure(
-          message: 'Challenge is not in pending state',
+          message: 'Challenge is already active or completed',
         ));
       }
 
-      // Check if challenge start date has been reached
-      final now = DateTime.now();
-      if (challenge.startDate.isAfter(now)) {
-        return Result.failure(const ValidationFailure(
-          message: 'Challenge cannot be started before its start date',
-        ));
-      }
-
-      // Get all commitments to validate that at least one member has committed
-      final commitmentsResult = await _challengeRepository.getChallengeCommitments(params.challengeId);
-      if (commitmentsResult.isFailure) {
-        return Result.failure(commitmentsResult.failureOrNull!);
-      }
-
-      final commitments = commitmentsResult.valueOrNull!;
-      final committedCount = commitments.where((c) => c.isCommitted).length;
-
-      if (committedCount == 0) {
-        return Result.failure(const ValidationFailure(
-          message: 'At least one member must commit before starting the challenge',
-        ));
-      }
-
-      logger.info('StartChallengeUseCase: Starting challenge ${challenge.id} with $committedCount committed members');
-
-      // Start the challenge
-      return await _challengeRepository.startChallenge(params.challengeId);
+      // Challenges are active immediately, so just return the challenge
+      logger.info('StartChallengeUseCase: Challenge ${challenge.id} is already active');
+      return Result.success(challenge);
     } catch (e, stackTrace) {
       logger.error('StartChallengeUseCase: Unexpected error', error: e, stackTrace: stackTrace);
       return Result.failure(UnknownFailure(

@@ -86,7 +86,7 @@ void showPendingInvites(BuildContext context, WidgetRef ref, List<PartyInvite> i
                                   Text(
                                     'Invited by ${invite.inviterName}',
                                     style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                      color: Colors.grey[600],
+                                      color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7),
                                     ),
                                   ),
                                 ],
@@ -100,13 +100,13 @@ void showPendingInvites(BuildContext context, WidgetRef ref, List<PartyInvite> i
                             Icon(
                               Icons.schedule,
                               size: 16,
-                              color: Colors.grey[600],
+                              color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7),
                             ),
                             const SizedBox(width: 4),
                             Text(
                               'Expires in ${invite.daysUntilExpiration} days',
                               style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                color: Colors.grey[600],
+                                color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7),
                               ),
                             ),
                           ],
@@ -803,7 +803,7 @@ class DashboardScreen extends ConsumerWidget {
                   Text(
                     'Let\'s make today count!',
                     style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      color: Colors.grey[600],
+                      color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7),
                     ),
                   ),
                 ],
@@ -1067,7 +1067,7 @@ class DashboardScreen extends ConsumerWidget {
           Text(
             'Review and adjust your goals before the next challenge starts',
             style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-              color: Colors.grey[600],
+              color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7),
             ),
           ),
           const SizedBox(height: 16),
@@ -1092,7 +1092,7 @@ class DashboardScreen extends ConsumerWidget {
         width: (MediaQuery.of(context).size.width - 72) / 2, // Responsive width for 2 columns
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
-          border: Border.all(color: Colors.grey[300]!),
+          border: Border.all(color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.3)),
           borderRadius: BorderRadius.circular(8),
           color: Theme.of(context).colorScheme.surface,
         ),
@@ -1130,20 +1130,20 @@ class DashboardScreen extends ConsumerWidget {
           Icon(
             Icons.flag_outlined,
             size: 48,
-            color: Colors.grey[400],
+            color: Theme.of(context).colorScheme.onSurface.withOpacity(0.5),
           ),
           const SizedBox(height: 8),
           Text(
             'No goal templates yet',
             style: Theme.of(context).textTheme.titleMedium?.copyWith(
-              color: Colors.grey[600],
+              color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7),
             ),
           ),
           const SizedBox(height: 4),
           Text(
             'Create goal templates to plan for your next challenge!',
             style: Theme.of(context).textTheme.bodySmall?.copyWith(
-              color: Colors.grey[600],
+              color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7),
             ),
             textAlign: TextAlign.center,
           ),
@@ -1204,7 +1204,7 @@ class DashboardScreen extends ConsumerWidget {
                     Text(
                       'Party: ${party.name}',
                       style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: Colors.grey[600],
+                        color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7),
                       ),
                     ),
                   ],
@@ -1233,13 +1233,13 @@ class DashboardScreen extends ConsumerWidget {
               Icon(
                 Icons.calendar_today,
                 size: 16,
-                color: Colors.grey[600],
+                color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7),
               ),
               const SizedBox(width: 4),
               Text(
                 '${_formatChallengeDate(challenge.startDate)} - ${_formatChallengeDate(challenge.endDate)}',
                 style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: Colors.grey[600],
+                  color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7),
                 ),
               ),
             ],
@@ -1286,20 +1286,20 @@ class DashboardScreen extends ConsumerWidget {
           Icon(
             Icons.event_busy,
             size: 48,
-            color: Colors.grey[400],
+            color: Theme.of(context).colorScheme.onSurface.withOpacity(0.5),
           ),
           const SizedBox(height: 8),
           Text(
             'No active challenge',
             style: Theme.of(context).textTheme.titleMedium?.copyWith(
-              color: Colors.grey[600],
+              color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7),
             ),
           ),
           const SizedBox(height: 4),
           Text(
             'Check back soon or ask your party leader to start one!',
             style: Theme.of(context).textTheme.bodySmall?.copyWith(
-              color: Colors.grey[600],
+              color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7),
             ),
             textAlign: TextAlign.center,
           ),
@@ -1320,6 +1320,8 @@ class DashboardScreen extends ConsumerWidget {
         return Colors.purple;
       case ChallengeStatus.cancelled:
         return Colors.red;
+      case ChallengeStatus.summary:
+        return Colors.indigo;
     }
   }
   
@@ -1363,7 +1365,7 @@ class DashboardScreen extends ConsumerWidget {
                         Text(
                           'No parties yet',
                           style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                            color: Colors.grey[600],
+                            color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7),
                           ),
                         ),
                         const SizedBox(height: 8),
@@ -1398,7 +1400,9 @@ class DashboardScreen extends ConsumerWidget {
               error: (error, stack) => Center(
                 child: Text(
                   'Failed to load parties',
-                  style: TextStyle(color: Colors.grey[600]),
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7),
+                  ),
                 ),
               ),
             ),
@@ -1428,7 +1432,7 @@ class DashboardScreen extends ConsumerWidget {
                   Text(
                     'No recent activity',
                     style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                      color: Colors.grey[600],
+                      color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7),
                     ),
                   ),
                 ],
@@ -1573,240 +1577,112 @@ class SubmitProofScreen extends StatelessWidget {
 }
 
 // Party screens
-class PartyScreen extends ConsumerWidget {
+class PartyScreen extends ConsumerStatefulWidget {
   const PartyScreen({super.key});
+  
+  @override
+  ConsumerState<PartyScreen> createState() => _PartyScreenState();
+}
+
+class _PartyScreenState extends ConsumerState<PartyScreen> {
+  bool _hasNavigated = false;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final partiesAsync = ref.watch(partiesProvider);
-    final pendingInvitesAsync = ref.watch(pendingInvitesProvider);
+  Widget build(BuildContext context) {
+    final userPartiesAsync = ref.watch(partiesProvider);
     
+    return userPartiesAsync.when(
+      data: (parties) {
+        if (parties.isEmpty) {
+          return _buildEmptyState(context);
+        }
+        
+        // If user has parties and we haven't navigated yet, navigate to the first one
+        if (!_hasNavigated) {
+          _hasNavigated = true;
+          // Using addPostFrameCallback to avoid building during build
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (context.mounted) {
+              context.go('/party/${parties.first.id}');
+            }
+          });
+        }
+        
+        // Return empty container while navigating
+        return const Center(
+          child: CircularProgressIndicator(),
+        );
+      },
+      loading: () => const Center(
+        child: CircularProgressIndicator(),
+      ),
+      error: (error, stack) => Center(
+        child: Text('Error loading parties: $error'),
+      ),
+    );
+  }
+
+
+  Widget _buildEmptyState(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
         title: const Text('My Parties'),
-        actions: [
-          // Pending invites notification
-          pendingInvitesAsync.when(
-            data: (invites) {
-              if (invites.isEmpty) return const SizedBox.shrink();
-              return Stack(
+        elevation: 0,
+        automaticallyImplyLeading: false,
+      ),
+      body: Center(
+        child: Padding(
+          padding: const EdgeInsets.all(32),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Icon(
+                Icons.group,
+                size: 96,
+                color: Colors.grey,
+              ),
+              const SizedBox(height: 24),
+              Text(
+                'No parties yet',
+                style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                  color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7),
+                ),
+              ),
+              const SizedBox(height: 16),
+              Text(
+                'Create or join a party to start building accountability with friends and track your goals together.',
+                style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                  color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7),
+                ),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 32),
+              Row(
                 children: [
-                  IconButton(
-                    icon: const Icon(Icons.mail),
-                    onPressed: () => showPendingInvites(context, ref, invites),
+                  Expanded(
+                    child: ElevatedButton.icon(
+                      onPressed: () => context.go('/party/create'),
+                      icon: const Icon(Icons.group_add),
+                      label: const Text('Create Party'),
+                    ),
                   ),
-                  Positioned(
-                    right: 8,
-                    top: 8,
-                    child: Container(
-                      padding: const EdgeInsets.all(2),
-                      decoration: BoxDecoration(
-                        color: Colors.red,
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      constraints: const BoxConstraints(
-                        minWidth: 16,
-                        minHeight: 16,
-                      ),
-                      child: Text(
-                        '${invites.length}',
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 12,
-                        ),
-                        textAlign: TextAlign.center,
-                      ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      onPressed: () => context.go('/party/join'),
+                      icon: const Icon(Icons.person_add),
+                      label: const Text('Join Party'),
                     ),
                   ),
                 ],
-              );
-            },
-            loading: () => const SizedBox.shrink(),
-            error: (_, __) => const SizedBox.shrink(),
-          ),
-        ],
-      ),
-      body: RefreshIndicator(
-        onRefresh: () async {
-          ref.invalidate(partiesProvider);
-          ref.invalidate(pendingInvitesProvider);
-        },
-        child: partiesAsync.when(
-          data: (parties) {
-            if (parties.isEmpty) {
-              return _buildEmptyState(context, ref);
-            }
-            
-            return ListView.builder(
-              padding: const EdgeInsets.all(16),
-              itemCount: parties.length,
-              itemBuilder: (context, index) {
-                final party = parties[index];
-                return Card(
-                  margin: const EdgeInsets.only(bottom: 12),
-                  child: ListTile(
-                    leading: CircleAvatar(
-                      backgroundColor: Theme.of(context).colorScheme.primary,
-                      child: Text(
-                        party.name[0].toUpperCase(),
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ),
-                    title: Text(
-                      party.name,
-                      style: Theme.of(context).textTheme.titleMedium,
-                    ),
-                    subtitle: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text('${party.memberCount} members'),
-                        if (party.description != null && party.description!.isNotEmpty)
-                          Text(
-                            party.description!,
-                            style: Theme.of(context).textTheme.bodySmall,
-                          ),
-                      ],
-                    ),
-                    trailing: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        if (party.leaderId == ref.read(userProvider)?.id)
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                            decoration: BoxDecoration(
-                              color: Colors.orange.withOpacity(0.2),
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            child: Text(
-                              'LEADER',
-                              style: TextStyle(
-                                color: Colors.orange[700],
-                                fontSize: 10,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                          ),
-                        const SizedBox(width: 8),
-                        const Icon(Icons.chevron_right),
-                      ],
-                    ),
-                    onTap: () => context.go('${AppRoutes.party}/${party.id}'),
-                  ),
-                );
-              },
-            );
-          },
-          loading: () => const Center(child: CircularProgressIndicator()),
-          error: (error, stack) => Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                const Icon(Icons.error, size: 64, color: Colors.red),
-                const SizedBox(height: 16),
-                Text('Failed to load parties'),
-                const SizedBox(height: 8),
-                ElevatedButton(
-                  onPressed: () => ref.invalidate(partiesProvider),
-                  child: const Text('Retry'),
-                ),
-              ],
-            ),
+              ),
+            ],
           ),
         ),
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: () => context.go('/party/create'),
         child: const Icon(Icons.add),
-      ),
-    );
-  }
-
-  Widget _buildEmptyState(BuildContext context, WidgetRef ref) {
-    final pendingInvitesAsync = ref.watch(pendingInvitesProvider);
-    
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(32),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const Icon(
-              Icons.group,
-              size: 96,
-              color: Colors.grey,
-            ),
-            const SizedBox(height: 24),
-            Text(
-              'No parties yet',
-              style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                color: Colors.grey[600],
-              ),
-            ),
-            const SizedBox(height: 16),
-            Text(
-              'Create or join a party to start building accountability with friends and track your goals together.',
-              style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                color: Colors.grey[600],
-              ),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 32),
-            Row(
-              children: [
-                Expanded(
-                  child: ElevatedButton.icon(
-                    onPressed: () => context.go('/party/create'),
-                    icon: const Icon(Icons.group_add),
-                    label: const Text('Create Party'),
-                  ),
-                ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: OutlinedButton.icon(
-                    onPressed: () => context.go('/party/join'),
-                    icon: const Icon(Icons.person_add),
-                    label: const Text('Join Party'),
-                  ),
-                ),
-              ],
-            ),
-            
-            // Show pending invites if any
-            const SizedBox(height: 24),
-            pendingInvitesAsync.when(
-              data: (invites) {
-                if (invites.isEmpty) return const SizedBox.shrink();
-                return Column(
-                  children: [
-                    const Divider(),
-                    const SizedBox(height: 16),
-                    Text(
-                      'You have ${invites.length} pending invitation${invites.length == 1 ? '' : 's'}',
-                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        color: Colors.orange[700],
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    ElevatedButton.icon(
-                      onPressed: () => showPendingInvites(context, ref, invites),
-                      icon: const Icon(Icons.mail),
-                      label: const Text('View Invitations'),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.orange,
-                        foregroundColor: Colors.white,
-                      ),
-                    ),
-                  ],
-                );
-              },
-              loading: () => const SizedBox.shrink(),
-              error: (_, __) => const SizedBox.shrink(),
-            ),
-          ],
-        ),
       ),
     );
   }
@@ -1915,14 +1791,284 @@ class ProofApprovalsScreen extends StatelessWidget {
 }
 
 // Profile screens
-class ProfileScreen extends StatelessWidget {
+class ProfileScreen extends ConsumerStatefulWidget {
   const ProfileScreen({super.key});
 
   @override
+  ConsumerState<ProfileScreen> createState() => _ProfileScreenState();
+}
+
+class _ProfileScreenState extends ConsumerState<ProfileScreen> {
+  final _displayNameController = TextEditingController();
+  bool _isUpdating = false;
+
+  @override
+  void dispose() {
+    _displayNameController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _updateDisplayName() async {
+    final newDisplayName = _displayNameController.text.trim();
+    if (newDisplayName.isEmpty) return;
+
+    setState(() {
+      _isUpdating = true;
+    });
+
+    try {
+      final authRepository = ref.read(authRepositoryProvider);
+      final result = await authRepository.updateProfile(displayName: newDisplayName);
+      
+      if (mounted) {
+        result.fold(
+          onSuccess: (_) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Display name updated successfully!'),
+                backgroundColor: Colors.green,
+              ),
+            );
+            _displayNameController.clear();
+          },
+          onFailure: (failure) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('Failed to update display name: ${failure.message}'),
+                backgroundColor: Colors.red,
+              ),
+            );
+          },
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('An error occurred: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isUpdating = false;
+        });
+      }
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final user = ref.watch(userProvider);
+
     return Scaffold(
-      appBar: AppBar(title: const Text('Profile')),
-      body: const Center(child: Text('Profile Screen - Coming Soon')),
+      appBar: AppBar(
+        title: const Text('Profile'),
+      ),
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // User Info Section
+            Card(
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        CircleAvatar(
+                          radius: 40,
+                          backgroundColor: Theme.of(context).colorScheme.primary,
+                          child: user?.photoUrl != null 
+                              ? ClipOval(
+                                  child: Image.network(
+                                    user!.photoUrl!,
+                                    width: 80,
+                                    height: 80,
+                                    fit: BoxFit.cover,
+                                  ),
+                                )
+                              : Text(
+                                  user?.displayName?.substring(0, 1).toUpperCase() ?? 
+                                  user?.email.substring(0, 1).toUpperCase() ?? 'U',
+                                  style: const TextStyle(
+                                    fontSize: 32,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.white,
+                                  ),
+                                ),
+                        ),
+                        const SizedBox(width: 16),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                user?.displayName ?? 'No display name set',
+                                style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                user?.email ?? 'No email',
+                                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                  color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            
+            const SizedBox(height: 24),
+            
+            // Display Name Section
+            Card(
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Display Name',
+                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      'Your display name is shown to other users in parties and challenges.',
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    TextFormField(
+                      controller: _displayNameController,
+                      decoration: InputDecoration(
+                        labelText: 'New display name',
+                        hintText: user?.displayName ?? 'Enter your display name',
+                        border: const OutlineInputBorder(),
+                        suffixIcon: _isUpdating
+                            ? const Padding(
+                                padding: EdgeInsets.all(14),
+                                child: SizedBox(
+                                  width: 20,
+                                  height: 20,
+                                  child: CircularProgressIndicator(strokeWidth: 2),
+                                ),
+                              )
+                            : null,
+                      ),
+                      textCapitalization: TextCapitalization.words,
+                      maxLength: 50,
+                    ),
+                    const SizedBox(height: 16),
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton(
+                        onPressed: _isUpdating ? null : _updateDisplayName,
+                        child: _isUpdating
+                            ? const Text('Updating...')
+                            : const Text('Update Display Name'),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            
+            const SizedBox(height: 24),
+            
+            // Account Info Section
+            Card(
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Account Information',
+                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    _buildInfoRow(
+                      context,
+                      'Email',
+                      user?.email ?? 'Not available',
+                      Icons.email,
+                    ),
+                    const SizedBox(height: 12),
+                    _buildInfoRow(
+                      context,
+                      'Email Verified',
+                      user?.isEmailVerified == true ? 'Yes' : 'No',
+                      user?.isEmailVerified == true ? Icons.verified : Icons.warning,
+                      valueColor: user?.isEmailVerified == true ? Colors.green : Colors.orange,
+                    ),
+                    const SizedBox(height: 12),
+                    _buildInfoRow(
+                      context,
+                      'Member Since',
+                      user?.createdAt != null 
+                          ? '${user!.createdAt.day}/${user.createdAt.month}/${user.createdAt.year}'
+                          : 'Not available',
+                      Icons.calendar_today,
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildInfoRow(
+    BuildContext context,
+    String label,
+    String value,
+    IconData icon, {
+    Color? valueColor,
+  }) {
+    return Row(
+      children: [
+        Icon(
+          icon,
+          size: 20,
+          color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7),
+        ),
+        const SizedBox(width: 12),
+        Text(
+          '$label:',
+          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+            fontWeight: FontWeight.w500,
+          ),
+        ),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Text(
+            value,
+            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+              color: valueColor ?? Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.8),
+            ),
+          ),
+        ),
+      ],
     );
   }
 }
@@ -2035,7 +2181,7 @@ class _ActiveChallengeDisplay extends ConsumerWidget {
                     Text(
                       'Party: ${party.name}',
                       style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: Colors.grey[600],
+                        color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7),
                       ),
                     ),
                   ],
@@ -2064,13 +2210,13 @@ class _ActiveChallengeDisplay extends ConsumerWidget {
               Icon(
                 Icons.calendar_today,
                 size: 16,
-                color: Colors.grey[600],
+                color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7),
               ),
               const SizedBox(width: 4),
               Text(
                 '${_formatChallengeDate(challenge.startDate)} - ${_formatChallengeDate(challenge.endDate)}',
                 style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: Colors.grey[600],
+                  color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7),
                 ),
               ),
             ],
@@ -2117,20 +2263,20 @@ class _ActiveChallengeDisplay extends ConsumerWidget {
           Icon(
             Icons.event_busy,
             size: 48,
-            color: Colors.grey[400],
+            color: Theme.of(context).colorScheme.onSurface.withOpacity(0.5),
           ),
           const SizedBox(height: 8),
           Text(
             'No active challenge',
             style: Theme.of(context).textTheme.titleMedium?.copyWith(
-              color: Colors.grey[600],
+              color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7),
             ),
           ),
           const SizedBox(height: 4),
           Text(
             'Check back soon or ask your party leader to start one!',
             style: Theme.of(context).textTheme.bodySmall?.copyWith(
-              color: Colors.grey[600],
+              color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7),
             ),
             textAlign: TextAlign.center,
           ),
@@ -2151,6 +2297,8 @@ class _ActiveChallengeDisplay extends ConsumerWidget {
         return Colors.purple;
       case ChallengeStatus.cancelled:
         return Colors.red;
+      case ChallengeStatus.summary:
+        return Colors.indigo;
     }
   }
   

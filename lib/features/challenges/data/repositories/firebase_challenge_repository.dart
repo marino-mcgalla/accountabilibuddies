@@ -1,19 +1,23 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../../../core/core.dart';
 import '../../domain/entities/challenge.dart';
-import '../../domain/entities/challenge_commitment.dart';
+import '../../domain/entities/user_challenge_participation.dart';
 import '../../domain/repositories/challenge_repository.dart';
+import '../../domain/repositories/proof_repository.dart';
 import '../models/challenge_model.dart';
-import '../models/challenge_commitment_model.dart';
+import '../models/user_challenge_participation_model.dart';
 
 class FirebaseChallengeRepository implements ChallengeRepository {
   final FirebaseFirestore _firestore;
+  final ProofRepository _proofRepository;
   final String _challengesCollection = 'challenges';
-  final String _commitmentsCollection = 'challengeCommitments';
+  final String _participantsSubcollection = 'participants';
 
   FirebaseChallengeRepository({
     FirebaseFirestore? firestore,
-  }) : _firestore = firestore ?? FirebaseFirestore.instance;
+    required ProofRepository proofRepository,
+  }) : _firestore = firestore ?? FirebaseFirestore.instance,
+        _proofRepository = proofRepository;
 
   @override
   Future<Result<List<Challenge>>> getChallenges(String partyId) async {
@@ -101,20 +105,21 @@ class FirebaseChallengeRepository implements ChallengeRepository {
   @override
   Future<Result<void>> deleteChallenge(String challengeId) async {
     try {
-      // Delete all commitments first
-      final commitmentsQuery = await _firestore
-          .collection(_commitmentsCollection)
-          .where('challengeId', isEqualTo: challengeId)
+      // Delete all participants in the subcollection first
+      final participantsQuery = await _firestore
+          .collection(_challengesCollection)
+          .doc(challengeId)
+          .collection(_participantsSubcollection)
           .get();
 
       final batch = _firestore.batch();
       
-      // Delete all commitments
-      for (final doc in commitmentsQuery.docs) {
+      // Delete all participants from the subcollection
+      for (final doc in participantsQuery.docs) {
         batch.delete(doc.reference);
       }
       
-      // Delete the challenge
+      // Delete the challenge document itself
       batch.delete(_firestore.collection(_challengesCollection).doc(challengeId));
       
       await batch.commit();
@@ -130,7 +135,7 @@ class FirebaseChallengeRepository implements ChallengeRepository {
       final querySnapshot = await _firestore
           .collection(_challengesCollection)
           .where('partyId', isEqualTo: partyId)
-          .where('status', whereIn: [ChallengeStatus.pending.name, ChallengeStatus.active.name])
+          .where('status', isEqualTo: ChallengeStatus.active.name)
           .limit(1)
           .get();
 
@@ -196,118 +201,161 @@ class FirebaseChallengeRepository implements ChallengeRepository {
   }
 
   @override
-  Future<Result<List<ChallengeCommitment>>> getChallengeCommitments(String challengeId) async {
+  Future<Result<List<UserChallengeParticipation>>> getChallengeParticipations(String challengeId) async {
     try {
+      logger.debug('FirebaseChallengeRepository: Getting all participations for challenge $challengeId');
+      
       final querySnapshot = await _firestore
-          .collection(_commitmentsCollection)
-          .where('challengeId', isEqualTo: challengeId)
+          .collection(_challengesCollection)
+          .doc(challengeId)
+          .collection(_participantsSubcollection)
           .get();
 
-      final commitments = querySnapshot.docs
-          .map((doc) => ChallengeCommitmentModel.fromFirestore(doc).toEntity())
+      final participations = querySnapshot.docs
+          .map((doc) => UserChallengeParticipationModel.fromFirestore(doc).toEntity())
           .toList();
 
-      return Result.success(commitments);
+      logger.debug('FirebaseChallengeRepository: Retrieved ${participations.length} participations');
+      return Result.success(participations);
     } catch (e, stackTrace) {
+      logger.error('FirebaseChallengeRepository: Error getting challenge participations', error: e, stackTrace: stackTrace);
       return Result.failure(_mapException(e, stackTrace));
     }
   }
 
   @override
-  Future<Result<ChallengeCommitment?>> getUserCommitment(String challengeId, String userId) async {
+  Future<Result<UserChallengeParticipation?>> getUserParticipation(String challengeId, String userId) async {
     try {
-      final querySnapshot = await _firestore
-          .collection(_commitmentsCollection)
-          .where('challengeId', isEqualTo: challengeId)
-          .where('userId', isEqualTo: userId)
-          .limit(1)
+      logger.debug('FirebaseChallengeRepository: Getting user participation for user $userId in challenge $challengeId');
+      
+      final doc = await _firestore
+          .collection(_challengesCollection)
+          .doc(challengeId)
+          .collection(_participantsSubcollection)
+          .doc(userId)
           .get();
 
-      if (querySnapshot.docs.isEmpty) {
+      if (!doc.exists) {
+        logger.debug('FirebaseChallengeRepository: No participation found for user $userId in challenge $challengeId');
         return Result.success(null);
       }
 
-      final commitment = ChallengeCommitmentModel.fromFirestore(querySnapshot.docs.first).toEntity();
-      return Result.success(commitment);
+      final participation = UserChallengeParticipationModel.fromFirestore(doc).toEntity();
+      logger.debug('FirebaseChallengeRepository: Found participation for user $userId with status ${participation.status}');
+      return Result.success(participation);
     } catch (e, stackTrace) {
+      logger.error('FirebaseChallengeRepository: Error getting user participation', error: e, stackTrace: stackTrace);
       return Result.failure(_mapException(e, stackTrace));
     }
   }
 
   @override
-  Future<Result<ChallengeCommitment>> saveCommitment(ChallengeCommitment commitment) async {
+  Future<Result<UserChallengeParticipation>> saveParticipation(UserChallengeParticipation participation) async {
     try {
-      final docRef = commitment.id.isEmpty 
-          ? _firestore.collection(_commitmentsCollection).doc()
-          : _firestore.collection(_commitmentsCollection).doc(commitment.id);
+      // Use userId as document ID in the participants subcollection
+      final docRef = _firestore
+          .collection(_challengesCollection)
+          .doc(participation.challengeId)
+          .collection(_participantsSubcollection)
+          .doc(participation.userId);
       
-      final commitmentWithId = commitment.copyWith(
-        id: docRef.id,
+      final participationWithId = participation.copyWith(
+        id: participation.userId, // Use userId as the ID
         updatedAt: DateTime.now(),
       );
       
-      final commitmentModel = ChallengeCommitmentModel.fromEntity(commitmentWithId);
-      await docRef.set(commitmentModel.toFirestore());
+      final participationModel = UserChallengeParticipationModel.fromEntity(participationWithId);
+      await docRef.set(participationModel.toFirestore());
 
-      return Result.success(commitmentWithId);
+      // Update challenge total pool after saving participation
+      await _updateChallengePool(participation.challengeId);
+
+      logger.debug('FirebaseChallengeRepository: Saved participation for user ${participation.userId} in challenge ${participation.challengeId}');
+      return Result.success(participationWithId);
     } catch (e, stackTrace) {
+      logger.error('FirebaseChallengeRepository: Error saving participation', error: e, stackTrace: stackTrace);
       return Result.failure(_mapException(e, stackTrace));
     }
   }
 
   @override
-  Future<Result<void>> deleteCommitment(String commitmentId) async {
+  Future<Result<void>> deleteParticipation(String challengeId, String userId) async {
     try {
-      await _firestore.collection(_commitmentsCollection).doc(commitmentId).delete();
+      logger.debug('FirebaseChallengeRepository: Deleting participation for user $userId in challenge $challengeId');
+      
+      await _firestore
+          .collection(_challengesCollection)
+          .doc(challengeId)
+          .collection(_participantsSubcollection)
+          .doc(userId)
+          .delete();
+      
+      // Update challenge total pool after deleting participation
+      await _updateChallengePool(challengeId);
+      
+      logger.debug('FirebaseChallengeRepository: Deleted participation for user $userId');
       return Result.success(null);
     } catch (e, stackTrace) {
+      logger.error('FirebaseChallengeRepository: Error deleting participation', error: e, stackTrace: stackTrace);
       return Result.failure(_mapException(e, stackTrace));
     }
   }
 
   @override
-  Stream<Result<List<ChallengeCommitment>>> watchChallengeCommitments(String challengeId) {
+  Stream<Result<List<UserChallengeParticipation>>> watchChallengeParticipations(String challengeId) {
+    logger.debug('FirebaseChallengeRepository: Starting to watch participations for challenge $challengeId');
+    
     return _firestore
-        .collection(_commitmentsCollection)
-        .where('challengeId', isEqualTo: challengeId)
+        .collection(_challengesCollection)
+        .doc(challengeId)
+        .collection(_participantsSubcollection)
         .snapshots()
         .map((snapshot) {
       try {
-        final commitments = snapshot.docs
-            .map((doc) => ChallengeCommitmentModel.fromFirestore(doc).toEntity())
+        logger.debug('FirebaseChallengeRepository: Received participations snapshot with ${snapshot.docs.length} participants');
+        
+        final participations = snapshot.docs
+            .map((doc) => UserChallengeParticipationModel.fromFirestore(doc).toEntity())
             .toList();
             
-        return Result.success(commitments);
+        logger.debug('FirebaseChallengeRepository: Converted ${participations.length} participations');
+        return Result.success(participations);
       } catch (e, stackTrace) {
+        logger.error('FirebaseChallengeRepository: Error in watchChallengeParticipations', error: e, stackTrace: stackTrace);
         return Result.failure(_mapException(e, stackTrace));
       }
     });
   }
 
   @override
-  Stream<Result<ChallengeCommitment?>> watchUserCommitment(String challengeId, String userId) {
+  Stream<Result<UserChallengeParticipation?>> watchUserParticipation(String challengeId, String userId) {
+    logger.debug('FirebaseChallengeRepository: Starting to watch user participation for user $userId in challenge $challengeId');
+    
     return _firestore
-        .collection(_commitmentsCollection)
-        .where('challengeId', isEqualTo: challengeId)
-        .where('userId', isEqualTo: userId)
-        .limit(1)
+        .collection(_challengesCollection)
+        .doc(challengeId)
+        .collection(_participantsSubcollection)
+        .doc(userId)
         .snapshots()
-        .map((snapshot) {
+        .map((doc) {
       try {
-        if (snapshot.docs.isEmpty) {
+        if (!doc.exists) {
+          logger.debug('FirebaseChallengeRepository: No participation document exists for user $userId');
           return Result.success(null);
         }
         
-        final commitment = ChallengeCommitmentModel.fromFirestore(snapshot.docs.first).toEntity();
-        return Result.success(commitment);
+        final participation = UserChallengeParticipationModel.fromFirestore(doc).toEntity();
+        logger.debug('FirebaseChallengeRepository: Received participation update for user $userId with status ${participation.status}');
+        return Result.success(participation);
       } catch (e, stackTrace) {
+        logger.error('FirebaseChallengeRepository: Error in watchUserParticipation', error: e, stackTrace: stackTrace);
         return Result.failure(_mapException(e, stackTrace));
       }
     });
   }
 
   @override
-  Future<Result<Challenge>> startChallenge(String challengeId) async {
+  Future<Result<Challenge>> moveToSummary(String challengeId) async {
     try {
       final challengeResult = await getChallenge(challengeId);
       if (challengeResult.isFailure) {
@@ -316,27 +364,7 @@ class FirebaseChallengeRepository implements ChallengeRepository {
 
       final challenge = challengeResult.valueOrNull!;
       final updatedChallenge = challenge.copyWith(
-        status: ChallengeStatus.active,
-        updatedAt: DateTime.now(),
-      );
-
-      return await updateChallenge(updatedChallenge);
-    } catch (e, stackTrace) {
-      return Result.failure(_mapException(e, stackTrace));
-    }
-  }
-
-  @override
-  Future<Result<Challenge>> completeChallenge(String challengeId) async {
-    try {
-      final challengeResult = await getChallenge(challengeId);
-      if (challengeResult.isFailure) {
-        return Result.failure(challengeResult.failureOrNull!);
-      }
-
-      final challenge = challengeResult.valueOrNull!;
-      final updatedChallenge = challenge.copyWith(
-        status: ChallengeStatus.settling,
+        status: ChallengeStatus.summary,
         updatedAt: DateTime.now(),
       );
 
@@ -349,42 +377,81 @@ class FirebaseChallengeRepository implements ChallengeRepository {
   @override
   Future<Result<Challenge>> cancelChallenge(String challengeId) async {
     try {
+      logger.debug('FirebaseChallengeRepository: Cancelling challenge $challengeId');
+      
       final challengeResult = await getChallenge(challengeId);
       if (challengeResult.isFailure) {
         return Result.failure(challengeResult.failureOrNull!);
       }
 
       final challenge = challengeResult.valueOrNull!;
+      
+      // Delete all proof submissions for this challenge
+      logger.debug('FirebaseChallengeRepository: Deleting proofs for cancelled challenge $challengeId');
+      final deleteProofsResult = await _proofRepository.deleteProofsForChallenge(challengeId);
+      if (deleteProofsResult.isFailure) {
+        logger.error('FirebaseChallengeRepository: Failed to delete proofs for challenge $challengeId');
+        // Log the error but continue with challenge cancellation
+        // This ensures the challenge is still cancelled even if proof deletion fails
+      } else {
+        logger.debug('FirebaseChallengeRepository: Successfully deleted proofs for challenge $challengeId');
+      }
+      
+      // Update challenge status to cancelled
       final updatedChallenge = challenge.copyWith(
         status: ChallengeStatus.cancelled,
         updatedAt: DateTime.now(),
       );
 
-      return await updateChallenge(updatedChallenge);
+      final updateResult = await updateChallenge(updatedChallenge);
+      if (updateResult.isSuccess) {
+        logger.debug('FirebaseChallengeRepository: Successfully cancelled challenge $challengeId');
+      }
+      
+      return updateResult;
     } catch (e, stackTrace) {
+      logger.error('FirebaseChallengeRepository: Error cancelling challenge', error: e, stackTrace: stackTrace);
       return Result.failure(_mapException(e, stackTrace));
     }
   }
 
-  @override
-  Future<Result<Challenge>> settleChallenge(String challengeId) async {
+  /// Updates the challenge's total pool by calculating sum of all participant wagers
+  Future<void> _updateChallengePool(String challengeId) async {
     try {
-      final challengeResult = await getChallenge(challengeId);
-      if (challengeResult.isFailure) {
-        return Result.failure(challengeResult.failureOrNull!);
+      logger.debug('FirebaseChallengeRepository: Updating total pool for challenge $challengeId');
+      
+      // Get all participants for this challenge
+      final participantsSnapshot = await _firestore
+          .collection(_challengesCollection)
+          .doc(challengeId)
+          .collection(_participantsSubcollection)
+          .get();
+
+      // Calculate total pool from all participant wagers
+      double totalPool = 0.0;
+      for (final doc in participantsSnapshot.docs) {
+        final participation = UserChallengeParticipationModel.fromFirestore(doc);
+        if (participation.wagerAmount != null) {
+          totalPool += participation.wagerAmount!;
+        }
       }
 
-      final challenge = challengeResult.valueOrNull!;
-      final updatedChallenge = challenge.copyWith(
-        status: ChallengeStatus.completed,
-        updatedAt: DateTime.now(),
-      );
+      // Update the challenge document with the new total pool
+      await _firestore
+          .collection(_challengesCollection)
+          .doc(challengeId)
+          .update({
+            'totalPool': totalPool,
+            'updatedAt': Timestamp.fromDate(DateTime.now()),
+          });
 
-      return await updateChallenge(updatedChallenge);
+      logger.debug('FirebaseChallengeRepository: Updated total pool to \$${totalPool.toStringAsFixed(2)} for challenge $challengeId');
     } catch (e, stackTrace) {
-      return Result.failure(_mapException(e, stackTrace));
+      logger.error('FirebaseChallengeRepository: Error updating challenge pool', error: e, stackTrace: stackTrace);
+      // Don't throw - this is a background operation that shouldn't fail the main operation
     }
   }
+
 
   Failure _mapException(dynamic e, StackTrace stackTrace) {
     if (e is FirebaseException) {

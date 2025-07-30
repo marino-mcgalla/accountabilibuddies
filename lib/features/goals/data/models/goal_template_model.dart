@@ -35,7 +35,7 @@ class GoalTemplateModel extends GoalTemplate {
         orElse: () => GoalCategory.other,
       ),
       goalType: GoalType.values.firstWhere(
-        (e) => e.name == data['goalType'],
+        (e) => e.name == (data['goalType'] ?? data['type']), // Check both new and legacy field names
         orElse: () => GoalType.daily,
       ),
       plannedFrequency: data['plannedFrequency'] as int?,

@@ -555,6 +555,31 @@ class FirebasePartyRepository implements PartyRepository {
     });
   }
 
+  @override
+  Stream<Result<List<PartyInvite>>> watchSentInvites(String userId) {
+    return _firestore
+        .collection(_invitesCollection)
+        .where('inviterUserId', isEqualTo: userId)
+        .where('status', isEqualTo: PartyInviteStatus.pending.name)
+        .snapshots()
+        .map((snapshot) {
+      try {
+        final invites = snapshot.docs
+            .map((doc) => PartyInviteModel.fromFirestore(doc).toEntity())
+            .where((invite) => invite.isValid)
+            .toList();
+            
+        // Sort by createdAt descending (newest first)
+        invites.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+            
+        return Result.success(invites);
+      } catch (e, stackTrace) {
+        logger.error('FirebasePartyRepository: Error in watchSentInvites', error: e, stackTrace: stackTrace);
+        return Result.failure(_mapException(e, stackTrace));
+      }
+    });
+  }
+
   Failure _mapException(dynamic e, StackTrace stackTrace) {
     if (e is FirebaseException) {
       switch (e.code) {

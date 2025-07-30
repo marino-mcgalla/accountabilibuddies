@@ -15,10 +15,6 @@ class GoalsPage extends ConsumerWidget {
     final templatesAsync = ref.watch(goalTemplatesProvider);
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('My Goals'),
-        elevation: 0,
-      ),
       body: goalsAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (error, stack) => Center(

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'app_routes.dart';
+import '../../shared/widgets/global_notification_bar.dart';
 
 class MainNavigationShell extends StatefulWidget {
   const MainNavigationShell({
@@ -38,11 +39,66 @@ class _MainNavigationShellState extends State<MainNavigationShell> {
     }
   }
 
+  String _getAppBarTitle() {
+    switch (_currentIndex) {
+      case 0:
+        return 'Dashboard';
+      case 1:
+        return 'My Goals';
+      case 2:
+        // For party pages, let the page handle its own title in the custom header
+        return '';
+      case 3:
+        return 'Profile';
+      default:
+        return 'AccountabiliBuddies';
+    }
+  }
+
+  List<Widget> _getAppBarActions(BuildContext context) {
+    final actions = <Widget>[
+      // Global notification icon for all screens
+      const GlobalNotificationIcon(),
+    ];
+
+    // Add screen-specific actions
+    switch (_currentIndex) {
+      case 0: // Dashboard
+        actions.add(
+          IconButton(
+            icon: const Icon(Icons.settings),
+            onPressed: () => context.go(AppRoutes.settings),
+          ),
+        );
+        break;
+      case 1: // Goals
+        // No specific actions for goals page
+        break;
+      case 2: // Party
+        // Party notifications are already handled by GlobalNotificationIcon
+        break;
+      case 3: // Profile
+        // No specific actions for profile page
+        break;
+    }
+
+    return actions;
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     
+    // For party pages (index 2), don't show AppBar as they handle their own headers
+    final showAppBar = _currentIndex != 2;
+    
     return Scaffold(
+      appBar: showAppBar ? AppBar(
+        title: Text(_getAppBarTitle()),
+        elevation: 0,
+        automaticallyImplyLeading: false,
+        actions: _getAppBarActions(context),
+      ) : null,
       body: widget.child,
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: _currentIndex,

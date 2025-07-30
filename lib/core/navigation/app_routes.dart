@@ -49,6 +49,9 @@ class AppRoutes {
   static const String partyApprovalsName = 'party-approvals';
   static const String partyDetailName = 'party-detail';
   
+  // Challenge sub-route names
+  static const String challengeSummaryName = 'challenge-summary';
+  
   // Profile sub-route names
   static const String profileEditName = 'profile-edit';
   
@@ -69,4 +72,7 @@ extension AppRoutesExtension on AppRoutes {
   // Party routes with parameters
   static String partyDetail(String partyId) => '/party/$partyId';
   static String partyInvite(String partyId) => '/party/invite/$partyId';
+  
+  // Challenge routes with parameters
+  static String challengeSummary(String challengeId) => '/challenge/summary/$challengeId';
 }

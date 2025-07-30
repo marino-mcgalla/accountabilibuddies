@@ -2,6 +2,7 @@ import 'package:get_it/get_it.dart';
 import 'package:dio/dio.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../logging/logger_service.dart';
+import '../../features/auth/repositories/auth_repository.dart';
 
 /// Service locator instance
 final sl = GetIt.instance;
@@ -12,14 +13,14 @@ class ServiceLocator {
 
   /// Initialize all dependencies
   static Future<void> init() async {
+    // Core first (to avoid circular dependency)
+    _initCore();
+    
     // External dependencies
     await _initExternalDependencies();
 
-    // Core
-    _initCore();
-
-    // Features - will be added as we implement them
-    // _initAuth();
+    // Features
+    _initAuth();
     // _initGoals();
     // _initParty();
     // _initProofs();
@@ -48,7 +49,13 @@ class ServiceLocator {
             requestBody: true,
             responseBody: true,
             error: true,
-            logPrint: (log) => sl<LoggerService>().debug(log.toString()),
+            logPrint: (log) {
+              try {
+                sl<LoggerService>().debug(log.toString());
+              } catch (e) {
+                // Ignore logging errors - fallback will not be available
+              }
+            },
           ),
         ]),
     );
@@ -59,6 +66,14 @@ class ServiceLocator {
     // Logger
     sl.registerLazySingleton<LoggerService>(
       () => LoggerService(),
+    );
+  }
+
+  /// Initialize authentication services
+  static void _initAuth() {
+    // Auth repository
+    sl.registerLazySingleton<AuthRepository>(
+      () => FirebaseAuthRepository(),
     );
   }
 

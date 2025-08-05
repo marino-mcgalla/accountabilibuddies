@@ -679,30 +679,30 @@ class _EditGoalTemplatePageState extends ConsumerState<EditGoalTemplatePage> {
 
       if (mounted) {
         if (success) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Template updated successfully!'),
-              backgroundColor: Colors.green,
-            ),
-          );
+          // ScaffoldMessenger.of(context).showSnackBar(
+          //   const SnackBar(
+          //     content: Text('Template updated successfully!'),
+          //     backgroundColor: Colors.green,
+          //   ),
+          // );
           context.pop();
         } else {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Failed to update template'),
-              backgroundColor: Colors.red,
-            ),
-          );
+          // ScaffoldMessenger.of(context).showSnackBar(
+          //   const SnackBar(
+          //     content: Text('Failed to update template'),
+          //     backgroundColor: Colors.red,
+          //   ),
+          // );
         }
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error: $e'),
-            backgroundColor: Colors.red,
-          ),
-        );
+        // ScaffoldMessenger.of(context).showSnackBar(
+        //   SnackBar(
+        //     content: Text('Error: $e'),
+        //     backgroundColor: Colors.red,
+        //   ),
+        // );
       }
     } finally {
       if (mounted) {
@@ -773,20 +773,20 @@ class _EditGoalTemplatePageState extends ConsumerState<EditGoalTemplatePage> {
 
       if (mounted) {
         if (success) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Template archived successfully'),
-              backgroundColor: Colors.green,
-            ),
-          );
+          // ScaffoldMessenger.of(context).showSnackBar(
+          //   const SnackBar(
+          //     content: Text('Template archived successfully'),
+          //     backgroundColor: Colors.green,
+          //   ),
+          // );
           context.pop();
         } else {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Failed to archive template'),
-              backgroundColor: Colors.red,
-            ),
-          );
+          // ScaffoldMessenger.of(context).showSnackBar(
+          //   const SnackBar(
+          //     content: Text('Failed to archive template'),
+          //     backgroundColor: Colors.red,
+          //   ),
+          // );
         }
         setState(() {
           _isLoading = false;
@@ -805,20 +805,20 @@ class _EditGoalTemplatePageState extends ConsumerState<EditGoalTemplatePage> {
 
     if (mounted) {
       if (success) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Template reactivated successfully'),
-            backgroundColor: Colors.green,
-          ),
-        );
+        // ScaffoldMessenger.of(context).showSnackBar(
+        //   const SnackBar(
+        //     content: Text('Template reactivated successfully'),
+        //     backgroundColor: Colors.green,
+        //   ),
+        // );
         context.pop();
       } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Failed to reactivate template'),
-            backgroundColor: Colors.red,
-          ),
-        );
+        // ScaffoldMessenger.of(context).showSnackBar(
+        //   const SnackBar(
+        //     content: Text('Failed to reactivate template'),
+        //     backgroundColor: Colors.red,
+        //   ),
+        // );
       }
       setState(() {
         _isLoading = false;

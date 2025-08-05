@@ -15,6 +15,11 @@ class _CreatePartyPageState extends ConsumerState<CreatePartyPage> {
   final _nameController = TextEditingController();
   final _descriptionController = TextEditingController();
   bool _isLoading = false;
+  
+  @override
+  void initState() {
+    super.initState();
+  }
 
   @override
   void dispose() {
@@ -261,32 +266,33 @@ class _CreatePartyPageState extends ConsumerState<CreatePartyPage> {
       if (mounted) {
         if (partyId != null) {
           // Show success message
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Party "${_nameController.text.trim()}" created successfully!'),
-              backgroundColor: Colors.green,
-            ),
-          );
+          // ScaffoldMessenger.of(context).showSnackBar(
+          //   SnackBar(
+          //     content: Text('Party "${_nameController.text.trim()}" created successfully!'),
+          //     backgroundColor: Colors.green,
+          //   ),
+          // );
           
           // Navigate directly to the new party detail page
           context.go('/party/$partyId');
         } else {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Failed to create party. Please try again.'),
-              backgroundColor: Colors.red,
-            ),
-          );
+          // Failed to create party - partyId is null
+          // ScaffoldMessenger.of(context).showSnackBar(
+          //   const SnackBar(
+          //     content: Text('Failed to create party. Please try again.'),
+          //     backgroundColor: Colors.red,
+          //   ),
+          // );
         }
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error creating party: $e'),
-            backgroundColor: Colors.red,
-          ),
-        );
+        // ScaffoldMessenger.of(context).showSnackBar(
+        //   SnackBar(
+        //     content: Text('Error creating party: $e'),
+        //     backgroundColor: Colors.red,
+        //   ),
+        // );
       }
     } finally {
       if (mounted) {

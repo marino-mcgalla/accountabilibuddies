@@ -8,6 +8,7 @@ import '../../domain/entities/user_challenge_participation.dart';
 import '../providers/challenge_providers.dart';
 import '../providers/proof_providers.dart';
 import '../pages/proof_story_viewer.dart';
+import '../../../../core/providers/display_name_providers.dart';
 
 /// Story circles showing all party members (like Snapchat) - always visible
 class PartyMembersStoryCircles extends ConsumerWidget {
@@ -75,22 +76,9 @@ class PartyMembersStoryCircles extends ConsumerWidget {
               );
               final hasAnyProofs = userProofs.isNotEmpty;
               
-              // Get user name - try from participation first, then proofs, then fallback
-              String userName;
-              if (participation != null) {
-                // Use the userName from participation data
-                userName = participation.userName;
-              } else if (userProofs.isNotEmpty) {
-                userName = userProofs.first.userName;
-              } else {
-                // Fallback to user ID
-                userName = memberId.substring(0, 8);
-              }
-
               storyCircles.add(
                 _PartyMemberStoryCircle(
                   userId: memberId,
-                  userName: userName,
                   proofCount: unviewedProofs.length,
                   hasNewActivity: hasNewProofs,
                   hasPendingProofs: hasPendingProofs && !isCurrentUser,
@@ -102,7 +90,6 @@ class PartyMembersStoryCircles extends ConsumerWidget {
                     context,
                     ref,
                     memberId,
-                    userName,
                     userProofs,
                   ),
                 ),
@@ -168,23 +155,13 @@ class PartyMembersStoryCircles extends ConsumerWidget {
     );
   }
 
-  String _getUserName(String userId, List<ProofSubmission> userProofs) {
-    // Try to get user name from proof submissions first
-    if (userProofs.isNotEmpty) {
-      return userProofs.first.userName;
-    }
-    
-    // Fallback to user ID or unknown
-    return userId.substring(0, 8); // Show first 8 chars of user ID
-  }
 
   void _openStoryViewer(
     BuildContext context,
     WidgetRef ref,
     String userId,
-    String userName,
     List<ProofSubmission> proofs,
-  ) {
+  ) async {
     if (proofs.isEmpty) return;
     
     final currentUser = ref.read(userProvider);
@@ -216,11 +193,16 @@ class PartyMembersStoryCircles extends ConsumerWidget {
         return a.submissionDate.compareTo(b.submissionDate);
       });
 
+    // Get display name dynamically
+    final displayName = await ref.read(displayNameProvider(userId).future);
+    
+    if (!context.mounted) return;
+    
     Navigator.of(context).push(
       MaterialPageRoute(
         builder: (context) => ProofStoryViewer(
           userId: userId,
-          userName: userName,
+          userName: displayName,
           proofs: sortedProofs,
           challengeId: challenge.id,
         ),
@@ -231,10 +213,9 @@ class PartyMembersStoryCircles extends ConsumerWidget {
   
 }
 
-class _PartyMemberStoryCircle extends StatelessWidget {
+class _PartyMemberStoryCircle extends ConsumerWidget {
   const _PartyMemberStoryCircle({
     required this.userId,
-    required this.userName,
     required this.proofCount,
     required this.hasNewActivity,
     required this.hasPendingProofs,
@@ -246,7 +227,6 @@ class _PartyMemberStoryCircle extends StatelessWidget {
   });
 
   final String userId;
-  final String userName;
   final int proofCount;
   final bool hasNewActivity;
   final bool hasPendingProofs;
@@ -257,7 +237,7 @@ class _PartyMemberStoryCircle extends StatelessWidget {
   final VoidCallback onTap;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     return GestureDetector(
       onTap: onTap,
       child: Column(
@@ -362,15 +342,50 @@ class _PartyMemberStoryCircle extends StatelessWidget {
           const SizedBox(height: 4),
           SizedBox(
             width: 70,
-            child: Text(
-              isCurrentUser ? 'You' : (userName.length > 8 ? '${userName.substring(0, 8)}...' : userName),
-              style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                fontWeight: isCurrentUser ? FontWeight.bold : FontWeight.normal,
-              ),
-              textAlign: TextAlign.center,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-            ),
+            child: isCurrentUser 
+              ? Text(
+                  'You',
+                  style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                    fontWeight: FontWeight.bold,
+                  ),
+                  textAlign: TextAlign.center,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                )
+              : Consumer(
+                  builder: (context, ref, child) {
+                    final displayNameAsync = ref.watch(displayNameProvider(userId));
+                    return displayNameAsync.when(
+                      data: (displayName) => Text(
+                        displayName.length > 8 ? '${displayName.substring(0, 8)}...' : displayName,
+                        style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                          fontWeight: FontWeight.normal,
+                        ),
+                        textAlign: TextAlign.center,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      loading: () => Text(
+                        'Loading...',
+                        style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                          fontWeight: FontWeight.normal,
+                        ),
+                        textAlign: TextAlign.center,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      error: (_, __) => Text(
+                        'Unknown',
+                        style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                          fontWeight: FontWeight.normal,
+                        ),
+                        textAlign: TextAlign.center,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    );
+                  },
+                ),
           ),
         ],
       ),
@@ -442,24 +457,68 @@ class _PartyMemberStoryCircle extends StatelessWidget {
 
   Widget _buildDefaultAvatar() {
     return Builder(
-      builder: (context) => CircleAvatar(
-        radius: 26,
-        backgroundColor: isCurrentUser
-            ? Theme.of(context).colorScheme.primary
-            : Theme.of(context).colorScheme.primaryContainer,
-        child: Text(
-          userName.isNotEmpty 
-              ? userName.substring(0, 1).toUpperCase()
-              : '?',
-          style: TextStyle(
-            color: isCurrentUser
-                ? Theme.of(context).colorScheme.onPrimary
-                : Theme.of(context).colorScheme.onPrimaryContainer,
-            fontWeight: FontWeight.bold,
-            fontSize: 20,
-          ),
-        ),
-      ),
+      builder: (context) {
+        if (isCurrentUser) {
+          return CircleAvatar(
+            radius: 26,
+            backgroundColor: Theme.of(context).colorScheme.primary,
+            child: Text(
+              'Y',
+              style: TextStyle(
+                color: Theme.of(context).colorScheme.onPrimary,
+                fontWeight: FontWeight.bold,
+                fontSize: 20,
+              ),
+            ),
+          );
+        }
+        
+        return Consumer(
+          builder: (context, ref, child) {
+            final displayNameAsync = ref.watch(displayNameProvider(userId));
+            return displayNameAsync.when(
+              data: (displayName) => CircleAvatar(
+                radius: 26,
+                backgroundColor: Theme.of(context).colorScheme.primaryContainer,
+                child: Text(
+                  displayName.isNotEmpty 
+                      ? displayName.substring(0, 1).toUpperCase()
+                      : '?',
+                  style: TextStyle(
+                    color: Theme.of(context).colorScheme.onPrimaryContainer,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 20,
+                  ),
+                ),
+              ),
+              loading: () => CircleAvatar(
+                radius: 26,
+                backgroundColor: Theme.of(context).colorScheme.primaryContainer,
+                child: Text(
+                  '?',
+                  style: TextStyle(
+                    color: Theme.of(context).colorScheme.onPrimaryContainer,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 20,
+                  ),
+                ),
+              ),
+              error: (_, __) => CircleAvatar(
+                radius: 26,
+                backgroundColor: Theme.of(context).colorScheme.primaryContainer,
+                child: Text(
+                  '?',
+                  style: TextStyle(
+                    color: Theme.of(context).colorScheme.onPrimaryContainer,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 20,
+                  ),
+                ),
+              ),
+            );
+          },
+        );
+      },
     );
   }
 }

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../features/auth/providers/auth_provider.dart';
 import '../../core/core.dart';
 import '../../shared/widgets/widgets.dart';
 import '../../features/auth/auth.dart';
@@ -2086,14 +2087,66 @@ class EditProfileScreen extends StatelessWidget {
 }
 
 // Settings screens
-class SettingsScreen extends StatelessWidget {
+class SettingsScreen extends ConsumerWidget {
   const SettingsScreen({super.key});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     return Scaffold(
       appBar: AppBar(title: const Text('Settings')),
-      body: const Center(child: Text('Settings Screen - Coming Soon')),
+      body: ListView(
+        children: [
+          ListTile(
+            leading: const Icon(Icons.logout, color: Colors.red),
+            title: const Text('Sign Out'),
+            subtitle: const Text('Sign out of your account'),
+            onTap: () async {
+              // Show confirmation dialog
+              final shouldLogout = await showDialog<bool>(
+                context: context,
+                builder: (context) => AlertDialog(
+                  title: const Text('Sign Out'),
+                  content: const Text('Are you sure you want to sign out?'),
+                  actions: [
+                    TextButton(
+                      onPressed: () => Navigator.of(context).pop(false),
+                      child: const Text('Cancel'),
+                    ),
+                    TextButton(
+                      onPressed: () => Navigator.of(context).pop(true),
+                      child: const Text('Sign Out', style: TextStyle(color: Colors.red)),
+                    ),
+                  ],
+                ),
+              );
+
+              if (shouldLogout == true && context.mounted) {
+                await ref.read(authControllerProvider.notifier).signOut();
+                // Navigation will be handled by auth state changes
+              }
+            },
+          ),
+          const Divider(),
+          const ListTile(
+            leading: Icon(Icons.notifications_outlined),
+            title: Text('Notifications'),
+            subtitle: Text('Coming soon'),
+            enabled: false,
+          ),
+          const ListTile(
+            leading: Icon(Icons.lock_outline),
+            title: Text('Privacy'),
+            subtitle: Text('Coming soon'),
+            enabled: false,
+          ),
+          const ListTile(
+            leading: Icon(Icons.info_outline),
+            title: Text('About'),
+            subtitle: Text('Coming soon'),
+            enabled: false,
+          ),
+        ],
+      ),
     );
   }
 }

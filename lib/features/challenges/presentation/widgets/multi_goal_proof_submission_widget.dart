@@ -17,6 +17,7 @@ import '../../domain/entities/proof_submission.dart';
 import '../../domain/entities/user_challenge_participation.dart';
 import '../providers/challenge_providers.dart';
 import '../providers/proof_providers.dart';
+import '../../../../core/utils/display_name_utils.dart';
 
 /// Represents a selectable goal across challenges
 class SelectableGoal {
@@ -1061,7 +1062,7 @@ class _MultiGoalProofSubmissionWidgetState extends ConsumerState<MultiGoalProofS
             ? ProofSubmission(
                 id: '', // Will be set by repository
                 userId: user.id,
-                userName: user.displayName ?? user.email,
+                userName: DisplayNameUtils.getDisplayNameSync(user),
                 submissionDate: _selectedDate,
                 createdAt: DateTime.now(),
                 updatedAt: DateTime.now(),
@@ -1073,7 +1074,7 @@ class _MultiGoalProofSubmissionWidgetState extends ConsumerState<MultiGoalProofS
             : ProofSubmission(
                 id: '', // Will be set by repository
                 userId: user.id,
-                userName: user.displayName ?? user.email,
+                userName: DisplayNameUtils.getDisplayNameSync(user),
                 submissionDate: _selectedDate,
                 createdAt: DateTime.now(),
                 updatedAt: DateTime.now(),
@@ -1101,12 +1102,12 @@ class _MultiGoalProofSubmissionWidgetState extends ConsumerState<MultiGoalProofS
         });
 
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Proof submitted to $totalCount independent challenge${totalCount == 1 ? '' : 's'}!'),
-              backgroundColor: Colors.green,
-            ),
-          );
+          // ScaffoldMessenger.of(context).showSnackBar(
+          //   SnackBar(
+          //     content: Text('Proof submitted to $totalCount independent challenge${totalCount == 1 ? '' : 's'}!'),
+          //     backgroundColor: Colors.green,
+          //   ),
+          // );
           
           // Close the modal after successful submission
           Navigator.of(context).pop();
@@ -1114,23 +1115,23 @@ class _MultiGoalProofSubmissionWidgetState extends ConsumerState<MultiGoalProofS
       } else {
         // Some or all submissions failed
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('$successCount of $totalCount proofs submitted successfully'),
-              backgroundColor: successCount > 0 ? Colors.orange : Colors.red,
-            ),
-          );
+          // ScaffoldMessenger.of(context).showSnackBar(
+          //   SnackBar(
+          //     content: Text('$successCount of $totalCount proofs submitted successfully'),
+          //     backgroundColor: successCount > 0 ? Colors.orange : Colors.red,
+          //   ),
+          // );
         }
       }
     } catch (e) {
       logger.error('Error submitting proof', error: e);
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error submitting proof: $e'),
-            backgroundColor: Colors.red,
-          ),
-        );
+        // ScaffoldMessenger.of(context).showSnackBar(
+        //   SnackBar(
+        //     content: Text('Error submitting proof: $e'),
+        //     backgroundColor: Colors.red,
+        //   ),
+        // );
       }
     } finally {
       if (mounted) {

@@ -11,6 +11,7 @@ import '../../domain/entities/user_challenge_participation.dart';
 import '../providers/challenge_providers.dart';
 import '../widgets/goal_selection_widget.dart';
 import '../widgets/wager_setting_widget.dart';
+import '../../../../core/utils/display_name_utils.dart';
 
 class ChallengeCommitmentPage extends ConsumerStatefulWidget {
   const ChallengeCommitmentPage({
@@ -256,12 +257,12 @@ class _ChallengeCommitmentPageState extends ConsumerState<ChallengeCommitmentPag
   void _commitToChallenge() async {
     final user = ref.read(userProvider);
     if (user == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('You must be logged in to commit to a challenge'),
-          backgroundColor: Colors.red,
-        ),
-      );
+      // ScaffoldMessenger.of(context).showSnackBar(
+      //   const SnackBar(
+      //     content: Text('You must be logged in to commit to a challenge'),
+      //     backgroundColor: Colors.red,
+      //   ),
+      // );
       return;
     }
 
@@ -292,7 +293,7 @@ class _ChallengeCommitmentPageState extends ConsumerState<ChallengeCommitmentPag
         id: '', // Will be set by repository
         challengeId: widget.challenge.id,
         userId: user.id,
-        userName: user.displayName ?? user.email,
+        userName: DisplayNameUtils.getDisplayNameSync(user),
         status: ParticipationStatus.lockedIn,
         goals: goalsMap,
         wagerAmount: _wagerAmount,
@@ -315,22 +316,22 @@ class _ChallengeCommitmentPageState extends ConsumerState<ChallengeCommitmentPag
 
       if (mounted) {
         Navigator.of(context).pop(true); // Return true to indicate success
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Successfully committed to challenge with ${goalsMap.length} goals!'),
-            backgroundColor: Colors.green,
-          ),
-        );
+        // ScaffoldMessenger.of(context).showSnackBar(
+        //   SnackBar(
+        //     content: Text('Successfully committed to challenge with ${goalsMap.length} goals!'),
+        //     backgroundColor: Colors.green,
+        //   ),
+        // );
       }
     } catch (e, stackTrace) {
       logger.error('Error committing to challenge', error: e, stackTrace: stackTrace);
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Failed to commit: $e'),
-            backgroundColor: Colors.red,
-          ),
-        );
+        // ScaffoldMessenger.of(context).showSnackBar(
+        //   SnackBar(
+        //     content: Text('Failed to commit: $e'),
+        //     backgroundColor: Colors.red,
+        //   ),
+        // );
       }
     } finally {
       if (mounted) {
@@ -389,21 +390,21 @@ class _ChallengeCommitmentPageState extends ConsumerState<ChallengeCommitmentPag
         
         if (mounted) {
           Navigator.of(context).pop(false); // Return false to indicate opt-out
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('You have opted out of this challenge.'),
-            ),
-          );
+          // ScaffoldMessenger.of(context).showSnackBar(
+          //   const SnackBar(
+          //     content: Text('You have opted out of this challenge.'),
+          //   ),
+          // );
         }
       } catch (e, stackTrace) {
         logger.error('Error opting out of challenge', error: e, stackTrace: stackTrace);
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Failed to opt out: $e'),
-              backgroundColor: Colors.red,
-            ),
-          );
+          // ScaffoldMessenger.of(context).showSnackBar(
+          //   SnackBar(
+          //     content: Text('Failed to opt out: $e'),
+          //     backgroundColor: Colors.red,
+          //   ),
+          // );
         }
       } finally {
         if (mounted) {

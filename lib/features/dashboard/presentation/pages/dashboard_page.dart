@@ -27,6 +27,7 @@ import '../../../challenges/data/models/proof_submission_model.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:uuid/uuid.dart';
+import '../../../../core/utils/display_name_utils.dart';
 
 // Provider for persisting selected party ID across navigation
 final selectedPartyIdProvider = StateProvider<String?>((ref) => null);
@@ -214,9 +215,9 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
                     style: Theme.of(context).textTheme.titleLarge,
                   ),
                   Text(
-                    user?.displayName ?? user?.email ?? 'User',
+                    user != null ? DisplayNameUtils.getDisplayNameSync(user) : 'User',
                     style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7),
+                      color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7),
                     ),
                   ),
                 ],
@@ -1321,7 +1322,7 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
     final proofSubmission = ProofSubmission(
       id: proofId,
       userId: user.id,
-      userName: user.displayName ?? user.email,
+      userName: DisplayNameUtils.getDisplayNameSync(user),
       submissionDate: now,
       createdAt: now,
       updatedAt: now,

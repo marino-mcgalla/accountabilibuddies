@@ -6,6 +6,7 @@ import '../../domain/entities/challenge_goal.dart';
 import '../../domain/entities/proof_submission.dart';
 import '../providers/challenge_providers.dart';
 import '../providers/proof_providers.dart';
+import '../../../../core/utils/display_name_utils.dart';
 
 /// Quick proof submission widget for dashboard - one-click proof submission
 class QuickProofSubmissionWidget extends ConsumerWidget {
@@ -257,12 +258,12 @@ class _QuickProofDialogState extends ConsumerState<_QuickProofDialog> {
   Future<void> _submitQuickProof() async {
     final description = _controller.text.trim();
     if (description.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Please add a quick description'),
-          backgroundColor: Colors.orange,
-        ),
-      );
+      // ScaffoldMessenger.of(context).showSnackBar(
+      //   const SnackBar(
+      //     content: Text('Please add a quick description'),
+      //     backgroundColor: Colors.orange,
+      //   ),
+      // );
       return;
     }
 
@@ -280,7 +281,7 @@ class _QuickProofDialogState extends ConsumerState<_QuickProofDialog> {
         participationId: widget.participationId,
         goalTemplateId: widget.goal.templateId,
         userId: user.id,
-        userName: user.displayName ?? user.email,
+        userName: DisplayNameUtils.getDisplayNameSync(user),
         submissionDate: DateTime.now(),
         status: ProofStatus.pending,
         createdAt: DateTime.now(),
@@ -295,29 +296,29 @@ class _QuickProofDialogState extends ConsumerState<_QuickProofDialog> {
       if (mounted) {
         if (result.isSuccess) {
           Navigator.of(context).pop();
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Quick proof submitted for ${widget.goal.name}!'),
-              backgroundColor: Colors.green,
-            ),
-          );
+          // ScaffoldMessenger.of(context).showSnackBar(
+          //   SnackBar(
+          //     content: Text('Quick proof submitted for ${widget.goal.name}!'),
+          //     backgroundColor: Colors.green,
+          //   ),
+          // );
         } else {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Failed to submit proof: ${result.failureOrNull?.message ?? 'Unknown error'}'),
-              backgroundColor: Colors.red,
-            ),
-          );
+          // ScaffoldMessenger.of(context).showSnackBar(
+          //   SnackBar(
+          //     content: Text('Failed to submit proof: ${result.failureOrNull?.message ?? 'Unknown error'}'),
+          //     backgroundColor: Colors.red,
+          //   ),
+          // );
         }
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error submitting proof: $e'),
-            backgroundColor: Colors.red,
-          ),
-        );
+        // ScaffoldMessenger.of(context).showSnackBar(
+        //   SnackBar(
+        //     content: Text('Error submitting proof: $e'),
+        //     backgroundColor: Colors.red,
+        //   ),
+        // );
       }
     } finally {
       if (mounted) {

@@ -535,32 +535,32 @@ class _InviteToPartyPageState extends ConsumerState<InviteToPartyPage> with Sing
 
       if (mounted) {
         if (success) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Invitation sent to ${_emailController.text.trim()}!'),
-              backgroundColor: Colors.green,
-            ),
-          );
+          // ScaffoldMessenger.of(context).showSnackBar(
+          //   SnackBar(
+          //     content: Text('Invitation sent to ${_emailController.text.trim()}!'),
+          //     backgroundColor: Colors.green,
+          //   ),
+          // );
           
           // Clear the email field
           _emailController.clear();
         } else {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Failed to send invitation. Please try again.'),
-              backgroundColor: Colors.red,
-            ),
-          );
+          // ScaffoldMessenger.of(context).showSnackBar(
+          //   const SnackBar(
+          //     content: Text('Failed to send invitation. Please try again.'),
+          //     backgroundColor: Colors.red,
+          //   ),
+          // );
         }
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error sending invitation: $e'),
-            backgroundColor: Colors.red,
-          ),
-        );
+        // ScaffoldMessenger.of(context).showSnackBar(
+        //   SnackBar(
+        //     content: Text('Error sending invitation: $e'),
+        //     backgroundColor: Colors.red,
+        //   ),
+        // );
       }
     } finally {
       if (mounted) {
@@ -573,13 +573,13 @@ class _InviteToPartyPageState extends ConsumerState<InviteToPartyPage> with Sing
 
   void _copyToClipboard(String code) {
     Clipboard.setData(ClipboardData(text: code));
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Invite code "$code" copied to clipboard!'),
-        backgroundColor: Colors.green,
-        duration: const Duration(seconds: 2),
-      ),
-    );
+    // ScaffoldMessenger.of(context).showSnackBar(
+    //   SnackBar(
+    //     content: Text('Invite code "$code" copied to clipboard!'),
+    //     backgroundColor: Colors.green,
+    //     duration: const Duration(seconds: 2),
+    //   ),
+    // );
   }
 
   void _shareCode(Party party) {
@@ -599,12 +599,12 @@ Let's achieve our goals together! 🎯
 
     // For now, copy to clipboard since Flutter's share plugin requires additional setup
     Clipboard.setData(ClipboardData(text: shareText));
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Party invitation copied to clipboard! Share it with your friends.'),
-        backgroundColor: Colors.green,
-        duration: Duration(seconds: 3),
-      ),
-    );
+    // ScaffoldMessenger.of(context).showSnackBar(
+    //   const SnackBar(
+    //     content: Text('Party invitation copied to clipboard! Share it with your friends.'),
+    //     backgroundColor: Colors.green,
+    //     duration: Duration(seconds: 3),
+    //   ),
+    // );
   }
 }

@@ -5,6 +5,7 @@ import '../../domain/entities/party_invite.dart';
 import '../../domain/repositories/party_repository.dart';
 import '../../../auth/auth.dart';
 import '../../../../core/logging/logger_service.dart';
+import '../../../../core/utils/display_name_utils.dart';
 
 // Repository provider
 final partyRepositoryProvider = Provider<PartyRepository>((ref) {
@@ -110,6 +111,7 @@ final allInvitesProvider = StreamProvider<List<PartyInvite>>((ref) {
 final partyControllerProvider = Provider<PartyController>((ref) {
   final repository = ref.watch(partyRepositoryProvider);
   final user = ref.watch(userProvider);
+  
   return PartyController(
     repository: repository,
     user: user,
@@ -131,6 +133,11 @@ class PartyController {
     required String name,
     required String description,
   }) async {
+    // Check if user is authenticated
+    if (user == null || userId.isEmpty) {
+      return false;
+    }
+    
     final inviteCode = await repository.generateInviteCode();
     
     final party = Party(
@@ -154,6 +161,12 @@ class PartyController {
     required String name,
     required String description,
   }) async {
+    // Check if user is authenticated
+    if (user == null || userId.isEmpty) {
+      // Cannot create party - user is null or userId is empty
+      return null;
+    }
+    
     final inviteCode = await repository.generateInviteCode();
     
     final party = Party(
@@ -246,7 +259,7 @@ class PartyController {
     final result = await repository.sendInvite(
       partyId: partyId,
       inviterUserId: user!.id,
-      inviterName: user!.displayName ?? user!.email,
+      inviterName: DisplayNameUtils.getDisplayNameSync(user!),
       inviteeEmail: inviteeEmail,
     );
     return result.isSuccess;

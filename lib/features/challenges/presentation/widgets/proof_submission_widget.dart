@@ -6,6 +6,7 @@ import '../../domain/entities/challenge_goal.dart';
 import '../../domain/entities/proof_submission.dart';
 import '../providers/proof_providers.dart';
 import 'multi_goal_proof_submission_widget.dart';
+import '../../../../core/utils/display_name_utils.dart';
 
 class ProofSubmissionWidget extends ConsumerStatefulWidget {
   const ProofSubmissionWidget({
@@ -228,7 +229,7 @@ class _ProofSubmissionWidgetState extends ConsumerState<ProofSubmissionWidget> {
       final proof = ProofSubmission(
         id: '', // Will be set by repository
         userId: user.id,
-        userName: user.displayName ?? user.email,
+        userName: DisplayNameUtils.getDisplayNameSync(user),
         submissionDate: DateTime.now(),
         createdAt: DateTime.now(),
         updatedAt: DateTime.now(),
@@ -250,32 +251,32 @@ class _ProofSubmissionWidgetState extends ConsumerState<ProofSubmissionWidget> {
         });
 
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Proof submitted for $goalName!'),
-              backgroundColor: Colors.green,
-            ),
-          );
+          // ScaffoldMessenger.of(context).showSnackBar(
+          //   SnackBar(
+          //     content: Text('Proof submitted for $goalName!'),
+          //     backgroundColor: Colors.green,
+          //   ),
+          // );
         }
       } else {
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Failed to submit proof: ${result.failureOrNull?.message ?? 'Unknown error'}'),
-              backgroundColor: Colors.red,
-            ),
-          );
+          // ScaffoldMessenger.of(context).showSnackBar(
+          //   SnackBar(
+          //     content: Text('Failed to submit proof: ${result.failureOrNull?.message ?? 'Unknown error'}'),
+          //     backgroundColor: Colors.red,
+          //   ),
+          // );
         }
       }
     } catch (e) {
       logger.error('Error submitting proof', error: e);
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error submitting proof: $e'),
-            backgroundColor: Colors.red,
-          ),
-        );
+        // ScaffoldMessenger.of(context).showSnackBar(
+        //   SnackBar(
+        //     content: Text('Error submitting proof: $e'),
+        //     backgroundColor: Colors.red,
+        //   ),
+        // );
       }
     } finally {
       if (mounted) {

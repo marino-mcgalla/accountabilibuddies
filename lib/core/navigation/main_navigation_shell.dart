@@ -78,7 +78,12 @@ class _MainNavigationShellState extends State<MainNavigationShell> {
         // Party notifications are already handled by GlobalNotificationIcon
         break;
       case 3: // Profile
-        // No specific actions for profile page
+        actions.add(
+          IconButton(
+            icon: const Icon(Icons.settings),
+            onPressed: () => context.go(AppRoutes.settings),
+          ),
+        );
         break;
     }
 

@@ -174,16 +174,25 @@ final routerProvider = Provider<GoRouter>((ref) {
             path: AppRoutes.party,
             name: AppRoutes.partyName,
             redirect: (context, state) {
-              // Get the selected party ID from the dashboard provider
-              final selectedPartyId = ref.read(selectedPartyIdProvider);
+              // Check the full path, not matched location
+              final fullPath = state.fullPath ?? '';
               
-              // If a party is selected, go directly to that party
-              if (selectedPartyId != null) {
-                return '/party/$selectedPartyId';
+              // Only redirect if we're at the exact /party path (not child routes)
+              if (fullPath == '/party') {
+                // Get the selected party ID from the dashboard provider
+                final selectedPartyId = ref.read(selectedPartyIdProvider);
+                
+                // If a party is selected, go directly to that party
+                if (selectedPartyId != null) {
+                  return '/party/$selectedPartyId';
+                }
+                
+                // Otherwise, go to the party list
+                return '/party/list';
               }
               
-              // Otherwise, go to the party list
-              return '/party/list';
+              // Don't redirect for any other party routes (/party/create, /party/join, etc.)
+              return null;
             },
             routes: [
               GoRoute(

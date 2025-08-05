@@ -5,6 +5,7 @@ import '../../../auth/auth.dart';
 import '../../domain/entities/proof_submission.dart';
 import '../providers/proof_providers.dart';
 import '../providers/challenge_providers.dart';
+import '../../../../core/utils/display_name_utils.dart';
 
 class ProofStoryViewer extends ConsumerStatefulWidget {
   const ProofStoryViewer({
@@ -539,7 +540,7 @@ class _ProofStoryViewerState extends ConsumerState<ProofStoryViewer>
     try {
       final approval = ProofApproval(
         userId: user.id,
-        userName: user.displayName ?? user.email,
+        userName: DisplayNameUtils.getDisplayNameSync(user),
         approved: true,
         timestamp: DateTime.now(),
       );
@@ -549,31 +550,31 @@ class _ProofStoryViewerState extends ConsumerState<ProofStoryViewer>
 
       if (mounted) {
         if (result.isSuccess) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Proof approved and goal completion updated!'),
-              backgroundColor: Colors.green,
-            ),
-          );
+          // ScaffoldMessenger.of(context).showSnackBar(
+          //   const SnackBar(
+          //     content: Text('Proof approved and goal completion updated!'),
+          //     backgroundColor: Colors.green,
+          //   ),
+          // );
           _nextProof();
         } else {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Failed to approve proof: ${result.failureOrNull?.message ?? 'Unknown error'}'),
-              backgroundColor: Colors.red,
-            ),
-          );
+          // ScaffoldMessenger.of(context).showSnackBar(
+          //   SnackBar(
+          //     content: Text('Failed to approve proof: ${result.failureOrNull?.message ?? 'Unknown error'}'),
+          //     backgroundColor: Colors.red,
+          //   ),
+          // );
         }
       }
     } catch (e) {
       logger.error('Error approving proof', error: e);
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Failed to approve proof: $e'),
-            backgroundColor: Colors.red,
-          ),
-        );
+        // ScaffoldMessenger.of(context).showSnackBar(
+        //   SnackBar(
+        //     content: Text('Failed to approve proof: $e'),
+        //     backgroundColor: Colors.red,
+        //   ),
+        // );
       }
     } finally {
       setState(() {
@@ -593,7 +594,7 @@ class _ProofStoryViewerState extends ConsumerState<ProofStoryViewer>
     try {
       final approval = ProofApproval(
         userId: user.id,
-        userName: user.displayName ?? user.email,
+        userName: DisplayNameUtils.getDisplayNameSync(user),
         approved: false,
         timestamp: DateTime.now(),
         comment: 'Disputed via story viewer',
@@ -604,31 +605,31 @@ class _ProofStoryViewerState extends ConsumerState<ProofStoryViewer>
 
       if (mounted) {
         if (result.isSuccess) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Proof disputed.'),
-              backgroundColor: Colors.orange,
-            ),
-          );
+          // ScaffoldMessenger.of(context).showSnackBar(
+          //   const SnackBar(
+          //     content: Text('Proof disputed.'),
+          //     backgroundColor: Colors.orange,
+          //   ),
+          // );
           _nextProof();
         } else {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Failed to dispute proof: ${result.failureOrNull?.message ?? 'Unknown error'}'),
-              backgroundColor: Colors.red,
-            ),
-          );
+          // ScaffoldMessenger.of(context).showSnackBar(
+          //   SnackBar(
+          //     content: Text('Failed to dispute proof: ${result.failureOrNull?.message ?? 'Unknown error'}'),
+          //     backgroundColor: Colors.red,
+          //   ),
+          // );
         }
       }
     } catch (e) {
       logger.error('Error disputing proof', error: e);
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Failed to dispute proof: $e'),
-            backgroundColor: Colors.red,
-          ),
-        );
+        // ScaffoldMessenger.of(context).showSnackBar(
+        //   SnackBar(
+        //     content: Text('Failed to dispute proof: $e'),
+        //     backgroundColor: Colors.red,
+        //   ),
+        // );
       }
     } finally {
       setState(() {
@@ -712,35 +713,35 @@ class _ProofStoryViewerState extends ConsumerState<ProofStoryViewer>
             await proofApprovalService.removeGoalCompletion(proof);
           }
 
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(proof.isApproved 
-                  ? 'Proof deleted and goal completion removed'
-                  : 'Proof deleted successfully'),
-              backgroundColor: Colors.green,
-            ),
-          );
+          // ScaffoldMessenger.of(context).showSnackBar(
+          //   SnackBar(
+          //     content: Text(proof.isApproved 
+          //         ? 'Proof deleted and goal completion removed'
+          //         : 'Proof deleted successfully'),
+          //     backgroundColor: Colors.green,
+          //   ),
+          // );
           
           // Close the viewer
           Navigator.of(context).pop();
         } else {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Failed to delete proof: ${result.failureOrNull?.message ?? 'Unknown error'}'),
-              backgroundColor: Colors.red,
-            ),
-          );
+          // ScaffoldMessenger.of(context).showSnackBar(
+          //   SnackBar(
+          //     content: Text('Failed to delete proof: ${result.failureOrNull?.message ?? 'Unknown error'}'),
+          //     backgroundColor: Colors.red,
+          //   ),
+          // );
         }
       }
     } catch (e) {
       logger.error('Error deleting proof', error: e);
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Failed to delete proof: $e'),
-            backgroundColor: Colors.red,
-          ),
-        );
+        // ScaffoldMessenger.of(context).showSnackBar(
+        //   SnackBar(
+        //     content: Text('Failed to delete proof: $e'),
+        //     backgroundColor: Colors.red,
+        //   ),
+        // );
       }
     } finally {
       if (mounted) {

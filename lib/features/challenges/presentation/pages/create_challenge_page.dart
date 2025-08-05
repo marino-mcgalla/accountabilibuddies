@@ -361,12 +361,12 @@ class _CreateChallengePageState extends ConsumerState<CreateChallengePage> {
 
     final user = ref.read(userProvider);
     if (user == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('You must be logged in to create a challenge'),
-          backgroundColor: Colors.red,
-        ),
-      );
+      // ScaffoldMessenger.of(context).showSnackBar(
+      //   const SnackBar(
+      //     content: Text('You must be logged in to create a challenge'),
+      //     backgroundColor: Colors.red,
+      //   ),
+      // );
       return;
     }
 
@@ -397,31 +397,31 @@ class _CreateChallengePageState extends ConsumerState<CreateChallengePage> {
         result.fold(
           onSuccess: (challenge) {
             Navigator.of(context).pop();
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text('Challenge created successfully!'),
-                backgroundColor: Colors.green,
-              ),
-            );
+            // ScaffoldMessenger.of(context).showSnackBar(
+            //   const SnackBar(
+            //     content: Text('Challenge created successfully!'),
+            //     backgroundColor: Colors.green,
+            //   ),
+            // );
           },
           onFailure: (failure) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text('Failed to create challenge: ${failure.message}'),
-                backgroundColor: Colors.red,
-              ),
-            );
+            // ScaffoldMessenger.of(context).showSnackBar(
+            //   SnackBar(
+            //     content: Text('Failed to create challenge: ${failure.message}'),
+            //     backgroundColor: Colors.red,
+            //   ),
+            // );
           },
         );
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Failed to create challenge: $e'),
-            backgroundColor: Colors.red,
-          ),
-        );
+        // ScaffoldMessenger.of(context).showSnackBar(
+        //   SnackBar(
+        //     content: Text('Failed to create challenge: $e'),
+        //     backgroundColor: Colors.red,
+        //   ),
+        // );
       }
     } finally {
       if (mounted) {

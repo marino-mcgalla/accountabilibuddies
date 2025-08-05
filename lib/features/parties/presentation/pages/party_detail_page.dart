@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../../../core/core.dart';
 import '../../../../core/navigation/app_routes.dart';
 import '../../../auth/models/user_model.dart';
@@ -15,33 +14,8 @@ import '../../../challenges/domain/entities/user_challenge_participation.dart';
 import '../../domain/entities/party.dart';
 import '../providers/party_providers.dart';
 import '../../../dashboard/presentation/pages/dashboard_page.dart';
-
-// Simple provider to fetch user display name by ID
-final userDisplayNameProvider = FutureProvider.family<String, String>((ref, userId) async {
-  try {
-    final doc = await FirebaseFirestore.instance.collection('users').doc(userId).get();
-    if (doc.exists) {
-      final data = doc.data();
-      final displayName = data?['displayName'] as String?;
-      
-      // Try different possible field names
-      if (displayName != null && displayName.isNotEmpty) {
-        return displayName;
-      }
-      
-      // Try email as fallback
-      final email = data?['email'] as String?;
-      if (email != null && email.isNotEmpty) {
-        return email.split('@').first; // Use part before @ as name
-      }
-      
-      return 'User ${userId.substring(0, 8)}...';
-    }
-    return 'User ${userId.substring(0, 8)}...';
-  } catch (e) {
-    return 'User ${userId.substring(0, 8)}...';
-  }
-});
+import '../../../../core/providers/display_name_providers.dart';
+import '../../../../core/utils/display_name_utils.dart';
 
 class PartyDetailPage extends ConsumerStatefulWidget {
   const PartyDetailPage({
@@ -371,12 +345,12 @@ class _PartyDetailPageState extends ConsumerState<PartyDetailPage> with SingleTi
           WidgetsBinding.instance.addPostFrameCallback((_) {
             if (context.mounted) {
               context.go('/party');
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('Party not found or was deleted'),
-                  backgroundColor: Colors.orange,
-                ),
-              );
+              // ScaffoldMessenger.of(context).showSnackBar(
+              //   const SnackBar(
+              //     content: Text('Party not found or was deleted'),
+              //     backgroundColor: Colors.orange,
+              //   ),
+              // );
             }
           });
           
@@ -1146,23 +1120,68 @@ class _MembersSection extends StatelessWidget {
               final isOwner = party.isOwner(memberId);
               final isCurrentUser = memberId == currentUserId;
               return ListTile(
-                leading: CircleAvatar(
-                  backgroundColor: isOwner 
-                    ? Theme.of(context).colorScheme.primary 
-                    : Theme.of(context).colorScheme.primary.withOpacity(0.3),
-                  child: Text(
-                    memberId.substring(0, 2).toUpperCase(),
-                    style: TextStyle(
-                      color: isOwner ? Colors.white : Theme.of(context).colorScheme.primary,
+                leading: Consumer(
+                  builder: (context, ref, child) {
+                    final displayNameAsync = ref.watch(displayNameProvider(memberId));
+                    return CircleAvatar(
+                      backgroundColor: isOwner 
+                        ? Theme.of(context).colorScheme.primary 
+                        : Theme.of(context).colorScheme.primary.withOpacity(0.3),
+                      child: displayNameAsync.when(
+                        data: (displayName) => Text(
+                          displayName.isNotEmpty ? displayName[0].toUpperCase() : '?',
+                          style: TextStyle(
+                            color: isOwner ? Colors.white : Theme.of(context).colorScheme.primary,
+                          ),
+                        ),
+                        loading: () => Text(
+                          '?',
+                          style: TextStyle(
+                            color: isOwner ? Colors.white : Theme.of(context).colorScheme.primary,
+                          ),
+                        ),
+                        error: (_, __) => Text(
+                          '?',
+                          style: TextStyle(
+                            color: isOwner ? Colors.white : Theme.of(context).colorScheme.primary,
+                          ),
+                        ),
+                      ),
+                    );
+                  },
+                ),
+                title: isCurrentUser 
+                  ? Text(
+                      'You',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                      ),
+                    )
+                  : Consumer(
+                      builder: (context, ref, child) {
+                        final displayNameAsync = ref.watch(displayNameProvider(memberId));
+                        return displayNameAsync.when(
+                          data: (displayName) => Text(
+                            displayName,
+                            style: TextStyle(
+                              fontWeight: FontWeight.normal,
+                            ),
+                          ),
+                          loading: () => Text(
+                            'Loading...',
+                            style: TextStyle(
+                              fontWeight: FontWeight.normal,
+                            ),
+                          ),
+                          error: (_, __) => Text(
+                            'Unknown',
+                            style: TextStyle(
+                              fontWeight: FontWeight.normal,
+                            ),
+                          ),
+                        );
+                      },
                     ),
-                  ),
-                ),
-                title: Text(
-                  isCurrentUser ? 'You' : 'User ${memberId.substring(0, 8)}...',
-                  style: TextStyle(
-                    fontWeight: isCurrentUser ? FontWeight.bold : FontWeight.normal,
-                  ),
-                ),
                 subtitle: isOwner ? const Text('Party Leader') : null,
                 trailing: isOwner 
                   ? Icon(Icons.star, color: Theme.of(context).colorScheme.primary)
@@ -1324,36 +1343,36 @@ class _InviteMemberDialogState extends ConsumerState<_InviteMemberDialog> {
       final result = await ref.read(partyRepositoryProvider).sendInvite(
         partyId: widget.party.id,
         inviterUserId: user.id,
-        inviterName: user.displayName ?? user.email,
+        inviterName: DisplayNameUtils.getDisplayNameSync(user),
         inviteeEmail: _emailController.text.trim(),
       );
 
       if (mounted) {
         if (result.isSuccess) {
           Navigator.of(context).pop();
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Invite sent successfully!'),
-              backgroundColor: Colors.green,
-            ),
-          );
+          // ScaffoldMessenger.of(context).showSnackBar(
+          //   const SnackBar(
+          //     content: Text('Invite sent successfully!'),
+          //     backgroundColor: Colors.green,
+          //   ),
+          // );
         } else {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Failed to send invite: ${result.failureOrNull?.message}'),
-              backgroundColor: Colors.red,
-            ),
-          );
+          // ScaffoldMessenger.of(context).showSnackBar(
+          //   SnackBar(
+          //     content: Text('Failed to send invite: ${result.failureOrNull?.message}'),
+          //     backgroundColor: Colors.red,
+          //   ),
+          // );
         }
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error: $e'),
-            backgroundColor: Colors.red,
-          ),
-        );
+        // ScaffoldMessenger.of(context).showSnackBar(
+        //   SnackBar(
+        //     content: Text('Error: $e'),
+        //     backgroundColor: Colors.red,
+        //   ),
+        // );
       }
     } finally {
       if (mounted) {
@@ -1457,12 +1476,12 @@ class _PartyInfoTabState extends ConsumerState<_PartyInfoTab> {
                 WidgetsBinding.instance.addPostFrameCallback((_) {
                   if (mounted) {
                     context.go('/party/list');
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text('The party "${previousParty.name}" was deleted by the leader'),
-                        backgroundColor: Colors.orange,
-                      ),
-                    );
+                    // ScaffoldMessenger.of(context).showSnackBar(
+                    //   SnackBar(
+                    //     content: Text('The party "${previousParty.name}" was deleted by the leader'),
+                    //     backgroundColor: Colors.orange,
+                    //   ),
+                    // );
                   }
                 });
               }
@@ -1559,23 +1578,23 @@ class _PartyInfoTabState extends ConsumerState<_PartyInfoTab> {
           if (success) {
             // Navigate to party list page
             context.go('/party/list');
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text('Left "${party.name}" successfully'),
-                backgroundColor: Colors.green,
-              ),
-            );
+            // ScaffoldMessenger.of(context).showSnackBar(
+            //   SnackBar(
+            //     content: Text('Left "${party.name}" successfully'),
+            //     backgroundColor: Colors.green,
+            //   ),
+            // );
           } else {
             // Reset flag if leave failed
             setState(() {
               _isLeavingVoluntarily = false;
             });
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text('Failed to leave party'),
-                backgroundColor: Colors.red,
-              ),
-            );
+            // ScaffoldMessenger.of(context).showSnackBar(
+            //   const SnackBar(
+            //     content: Text('Failed to leave party'),
+            //     backgroundColor: Colors.red,
+            //   ),
+            // );
           }
         }
       } catch (e) {
@@ -1584,12 +1603,12 @@ class _PartyInfoTabState extends ConsumerState<_PartyInfoTab> {
           setState(() {
             _isLeavingVoluntarily = false;
           });
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Error leaving party: $e'),
-              backgroundColor: Colors.red,
-            ),
-          );
+          // ScaffoldMessenger.of(context).showSnackBar(
+          //   SnackBar(
+          //     content: Text('Error leaving party: $e'),
+          //     backgroundColor: Colors.red,
+          //   ),
+          // );
         }
       }
     }
@@ -1753,31 +1772,31 @@ class _PartyInfoTabState extends ConsumerState<_PartyInfoTab> {
       if (context.mounted) {
         result.fold(
           onSuccess: (_) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text('Challenge "${challenge.name}" has been cancelled and removed'),
-                backgroundColor: Colors.orange,
-              ),
-            );
+            // ScaffoldMessenger.of(context).showSnackBar(
+            //   SnackBar(
+            //     content: Text('Challenge "${challenge.name}" has been cancelled and removed'),
+            //     backgroundColor: Colors.orange,
+            //   ),
+            // );
           },
           onFailure: (failure) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text('Failed to cancel challenge: ${failure.message}'),
-                backgroundColor: Colors.red,
-              ),
-            );
+            // ScaffoldMessenger.of(context).showSnackBar(
+            //   SnackBar(
+            //     content: Text('Failed to cancel challenge: ${failure.message}'),
+            //     backgroundColor: Colors.red,
+            //   ),
+            // );
           },
         );
       }
     } catch (e) {
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error cancelling challenge: $e'),
-            backgroundColor: Colors.red,
-          ),
-        );
+        // ScaffoldMessenger.of(context).showSnackBar(
+        //   SnackBar(
+        //     content: Text('Error cancelling challenge: $e'),
+        //     backgroundColor: Colors.red,
+        //   ),
+        // );
       }
     }
   }
@@ -1791,33 +1810,33 @@ class _PartyInfoTabState extends ConsumerState<_PartyInfoTab> {
       if (context.mounted) {
         result.fold(
           onSuccess: (updatedChallenge) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text('Challenge "${challenge.name}" has been ended successfully'),
-                backgroundColor: Colors.green,
-              ),
-            );
+            // ScaffoldMessenger.of(context).showSnackBar(
+            //   SnackBar(
+            //     content: Text('Challenge "${challenge.name}" has been ended successfully'),
+            //     backgroundColor: Colors.green,
+            //   ),
+            // );
             // Navigate to challenge summary page
             context.push(AppRoutesExtension.challengeSummary(challenge.id));
           },
           onFailure: (failure) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text('Failed to end challenge: ${failure.message}'),
-                backgroundColor: Colors.red,
-              ),
-            );
+            // ScaffoldMessenger.of(context).showSnackBar(
+            //   SnackBar(
+            //     content: Text('Failed to end challenge: ${failure.message}'),
+            //     backgroundColor: Colors.red,
+            //   ),
+            // );
           },
         );
       }
     } catch (e) {
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error ending challenge: $e'),
-            backgroundColor: Colors.red,
-          ),
-        );
+        // ScaffoldMessenger.of(context).showSnackBar(
+        //   SnackBar(
+        //     content: Text('Error ending challenge: $e'),
+        //     backgroundColor: Colors.red,
+        //   ),
+        // );
       }
     }
   }
@@ -1853,29 +1872,29 @@ class _PartyInfoTabState extends ConsumerState<_PartyInfoTab> {
           if (success) {
             // Navigate to party list page
             context.go('/party/list');
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text('Left "${party.name}" successfully'),
-                backgroundColor: Colors.green,
-              ),
-            );
+            // ScaffoldMessenger.of(context).showSnackBar(
+            //   SnackBar(
+            //     content: Text('Left "${party.name}" successfully'),
+            //     backgroundColor: Colors.green,
+            //   ),
+            // );
           } else {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text('Failed to leave party'),
-                backgroundColor: Colors.red,
-              ),
-            );
+            // ScaffoldMessenger.of(context).showSnackBar(
+            //   const SnackBar(
+            //     content: Text('Failed to leave party'),
+            //     backgroundColor: Colors.red,
+            //   ),
+            // );
           }
         }
       } catch (e) {
         if (context.mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Error leaving party: $e'),
-              backgroundColor: Colors.red,
-            ),
-          );
+          // ScaffoldMessenger.of(context).showSnackBar(
+          //   SnackBar(
+          //     content: Text('Error leaving party: $e'),
+          //     backgroundColor: Colors.red,
+          //   ),
+          // );
         }
       }
     }
@@ -2041,15 +2060,36 @@ class _ManagePartyTabState extends ConsumerState<_ManagePartyTab> {
               if (isMemberOwner) return const SizedBox.shrink(); // Don't show owner
               
               return ListTile(
-                leading: CircleAvatar(
-                  backgroundColor: Theme.of(context).colorScheme.primary.withOpacity(0.3),
-                  child: Text(
-                    memberId.substring(0, 2).toUpperCase(),
-                    style: TextStyle(
-                      color: Theme.of(context).colorScheme.primary,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
+                leading: Consumer(
+                  builder: (context, ref, child) {
+                    final displayNameAsync = ref.watch(displayNameProvider(memberId));
+                    return CircleAvatar(
+                      backgroundColor: Theme.of(context).colorScheme.primary.withOpacity(0.3),
+                      child: displayNameAsync.when(
+                        data: (displayName) => Text(
+                          displayName.isNotEmpty ? displayName[0].toUpperCase() : '?',
+                          style: TextStyle(
+                            color: Theme.of(context).colorScheme.primary,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        loading: () => Text(
+                          '?',
+                          style: TextStyle(
+                            color: Theme.of(context).colorScheme.primary,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        error: (_, __) => Text(
+                          '?',
+                          style: TextStyle(
+                            color: Theme.of(context).colorScheme.primary,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                    );
+                  },
                 ),
                 title: Consumer(
                   builder: (context, ref, child) {
@@ -2060,18 +2100,18 @@ class _ManagePartyTabState extends ConsumerState<_ManagePartyTab> {
                       );
                     }
                     
-                    final displayNameAsync = ref.watch(userDisplayNameProvider(memberId));
+                    final displayNameAsync = ref.watch(displayNameProvider(memberId));
                     return displayNameAsync.when(
                       data: (displayName) => Text(
                         displayName,
                         style: const TextStyle(fontWeight: FontWeight.normal),
                       ),
                       loading: () => Text(
-                        'User ${memberId.substring(0, 8)}...',
+                        'Loading...',
                         style: const TextStyle(fontWeight: FontWeight.normal),
                       ),
                       error: (_, __) => Text(
-                        'User ${memberId.substring(0, 8)}...',
+                        'Unknown',
                         style: const TextStyle(fontWeight: FontWeight.normal),
                       ),
                     );
@@ -2245,29 +2285,29 @@ class _ManagePartyTabState extends ConsumerState<_ManagePartyTab> {
 
       if (mounted) {
         if (success) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Invite cancelled successfully'),
-              backgroundColor: Colors.green,
-            ),
-          );
+          // ScaffoldMessenger.of(context).showSnackBar(
+          //   const SnackBar(
+          //     content: Text('Invite cancelled successfully'),
+          //     backgroundColor: Colors.green,
+          //   ),
+          // );
         } else {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Failed to cancel invite'),
-              backgroundColor: Colors.red,
-            ),
-          );
+          // ScaffoldMessenger.of(context).showSnackBar(
+          //   const SnackBar(
+          //     content: Text('Failed to cancel invite'),
+          //     backgroundColor: Colors.red,
+          //   ),
+          // );
         }
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error: $e'),
-            backgroundColor: Colors.red,
-          ),
-        );
+        // ScaffoldMessenger.of(context).showSnackBar(
+        //   SnackBar(
+        //     content: Text('Error: $e'),
+        //     backgroundColor: Colors.red,
+        //   ),
+        // );
       }
     } finally {
       if (mounted) {
@@ -2378,29 +2418,29 @@ class _ManagePartyTabState extends ConsumerState<_ManagePartyTab> {
 
       if (mounted) {
         if (success) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Member removed successfully'),
-              backgroundColor: Colors.green,
-            ),
-          );
+          // ScaffoldMessenger.of(context).showSnackBar(
+          //   const SnackBar(
+          //     content: Text('Member removed successfully'),
+          //     backgroundColor: Colors.green,
+          //   ),
+          // );
         } else {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Failed to remove member'),
-              backgroundColor: Colors.red,
-            ),
-          );
+          // ScaffoldMessenger.of(context).showSnackBar(
+          //   const SnackBar(
+          //     content: Text('Failed to remove member'),
+          //     backgroundColor: Colors.red,
+          //   ),
+          // );
         }
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error: $e'),
-            backgroundColor: Colors.red,
-          ),
-        );
+        // ScaffoldMessenger.of(context).showSnackBar(
+        //   SnackBar(
+        //     content: Text('Error: $e'),
+        //     backgroundColor: Colors.red,
+        //   ),
+        // );
       }
     } finally {
       if (mounted) {
@@ -2481,31 +2521,31 @@ class _ManagePartyTabState extends ConsumerState<_ManagePartyTab> {
 
       if (mounted) {
         if (success) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Leadership transferred successfully'),
-              backgroundColor: Colors.green,
-            ),
-          );
+          // ScaffoldMessenger.of(context).showSnackBar(
+          //   const SnackBar(
+          //     content: Text('Leadership transferred successfully'),
+          //     backgroundColor: Colors.green,
+          //   ),
+          // );
           // Navigate back since user is no longer leader
           Navigator.of(context).pop();
         } else {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Failed to transfer leadership'),
-              backgroundColor: Colors.red,
-            ),
-          );
+          // ScaffoldMessenger.of(context).showSnackBar(
+          //   const SnackBar(
+          //     content: Text('Failed to transfer leadership'),
+          //     backgroundColor: Colors.red,
+          //   ),
+          // );
         }
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error: $e'),
-            backgroundColor: Colors.red,
-          ),
-        );
+        // ScaffoldMessenger.of(context).showSnackBar(
+        //   SnackBar(
+        //     content: Text('Error: $e'),
+        //     backgroundColor: Colors.red,
+        //   ),
+        // );
       }
     } finally {
       if (mounted) {
@@ -2567,29 +2607,29 @@ class _ManagePartyTabState extends ConsumerState<_ManagePartyTab> {
         if (success) {
           // Navigate to parties list using GoRouter
           context.go('/party');
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Party deleted successfully'),
-              backgroundColor: Colors.green,
-            ),
-          );
+          // ScaffoldMessenger.of(context).showSnackBar(
+          //   const SnackBar(
+          //     content: Text('Party deleted successfully'),
+          //     backgroundColor: Colors.green,
+          //   ),
+          // );
         } else {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Failed to delete party'),
-              backgroundColor: Colors.red,
-            ),
-          );
+          // ScaffoldMessenger.of(context).showSnackBar(
+          //   const SnackBar(
+          //     content: Text('Failed to delete party'),
+          //     backgroundColor: Colors.red,
+          //   ),
+          // );
         }
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error: $e'),
-            backgroundColor: Colors.red,
-          ),
-        );
+        // ScaffoldMessenger.of(context).showSnackBar(
+        //   SnackBar(
+        //     content: Text('Error: $e'),
+        //     backgroundColor: Colors.red,
+        //   ),
+        // );
       }
     } finally {
       if (mounted) {
@@ -2714,29 +2754,29 @@ class _EditPartyDialogState extends ConsumerState<_EditPartyDialog> {
       if (mounted) {
         if (success) {
           Navigator.of(context).pop();
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Party updated successfully!'),
-              backgroundColor: Colors.green,
-            ),
-          );
+          // ScaffoldMessenger.of(context).showSnackBar(
+          //   const SnackBar(
+          //     content: Text('Party updated successfully!'),
+          //     backgroundColor: Colors.green,
+          //   ),
+          // );
         } else {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Failed to update party'),
-              backgroundColor: Colors.red,
-            ),
-          );
+          // ScaffoldMessenger.of(context).showSnackBar(
+          //   const SnackBar(
+          //     content: Text('Failed to update party'),
+          //     backgroundColor: Colors.red,
+          //   ),
+          // );
         }
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error: $e'),
-            backgroundColor: Colors.red,
-          ),
-        );
+        // ScaffoldMessenger.of(context).showSnackBar(
+        //   SnackBar(
+        //     content: Text('Error: $e'),
+        //     backgroundColor: Colors.red,
+        //   ),
+        // );
       }
     } finally {
       if (mounted) {
@@ -2752,14 +2792,17 @@ class _TransferLeadershipDialog extends ConsumerWidget {
 
   final Party party;
   
-  String _getUserName(String userId, List<UserChallengeParticipation> participations) {
-    try {
-      final participation = participations.firstWhere((p) => p.userId == userId);
-      return participation.userName;
-    } catch (e) {
-      // Fallback to user ID if participation not found
-      return 'User ${userId.substring(0, 8)}...';
-    }
+  Widget _getUserNameWidget(String userId, List<UserChallengeParticipation> participations) {
+    return Consumer(
+      builder: (context, ref, child) {
+        final displayNameAsync = ref.watch(displayNameProvider(userId));
+        return displayNameAsync.when(
+          data: (displayName) => Text(displayName),
+          loading: () => const Text('Loading...'),
+          error: (_, __) => const Text('Unknown'),
+        );
+      },
+    );
   }
 
   @override
@@ -2807,17 +2850,38 @@ class _TransferLeadershipDialog extends ConsumerWidget {
                   return Card(
                     margin: const EdgeInsets.only(bottom: 8),
                     child: ListTile(
-                      leading: CircleAvatar(
-                        backgroundColor: Theme.of(context).colorScheme.primary,
-                        child: Text(
-                          memberId.substring(0, 2).toUpperCase(),
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
+                      leading: Consumer(
+                        builder: (context, ref, child) {
+                          final displayNameAsync = ref.watch(displayNameProvider(memberId));
+                          return CircleAvatar(
+                            backgroundColor: Theme.of(context).colorScheme.primary,
+                            child: displayNameAsync.when(
+                              data: (displayName) => Text(
+                                displayName.isNotEmpty ? displayName[0].toUpperCase() : '?',
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                              loading: () => const Text(
+                                '?',
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                              error: (_, __) => const Text(
+                                '?',
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ),
+                          );
+                        },
                       ),
-                      title: Text(_getUserName(memberId, challengeParticipations)),
+                      title: _getUserNameWidget(memberId, challengeParticipations),
                       subtitle: const Text('Party Member'),
                       trailing: ElevatedButton.icon(
                         onPressed: () {

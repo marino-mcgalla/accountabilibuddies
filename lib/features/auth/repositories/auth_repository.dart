@@ -376,21 +376,36 @@ class FirebaseAuthRepository implements AuthRepository {
 
   // Helper methods
   Future<UserModel> _mapFirebaseUserToUserModel(User user) async {
+    print('🔍 AuthRepository._mapFirebaseUserToUserModel called for user: ${user.uid}');
+    print('🔑 Firebase Auth displayName: "${user.displayName}"');
+    
     // Get additional user data from Firestore
     Map<String, dynamic>? firestoreData;
     try {
       final doc = await _firestore.collection('users').doc(user.uid).get();
       if (doc.exists) {
         firestoreData = doc.data();
+        print('📊 Firestore data in auth repo: $firestoreData');
+      } else {
+        print('📄 No Firestore document found for user');
       }
     } catch (e) {
+      print('❌ Error fetching Firestore data in auth repo: $e');
       // If Firestore data retrieval fails, we'll use Firebase Auth data only
     }
+
+    final firestoreDisplayName = firestoreData?['displayName'] as String?;
+    print('🔄 Firestore displayName: "$firestoreDisplayName" (is null: ${firestoreDisplayName == null}, is empty: ${firestoreDisplayName?.isEmpty})');
+    
+    final finalDisplayName = (firestoreDisplayName != null && firestoreDisplayName.isNotEmpty) 
+        ? firestoreDisplayName 
+        : user.displayName;
+    print('✅ Final displayName for UserModel: "$finalDisplayName"');
 
     return UserModel(
       id: user.uid,
       email: user.email!,
-      displayName: user.displayName ?? firestoreData?['displayName'],
+      displayName: finalDisplayName,
       photoUrl: user.photoURL ?? firestoreData?['photoUrl'],
       isEmailVerified: user.emailVerified,
       createdAt: user.metadata.creationTime ?? DateTime.now(),
@@ -487,8 +502,11 @@ class FirebaseAuthRepository implements AuthRepository {
 
       // Update user data in Firestore
       await _firestore.collection('users').doc(user.id).set({
+        'id': user.id,
+        'email': user.email,
         'displayName': user.displayName,
         'photoUrl': user.photoUrl,
+        'isEmailVerified': user.isEmailVerified,
         'metadata': user.metadata,
         'updatedAt': FieldValue.serverTimestamp(),
       }, SetOptions(merge: true));

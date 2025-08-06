@@ -851,45 +851,19 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
   }
 
   void _showProofSubmissionFlow(BuildContext context, WidgetRef ref) async {
-    // Show options for camera or gallery/text submission
-    final choice = await showModalBottomSheet<String>(
-      context: context,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (context) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            ListTile(
-              leading: const Icon(Icons.camera_alt),
-              title: const Text('Take Photo'),
-              subtitle: const Text('Submit real-time proof'),
-              onTap: () => Navigator.pop(context, 'camera'),
-            ),
-            ListTile(
-              leading: const Icon(Icons.photo_library),
-              title: const Text('Choose from Gallery / Text'),
-              subtitle: const Text('Submit proof from gallery or text description'),
-              onTap: () => Navigator.pop(context, 'gallery'),
-            ),
-            const SizedBox(height: 8),
-          ],
-        ),
-      ),
-    );
+    print('🎬 _showProofSubmissionFlow called');
     
-    if (choice == 'camera') {
-      await _openCamera();
-    } else if (choice == 'gallery') {
-      await _showMultiGoalSubmission(null);
-    }
+    // Go directly to camera - no selection dialog
+    print('📷 Opening camera directly...');
+    await _openCamera();
   }
 
   Future<void> _openCamera() async {
+    print('🎥 _openCamera called - Platform: ${kIsWeb ? "Web" : "Mobile"}');
     try {
       if (kIsWeb) {
-        // Create UI elements for camera (based on legacy implementation)
+        print('🌐 Starting web camera implementation');
+        // Create UI elements for camera with mobile-optimized styling
         final html.DivElement container = html.DivElement()
           ..id = 'camera-container'
           ..style.position = 'fixed'
@@ -897,19 +871,29 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
           ..style.left = '0'
           ..style.width = '100%'
           ..style.height = '100%'
-          ..style.backgroundColor = 'rgba(0,0,0,0.9)'
+          ..style.backgroundColor = 'black'
           ..style.zIndex = '9999'
           ..style.display = 'flex'
           ..style.flexDirection = 'column'
           ..style.alignItems = 'center'
-          ..style.justifyContent = 'center';
+          ..style.justifyContent = 'center'
+          ..style.padding = '0'
+          ..style.margin = '0'
+          ..style.overflow = 'hidden';
 
+        // Create elements but don't add video to DOM yet
         final html.VideoElement video = html.VideoElement()
           ..id = 'camera-preview'
           ..autoplay = true
+          ..muted = true
+          ..setAttribute('playsinline', 'true')
+          ..setAttribute('controls', 'false')
+          ..style.position = 'absolute'
+          ..style.top = '0'
+          ..style.left = '0'
           ..style.width = '100%'
-          ..style.maxWidth = '500px'
-          ..style.borderRadius = '8px';
+          ..style.height = '100%'
+          ..style.objectFit = 'cover';
 
         final html.CanvasElement canvas = html.CanvasElement()
           ..id = 'canvas-element'
@@ -917,148 +901,213 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
 
         final html.ImageElement imagePreview = html.ImageElement()
           ..id = 'image-preview'
+          ..style.position = 'absolute'
+          ..style.top = '0'
+          ..style.left = '0'
           ..style.width = '100%'
-          ..style.maxWidth = '500px'
-          ..style.borderRadius = '8px'
+          ..style.height = '100%'
+          ..style.objectFit = 'cover'
           ..style.display = 'none';
 
         final html.DivElement buttonsContainer = html.DivElement()
+          ..style.position = 'absolute'
+          ..style.bottom = '0'
+          ..style.left = '0'
+          ..style.right = '0'
           ..style.display = 'flex'
-          ..style.marginTop = '20px';
+          ..style.flexDirection = 'row'
+          ..style.justifyContent = 'space-around'
+          ..style.alignItems = 'center'
+          ..style.padding = '20px'
+          ..style.paddingBottom = '40px' // Extra padding for home indicator
+          ..style.width = '100%'
+          ..style.boxSizing = 'border-box'
+          ..style.background = 'linear-gradient(to top, rgba(0,0,0,0.7), transparent)';
 
         final html.ButtonElement captureButton = html.ButtonElement()
-          ..text = 'Take Photo'
-          ..style.padding = '10px 20px'
-          ..style.margin = '0 10px'
-          ..style.backgroundColor = '#4CAF50'
-          ..style.color = 'white'
-          ..style.border = 'none'
-          ..style.borderRadius = '4px'
-          ..style.cursor = 'pointer';
+          ..style.width = '70px'
+          ..style.height = '70px'
+          ..style.borderRadius = '50%'
+          ..style.backgroundColor = 'white'
+          ..style.border = '3px solid white'
+          ..style.cursor = 'pointer'
+          ..style.position = 'relative'
+          ..style.touchAction = 'manipulation'
+          ..style.boxShadow = '0 2px 10px rgba(0,0,0,0.3)';
 
         final html.ButtonElement galleryButton = html.ButtonElement()
-          ..text = 'Gallery'
-          ..style.padding = '10px 20px'
-          ..style.margin = '0 10px'
-          ..style.backgroundColor = '#2196F3'
+          ..text = '🖼️'
+          ..style.width = '50px'
+          ..style.height = '50px'
+          ..style.borderRadius = '50%'
+          ..style.backgroundColor = 'rgba(255,255,255,0.2)'
           ..style.color = 'white'
-          ..style.border = 'none'
-          ..style.borderRadius = '4px'
-          ..style.cursor = 'pointer';
+          ..style.border = '2px solid rgba(255,255,255,0.5)'
+          ..style.cursor = 'pointer'
+          ..style.fontSize = '24px'
+          ..style.display = 'flex'
+          ..style.alignItems = 'center'
+          ..style.justifyContent = 'center'
+          ..style.touchAction = 'manipulation';
 
         final html.ButtonElement submitButton = html.ButtonElement()
-          ..text = 'Submit Proof'
-          ..style.padding = '10px 20px'
-          ..style.margin = '0 10px'
+          ..text = '✓'
+          ..style.width = '70px'
+          ..style.height = '70px'
+          ..style.borderRadius = '50%'
           ..style.backgroundColor = '#4CAF50'
           ..style.color = 'white'
-          ..style.border = 'none'
-          ..style.borderRadius = '4px'
+          ..style.border = '3px solid #4CAF50'
           ..style.cursor = 'pointer'
-          ..style.display = 'none';
+          ..style.fontSize = '30px'
+          ..style.display = 'none'
+          ..style.alignItems = 'center'
+          ..style.justifyContent = 'center'
+          ..style.touchAction = 'manipulation'
+          ..style.boxShadow = '0 2px 10px rgba(0,0,0,0.3)';
 
         final html.ButtonElement retakeButton = html.ButtonElement()
-          ..text = 'Retake'
-          ..style.padding = '10px 20px'
-          ..style.margin = '0 10px'
-          ..style.backgroundColor = '#FF9800'
+          ..text = '↺'
+          ..style.width = '50px'
+          ..style.height = '50px'
+          ..style.borderRadius = '50%'
+          ..style.backgroundColor = 'rgba(255,255,255,0.2)'
           ..style.color = 'white'
-          ..style.border = 'none'
-          ..style.borderRadius = '4px'
+          ..style.border = '2px solid rgba(255,255,255,0.5)'
           ..style.cursor = 'pointer'
-          ..style.display = 'none';
+          ..style.fontSize = '24px'
+          ..style.display = 'none'
+          ..style.alignItems = 'center'
+          ..style.justifyContent = 'center'
+          ..style.touchAction = 'manipulation';
 
         final html.ButtonElement cancelButton = html.ButtonElement()
-          ..text = 'Cancel'
-          ..style.padding = '10px 20px'
-          ..style.margin = '0 10px'
-          ..style.backgroundColor = '#f44336'
+          ..text = '✕'
+          ..style.width = '50px'
+          ..style.height = '50px'
+          ..style.borderRadius = '50%'
+          ..style.backgroundColor = 'rgba(255,255,255,0.2)'
           ..style.color = 'white'
-          ..style.border = 'none'
-          ..style.borderRadius = '4px'
-          ..style.cursor = 'pointer';
+          ..style.border = '2px solid rgba(255,255,255,0.5)'
+          ..style.cursor = 'pointer'
+          ..style.fontSize = '24px'
+          ..style.display = 'flex'
+          ..style.alignItems = 'center'
+          ..style.justifyContent = 'center'
+          ..style.touchAction = 'manipulation';
 
-        // Add elements to DOM
+        // Add elements to DOM - Cancel, Capture, Gallery layout
+        buttonsContainer.children.add(cancelButton);
         buttonsContainer.children.add(captureButton);
         buttonsContainer.children.add(galleryButton);
         buttonsContainer.children.add(submitButton);
         buttonsContainer.children.add(retakeButton);
-        buttonsContainer.children.add(cancelButton);
-        container.children.add(video);
+        // Don't add video yet - will add after camera permission check
         container.children.add(canvas);
         container.children.add(imagePreview);
         container.children.add(buttonsContainer);
         html.document.body?.append(container);
+        print('📱 Camera UI added to DOM (without video)');
+        
+        // Add a visible debug indicator to the camera UI
+        final html.DivElement debugIndicator = html.DivElement()
+          ..style.position = 'absolute'
+          ..style.top = '40px' // Account for safe area
+          ..style.left = '50%'
+          ..style.transform = 'translateX(-50%)'
+          ..style.backgroundColor = 'rgba(0,0,0,0.7)'
+          ..style.color = 'white'
+          ..style.padding = '8px 16px'
+          ..style.fontSize = '11px'
+          ..style.borderRadius = '20px'
+          ..style.zIndex = '10000'
+          ..text = 'Checking camera...';
+        container.append(debugIndicator);
+        
 
-        // Set up event listeners
-        cancelButton.onClick.listen((event) {
-          final stream = video.srcObject as html.MediaStream?;
-          if (stream != null) {
-            final tracks = stream.getVideoTracks();
-            for (var track in tracks) {
-              track.stop();
-            }
-          }
-          container.remove();
+        // Set up event listeners with both click and touch events
+        void setupButtonEvents(html.ButtonElement button, void Function() callback) {
+          button.onClick.listen((event) {
+            event.preventDefault();
+            callback();
+          });
+          button.onTouchEnd.listen((event) {
+            event.preventDefault();
+            callback();
+          });
+        }
+        
+        setupButtonEvents(cancelButton, () {
+          print('❌ Cancel button pressed');
+          _cleanupCamera();
         });
 
-        captureButton.onClick.listen((event) {
-          // Capture image from video
-          canvas.width = video.videoWidth;
-          canvas.height = video.videoHeight;
-          canvas.context2D.drawImage(video, 0, 0);
+        setupButtonEvents(captureButton, () {
+          print('📸 Capture button clicked');
+          
+          // Update debug indicator
+          debugIndicator.text = 'DEBUG: Capture button clicked!';
+          debugIndicator.style.backgroundColor = 'green';
+          
+          try {
+            // Capture image from video
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            print('📐 Canvas size: ${canvas.width}x${canvas.height}');
+            canvas.context2D.drawImage(video, 0, 0);
 
-          // Convert to blob and show preview
-          canvas.toBlob('image/jpeg', 0.85).then((blob) {
-            final url = html.Url.createObjectUrl(blob);
-            imagePreview.src = url;
-            
-            // Switch to preview mode
-            video.style.display = 'none';
-            imagePreview.style.display = 'block';
-            
-            // Show preview buttons, hide capture buttons
-            captureButton.style.display = 'none';
-            galleryButton.style.display = 'none';
-            submitButton.style.display = 'inline-block';
-            retakeButton.style.display = 'inline-block';
-            
-          });
+            // Convert to blob and show preview
+            canvas.toBlob('image/jpeg', 0.85).then((blob) {
+              print('🖼️ Image blob created');
+              final url = html.Url.createObjectUrl(blob);
+              imagePreview.src = url;
+              
+              // Switch to preview mode
+              video.style.display = 'none';
+              imagePreview.style.display = 'block';
+              
+              // Show preview buttons, hide capture buttons
+              captureButton.style.display = 'none';
+              galleryButton.style.display = 'none';
+              submitButton.style.display = 'inline-block';
+              retakeButton.style.display = 'inline-block';
+              
+              print('✅ Switched to preview mode');
+            });
+          } catch (e) {
+            print('💥 Capture error: $e');
+          }
         });
 
         galleryButton.onClick.listen((event) async {
+          // Close camera immediately to stop the camera light
+          _cleanupCamera();
+          container.remove();
+          
           // Open gallery picker
           final ImagePicker picker = ImagePicker();
-          final XFile? photo = await picker.pickImage(source: ImageSource.gallery);
+          final XFile? photo = await picker.pickImage(
+            source: ImageSource.gallery,
+            imageQuality: 85, // Compress to reduce file size
+          );
           
           if (photo != null) {
-            // Stop camera and show preview with selected image
-            final stream = video.srcObject as html.MediaStream?;
-            if (stream != null) {
-              final tracks = stream.getVideoTracks();
-              for (var track in tracks) {
-                track.stop();
+            if (_isValidImageFile(photo)) {
+              // Convert to blob and show multi-goal submission with selected image
+              final bytes = await photo.readAsBytes();
+              if (kIsWeb) {
+                final blob = html.Blob([bytes], 'image/jpeg');
+                await _showMultiGoalSubmission(blob);
+              } else {
+                await _showMultiGoalSubmission(bytes);
               }
+            } else {
+              _showInvalidFileTypeError();
+              // Don't reopen camera - stay on form and let user try again
             }
-            
-            // Load selected image into preview
-            final bytes = await photo.readAsBytes();
-            final blob = html.Blob([bytes], 'image/jpeg');
-            final url = html.Url.createObjectUrl(blob);
-            imagePreview.src = url;
-            
-            // Store the blob for later submission
-            imagePreview.dataset['imageBlob'] = url;
-            
-            // Switch to preview mode
-            video.style.display = 'none';
-            imagePreview.style.display = 'block';
-            
-            // Show preview buttons, hide capture buttons
-            captureButton.style.display = 'none';
-            galleryButton.style.display = 'none';
-            submitButton.style.display = 'inline-block';
-            retakeButton.style.display = 'inline-block';
+          } else {
+            // If no photo selected, reopen camera
+            await _openCamera();
           }
         });
 
@@ -1071,36 +1120,26 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
             final response = await html.HttpRequest.request(galleryBlobUrl, responseType: 'blob');
             final blob = response.response as html.Blob;
             
-            // Stop camera and close camera UI
-            final stream = video.srcObject as html.MediaStream?;
-            if (stream != null) {
-              final tracks = stream.getVideoTracks();
-              for (var track in tracks) {
-                track.stop();
-              }
-            }
-            container.remove();
-            
             // Clean up the blob URL
             html.Url.revokeObjectUrl(galleryBlobUrl);
             
+            // Stop camera and close camera UI
+            _cleanupCamera();
+            
             // Show multi-goal selection
-            await _showMultiGoalSelectionForProof(context, blob);
+            if (mounted) {
+              await _showMultiGoalSelectionForProof(context, blob);
+            }
           } else {
             // Camera capture submission
             canvas.toBlob('image/jpeg', 0.85).then((blob) async {
               // Stop camera and close camera UI
-              final stream = video.srcObject as html.MediaStream?;
-              if (stream != null) {
-                final tracks = stream.getVideoTracks();
-                for (var track in tracks) {
-                  track.stop();
-                }
-              }
-              container.remove();
+              _cleanupCamera();
               
               // Show multi-goal selection
-              await _showMultiGoalSelectionForProof(context, blob);
+              if (mounted) {
+                await _showMultiGoalSelectionForProof(context, blob);
+              }
             });
           }
         });
@@ -1128,13 +1167,100 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
           
         });
 
-        // Start camera
-        final stream = await html.window.navigator.mediaDevices!.getUserMedia({
-          'video': {'facingMode': 'environment'},
-          'audio': false,
-        });
+        // Start camera with null checks for mobile compatibility
+        print('📹 Requesting camera permissions...');
         
-        video.srcObject = stream;
+        // Check if MediaDevices API is available before creating UI
+        final mediaDevices = html.window.navigator.mediaDevices;
+        final isHttps = html.window.location.protocol == 'https:';
+        final isLocalhost = html.window.location.hostname == 'localhost' || 
+                           html.window.location.hostname == '127.0.0.1';
+        
+        print('🔍 Checking camera availability...');
+        print('🔒 Protocol: ${html.window.location.protocol}');
+        print('🏠 Host: ${html.window.location.host}');
+        print('🌐 User agent: ${html.window.navigator.userAgent}');
+        
+        // Immediately fall back if camera API won't work
+        if (mediaDevices == null || (!isHttps && !isLocalhost)) {
+          print('⚠️ Camera API not available (HTTPS required or MediaDevices null)');
+          print('🔄 Going directly to native camera picker...');
+          
+          // Remove container immediately
+          container.remove();
+          
+          // Open native camera picker directly
+          final ImagePicker picker = ImagePicker();
+          final XFile? photo = await picker.pickImage(
+            source: ImageSource.camera,
+            imageQuality: 85,
+          );
+          
+          if (photo != null) {
+            print('📸 Photo captured: ${photo.name}');
+            final bytes = await photo.readAsBytes();
+            if (mounted) {
+              if (kIsWeb) {
+                final blob = html.Blob([bytes], 'image/jpeg');
+                await _showMultiGoalSubmission(blob);
+              } else {
+                await _showMultiGoalSubmission(bytes);
+              }
+            }
+          }
+          return;
+        }
+        
+        // Only try camera access if we're on HTTPS or localhost
+        try {
+          print('📹 Attempting camera access...');
+          
+          // Start with simple constraints
+          Map<String, dynamic> constraints = {
+            'video': true,
+            'audio': false
+          };
+          
+          final stream = await mediaDevices.getUserMedia(constraints);
+          print('✅ Camera stream obtained');
+          
+          // Now add video to the container since camera access succeeded
+          container.insertBefore(video, canvas);
+          
+          video.srcObject = stream;
+          await video.play();
+          print('📹 Camera UI ready with video element');
+          
+        } catch (e) {
+          print('💥 Camera access denied or failed: $e');
+          
+          // Clean up and fall back to native picker
+          container.remove();
+          
+          final ImagePicker picker = ImagePicker();
+          final XFile? photo = await picker.pickImage(
+            source: ImageSource.camera,
+            imageQuality: 85,
+          );
+          
+          if (photo != null) {
+            print('📸 Fallback photo captured: ${photo.name}');
+            final bytes = await photo.readAsBytes();
+            if (mounted) {
+              if (kIsWeb) {
+                final blob = html.Blob([bytes], 'image/jpeg');
+                await _showMultiGoalSubmission(blob);
+              } else {
+                await _showMultiGoalSubmission(bytes);
+              }
+            }
+          }
+          return;
+        }
+        
+        // Update debug indicator on success
+        debugIndicator.text = 'DEBUG: Camera active - tap Take Photo';
+        debugIndicator.style.backgroundColor = 'green';
         
         // Add page visibility listener to cleanup camera when tab is hidden
         html.document.addEventListener('visibilitychange', (event) {
@@ -1148,14 +1274,32 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
           _cleanupCamera();
         });
       } else {
-        // For mobile, use image picker
+        print('📱 Using mobile image picker');
+        // For mobile native apps, use image picker directly
         final ImagePicker picker = ImagePicker();
-        final XFile? photo = await picker.pickImage(source: ImageSource.camera);
+        final XFile? photo = await picker.pickImage(
+          source: ImageSource.camera,
+          imageQuality: 85,
+          maxWidth: 1920,
+          maxHeight: 1080,
+        );
         
         if (photo != null) {
+          print('📸 Photo captured: ${photo.name}');
+          // Convert XFile to blob-like format for the submission widget
+          final bytes = await photo.readAsBytes();
+          if (kIsWeb) {
+            final blob = html.Blob([bytes], 'image/jpeg');
+            await _showMultiGoalSubmission(blob);
+          } else {
+            await _showMultiGoalSubmission(bytes);
+          }
+        } else {
+          print('❌ Photo capture cancelled');
         }
       }
     } catch (e) {
+      print('💥 Camera error: $e');
       // Cleanup camera on any error
       _cleanupCamera();
     }
@@ -1502,6 +1646,99 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
                 },
               ),
             ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Validates that the selected file is a supported image format
+  bool _isValidImageFile(XFile file) {
+    // On web, file.path might be a blob URL, so we primarily rely on MIME type
+    if (kIsWeb && file.mimeType != null) {
+      const allowedMimeTypes = [
+        'image/jpeg',
+        'image/jpg', 
+        'image/png',
+        'image/webp'
+      ];
+      return allowedMimeTypes.contains(file.mimeType!.toLowerCase());
+    }
+    
+    // For non-web platforms or when MIME type is not available, check extension
+    const allowedExtensions = ['jpg', 'jpeg', 'png', 'webp'];
+    final extension = file.path.toLowerCase().split('.').last;
+    
+    // Check if the path is a blob URL (web)
+    if (file.path.startsWith('blob:')) {
+      // For blob URLs without MIME type, we can't validate - allow it
+      return true;
+    }
+    
+    // Check file extension
+    return allowedExtensions.contains(extension);
+  }
+
+  /// Shows an error dialog for invalid file types
+  void _showInvalidFileTypeError() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Row(
+          children: [
+            Icon(
+              Icons.error_outline,
+              color: Colors.red,
+              size: 24,
+            ),
+            const SizedBox(width: 8),
+            const Text('Invalid File Type'),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Please select a valid image file.',
+              style: TextStyle(fontWeight: FontWeight.w500),
+            ),
+            const SizedBox(height: 12),
+            const Text('Supported formats:'),
+            const SizedBox(height: 4),
+            const Text('• JPEG (.jpg, .jpeg)'),
+            const Text('• PNG (.png)'),
+            const Text('• WebP (.webp)'),
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: Colors.orange[50],
+                borderRadius: BorderRadius.circular(4),
+                border: Border.all(color: Colors.orange[200]!),
+              ),
+              child: Row(
+                children: [
+                  Icon(Icons.info_outline, size: 16, color: Colors.orange[700]),
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: Text(
+                      'Unsupported formats may cause upload failures',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Colors.orange[700],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          ElevatedButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Try Again'),
           ),
         ],
       ),

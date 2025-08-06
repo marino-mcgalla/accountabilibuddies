@@ -851,18 +851,14 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
   }
 
   void _showProofSubmissionFlow(BuildContext context, WidgetRef ref) async {
-    print('🎬 _showProofSubmissionFlow called');
     
     // Go directly to camera - no selection dialog
-    print('📷 Opening camera directly...');
     await _openCamera();
   }
 
   Future<void> _openCamera() async {
-    print('🎥 _openCamera called - Platform: ${kIsWeb ? "Web" : "Mobile"}');
     try {
       if (kIsWeb) {
-        print('🌐 Starting web camera implementation');
         // Create UI elements for camera with mobile-optimized styling
         final html.DivElement container = html.DivElement()
           ..id = 'camera-container'
@@ -888,12 +884,26 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
           ..muted = true
           ..setAttribute('playsinline', 'true')
           ..setAttribute('controls', 'false')
+          ..setAttribute('disablePictureInPicture', 'true')
+          ..setAttribute('controlsList', 'nodownload nofullscreen noremoteplayback')
           ..style.position = 'absolute'
           ..style.top = '0'
           ..style.left = '0'
           ..style.width = '100%'
           ..style.height = '100%'
-          ..style.objectFit = 'cover';
+          ..style.objectFit = 'cover'
+          ..style.setProperty('-webkit-media-controls', 'none')
+          ..style.setProperty('-moz-media-controls', 'none')
+          ..style.setProperty('media-controls', 'none')
+          ..style.setProperty('-webkit-media-controls-panel', 'none')
+          ..style.setProperty('-webkit-media-controls-play-button', 'none')
+          ..style.setProperty('-webkit-media-controls-timeline', 'none')
+          ..style.setProperty('-webkit-media-controls-current-time-display', 'none')
+          ..style.setProperty('-webkit-media-controls-time-remaining-display', 'none')
+          ..style.setProperty('-webkit-media-controls-timeline-container', 'none')
+          ..style.setProperty('-webkit-media-controls-volume-slider', 'none')
+          ..style.setProperty('-webkit-media-controls-fullscreen-button', 'none')
+          ..style.pointerEvents = 'none'; // Prevent right-click context menu
 
         final html.CanvasElement canvas = html.CanvasElement()
           ..id = 'canvas-element'
@@ -1007,22 +1017,28 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
         container.children.add(imagePreview);
         container.children.add(buttonsContainer);
         html.document.body?.append(container);
-        print('📱 Camera UI added to DOM (without video)');
         
-        // Add a visible debug indicator to the camera UI
-        final html.DivElement debugIndicator = html.DivElement()
-          ..style.position = 'absolute'
-          ..style.top = '40px' // Account for safe area
-          ..style.left = '50%'
-          ..style.transform = 'translateX(-50%)'
-          ..style.backgroundColor = 'rgba(0,0,0,0.7)'
-          ..style.color = 'white'
-          ..style.padding = '8px 16px'
-          ..style.fontSize = '11px'
-          ..style.borderRadius = '20px'
-          ..style.zIndex = '10000'
-          ..text = 'Checking camera...';
-        container.append(debugIndicator);
+        // Inject additional CSS to hide any remaining video controls
+        final html.StyleElement style = html.StyleElement()
+          ..text = '''
+            #camera-container video::-webkit-media-controls,
+            #camera-container video::-webkit-media-controls-panel,
+            #camera-container video::-webkit-media-controls-play-button,
+            #camera-container video::-webkit-media-controls-timeline,
+            #camera-container video::-webkit-media-controls-current-time-display,
+            #camera-container video::-webkit-media-controls-time-remaining-display,
+            #camera-container video::-webkit-media-controls-timeline-container,
+            #camera-container video::-webkit-media-controls-volume-slider,
+            #camera-container video::-webkit-media-controls-fullscreen-button {
+              display: none !important;
+              opacity: 0 !important;
+              visibility: hidden !important;
+            }
+            #camera-container video {
+              outline: none !important;
+            }
+          ''';
+        html.document.head?.append(style);
         
 
         // Set up event listeners with both click and touch events
@@ -1038,27 +1054,19 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
         }
         
         setupButtonEvents(cancelButton, () {
-          print('❌ Cancel button pressed');
           _cleanupCamera();
         });
 
         setupButtonEvents(captureButton, () {
-          print('📸 Capture button clicked');
-          
-          // Update debug indicator
-          debugIndicator.text = 'DEBUG: Capture button clicked!';
-          debugIndicator.style.backgroundColor = 'green';
           
           try {
             // Capture image from video
             canvas.width = video.videoWidth;
             canvas.height = video.videoHeight;
-            print('📐 Canvas size: ${canvas.width}x${canvas.height}');
             canvas.context2D.drawImage(video, 0, 0);
 
             // Convert to blob and show preview
             canvas.toBlob('image/jpeg', 0.85).then((blob) {
-              print('🖼️ Image blob created');
               final url = html.Url.createObjectUrl(blob);
               imagePreview.src = url;
               
@@ -1072,10 +1080,8 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
               submitButton.style.display = 'inline-block';
               retakeButton.style.display = 'inline-block';
               
-              print('✅ Switched to preview mode');
             });
           } catch (e) {
-            print('💥 Capture error: $e');
           }
         });
 
@@ -1168,7 +1174,6 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
         });
 
         // Start camera with null checks for mobile compatibility
-        print('📹 Requesting camera permissions...');
         
         // Check if MediaDevices API is available before creating UI
         final mediaDevices = html.window.navigator.mediaDevices;
@@ -1176,15 +1181,9 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
         final isLocalhost = html.window.location.hostname == 'localhost' || 
                            html.window.location.hostname == '127.0.0.1';
         
-        print('🔍 Checking camera availability...');
-        print('🔒 Protocol: ${html.window.location.protocol}');
-        print('🏠 Host: ${html.window.location.host}');
-        print('🌐 User agent: ${html.window.navigator.userAgent}');
         
         // Immediately fall back if camera API won't work
         if (mediaDevices == null || (!isHttps && !isLocalhost)) {
-          print('⚠️ Camera API not available (HTTPS required or MediaDevices null)');
-          print('🔄 Going directly to native camera picker...');
           
           // Remove container immediately
           container.remove();
@@ -1197,7 +1196,6 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
           );
           
           if (photo != null) {
-            print('📸 Photo captured: ${photo.name}');
             final bytes = await photo.readAsBytes();
             if (mounted) {
               if (kIsWeb) {
@@ -1213,7 +1211,6 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
         
         // Only try camera access if we're on HTTPS or localhost
         try {
-          print('📹 Attempting camera access...');
           
           // Start with simple constraints
           Map<String, dynamic> constraints = {
@@ -1222,17 +1219,14 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
           };
           
           final stream = await mediaDevices.getUserMedia(constraints);
-          print('✅ Camera stream obtained');
           
           // Now add video to the container since camera access succeeded
           container.insertBefore(video, canvas);
           
           video.srcObject = stream;
           await video.play();
-          print('📹 Camera UI ready with video element');
           
         } catch (e) {
-          print('💥 Camera access denied or failed: $e');
           
           // Clean up and fall back to native picker
           container.remove();
@@ -1244,7 +1238,6 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
           );
           
           if (photo != null) {
-            print('📸 Fallback photo captured: ${photo.name}');
             final bytes = await photo.readAsBytes();
             if (mounted) {
               if (kIsWeb) {
@@ -1258,9 +1251,6 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
           return;
         }
         
-        // Update debug indicator on success
-        debugIndicator.text = 'DEBUG: Camera active - tap Take Photo';
-        debugIndicator.style.backgroundColor = 'green';
         
         // Add page visibility listener to cleanup camera when tab is hidden
         html.document.addEventListener('visibilitychange', (event) {
@@ -1274,7 +1264,6 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
           _cleanupCamera();
         });
       } else {
-        print('📱 Using mobile image picker');
         // For mobile native apps, use image picker directly
         final ImagePicker picker = ImagePicker();
         final XFile? photo = await picker.pickImage(
@@ -1285,7 +1274,6 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
         );
         
         if (photo != null) {
-          print('📸 Photo captured: ${photo.name}');
           // Convert XFile to blob-like format for the submission widget
           final bytes = await photo.readAsBytes();
           if (kIsWeb) {
@@ -1295,11 +1283,9 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
             await _showMultiGoalSubmission(bytes);
           }
         } else {
-          print('❌ Photo capture cancelled');
         }
       }
     } catch (e) {
-      print('💥 Camera error: $e');
       // Cleanup camera on any error
       _cleanupCamera();
     }

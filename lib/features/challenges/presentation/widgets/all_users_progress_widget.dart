@@ -49,7 +49,7 @@ class AllUsersProgressWidget extends ConsumerWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Team Progress',
+                  'Party Progress',
                   style: Theme.of(context).textTheme.titleMedium?.copyWith(
                     fontWeight: FontWeight.bold,
                   ),
@@ -113,8 +113,14 @@ class _UserProgressCardState extends State<_UserProgressCard> {
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      elevation: 1,
+    return Container(
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.surface,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(
+          color: Theme.of(context).colorScheme.outline.withOpacity(0.2),
+        ),
+      ),
       child: InkWell(
         onTap: () {
           setState(() {
@@ -123,7 +129,7 @@ class _UserProgressCardState extends State<_UserProgressCard> {
         },
         borderRadius: BorderRadius.circular(8),
         child: Padding(
-          padding: const EdgeInsets.all(10),
+          padding: const EdgeInsets.all(12),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -207,13 +213,6 @@ class _UserProgressCardState extends State<_UserProgressCard> {
                   ),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                ),
-                Text(
-                  goal.frequencyDisplay,
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.5),
-                    fontSize: 10,
-                  ),
                 ),
               ],
             ),

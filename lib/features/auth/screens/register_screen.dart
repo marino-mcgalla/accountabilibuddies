@@ -18,6 +18,10 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
   final _passwordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
   final _displayNameController = TextEditingController();
+  final _displayNameFocusNode = FocusNode();
+  final _emailFocusNode = FocusNode();
+  final _passwordFocusNode = FocusNode();
+  final _confirmPasswordFocusNode = FocusNode();
   bool _isPasswordVisible = false;
   bool _isConfirmPasswordVisible = false;
   bool _agreeToTerms = false;
@@ -28,6 +32,10 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
     _passwordController.dispose();
     _confirmPasswordController.dispose();
     _displayNameController.dispose();
+    _displayNameFocusNode.dispose();
+    _emailFocusNode.dispose();
+    _passwordFocusNode.dispose();
+    _confirmPasswordFocusNode.dispose();
     super.dispose();
   }
 
@@ -39,16 +47,27 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
     // Listen for auth state changes
     ref.listen(authControllerProvider, (previous, next) {
       if (next.isAuthenticated) {
-        context.go(AppRoutes.dashboard);
+        // Use post frame callback to avoid navigation during build
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) {
+            context.go(AppRoutes.dashboard);
+          }
+        });
       } else if (next.error != null) {
-        AppSnackbar.showError(
-          context,
-          UnknownFailure(message: next.error!),
-        );
+        // Use post frame callback to avoid showing snackbar during build
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) {
+            AppSnackbar.showError(
+              context,
+              UnknownFailure(message: next.error!),
+            );
+          }
+        });
       }
     });
 
     return Scaffold(
+      resizeToAvoidBottomInset: true,
       appBar: AppBar(
         title: const Text('Create Account'),
         leading: IconButton(
@@ -57,8 +76,9 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
         ),
       ),
       body: SafeArea(
-        child: Padding(
+        child: SingleChildScrollView(
           padding: const EdgeInsets.all(24),
+          keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.manual,
           child: Form(
             key: _formKey,
             child: Column(
@@ -87,6 +107,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                 // Display name field
                 AppTextField(
                   controller: _displayNameController,
+                  focusNode: _displayNameFocusNode,
                   label: 'Display Name',
                   hint: 'Enter your display name',
                   textInputAction: TextInputAction.next,
@@ -107,6 +128,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                 // Email field
                 AppTextField(
                   controller: _emailController,
+                  focusNode: _emailFocusNode,
                   label: 'Email',
                   hint: 'Enter your email',
                   keyboardType: TextInputType.emailAddress,
@@ -128,6 +150,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                 // Password field
                 AppTextField(
                   controller: _passwordController,
+                  focusNode: _passwordFocusNode,
                   label: 'Password',
                   hint: 'Enter your password',
                   obscureText: !_isPasswordVisible,
@@ -142,6 +165,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                         _isPasswordVisible = !_isPasswordVisible;
                       });
                     },
+                    focusNode: FocusNode(skipTraversal: true),
                   ),
                   enabled: !authState.isLoading,
                   validator: (value) {
@@ -163,6 +187,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                 // Confirm password field
                 AppTextField(
                   controller: _confirmPasswordController,
+                  focusNode: _confirmPasswordFocusNode,
                   label: 'Confirm Password',
                   hint: 'Confirm your password',
                   obscureText: !_isConfirmPasswordVisible,
@@ -177,6 +202,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                         _isConfirmPasswordVisible = !_isConfirmPasswordVisible;
                       });
                     },
+                    focusNode: FocusNode(skipTraversal: true),
                   ),
                   enabled: !authState.isLoading,
                   validator: (value) {
@@ -188,7 +214,6 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                     }
                     return null;
                   },
-                  onSubmitted: (_) => _handleRegister(),
                 ),
                 const SizedBox(height: 24),
                 

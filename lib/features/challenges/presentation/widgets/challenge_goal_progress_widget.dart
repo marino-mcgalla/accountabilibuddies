@@ -102,13 +102,6 @@ class ChallengeGoalProgressWidget extends ConsumerWidget {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
-                const SizedBox(height: 2),
-                Text(
-                  goal.frequencyDisplay,
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
-                  ),
-                ),
               ],
             ),
           ),

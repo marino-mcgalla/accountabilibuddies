@@ -68,7 +68,18 @@ class PartyMembersStoryCircles extends ConsumerWidget {
                   state.challengeId == challenge.id && !state.viewedBy.contains(user.id)
                 )
               ).toList();
-              final hasNewProofs = unviewedProofs.isNotEmpty && !isCurrentUser;
+              
+              // Count pending approval proofs (need approval from current user)
+              final pendingApprovalProofs = userProofs.where((proof) => 
+                proof.isPending && proof.userId != user.id
+              ).toList();
+              
+              // Combine counts for unseen and pending approval proofs
+              final unseenOrPendingProofs = <ProofSubmission>{};
+              unseenOrPendingProofs.addAll(unviewedProofs);
+              unseenOrPendingProofs.addAll(pendingApprovalProofs);
+              
+              final hasNewProofs = unseenOrPendingProofs.isNotEmpty && !isCurrentUser;
               final hasPendingProofs = userProofs.any((proof) => 
                 proof.challengeGoalStates.values.any((state) => 
                   state.challengeId == challenge.id && state.status == ProofStatus.pending
@@ -79,12 +90,12 @@ class PartyMembersStoryCircles extends ConsumerWidget {
               storyCircles.add(
                 _PartyMemberStoryCircle(
                   userId: memberId,
-                  proofCount: unviewedProofs.length,
+                  proofCount: unseenOrPendingProofs.length,
                   hasNewActivity: hasNewProofs,
                   hasPendingProofs: hasPendingProofs && !isCurrentUser,
                   isCurrentUser: isCurrentUser,
                   hasAnyProofs: hasAnyProofs,
-                  allProofsViewed: hasAnyProofs && unviewedProofs.isEmpty,
+                  allProofsViewed: hasAnyProofs && unseenOrPendingProofs.isEmpty,
                   allProofs: userProofs,
                   onTap: () => _openStoryViewer(
                     context,
@@ -99,6 +110,7 @@ class PartyMembersStoryCircles extends ConsumerWidget {
             // Always show the circles - even if no proofs or participations
             if (storyCircles.isEmpty) {
               return Card(
+                margin: EdgeInsets.zero,
                 child: Padding(
                   padding: const EdgeInsets.all(16),
                   child: Row(
@@ -117,27 +129,15 @@ class PartyMembersStoryCircles extends ConsumerWidget {
               );
             }
 
-            return Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Party Activity',
-                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                const SizedBox(height: 12),
-                SizedBox(
-                  height: 90,
-                  child: ListView.separated(
-                    scrollDirection: Axis.horizontal,
-                    padding: const EdgeInsets.symmetric(horizontal: 4),
-                    itemCount: storyCircles.length,
-                    separatorBuilder: (context, index) => const SizedBox(width: 12),
-                    itemBuilder: (context, index) => storyCircles[index],
-                  ),
-                ),
-              ],
+            return SizedBox(
+              height: 90,
+              child: ListView.separated(
+                scrollDirection: Axis.horizontal,
+                padding: const EdgeInsets.symmetric(horizontal: 4),
+                itemCount: storyCircles.length,
+                separatorBuilder: (context, index) => const SizedBox(width: 12),
+                itemBuilder: (context, index) => storyCircles[index],
+              ),
             );
           },
           loading: () => const SizedBox(
@@ -167,19 +167,29 @@ class PartyMembersStoryCircles extends ConsumerWidget {
     final currentUser = ref.read(userProvider);
     if (currentUser == null) return;
     
-    // Filter to only unviewed proofs
+    // Filter to unviewed proofs (not seen by current user)
     final unviewedProofs = proofs.where(
       (proof) => !proof.hasBeenViewedBy(currentUser.id)
     ).toList();
     
+    // Filter to pending approval proofs (need approval from current user)
+    final pendingApprovalProofs = proofs.where(
+      (proof) => proof.isPending && proof.userId != currentUser.id
+    ).toList();
+    
+    // Combine unseen and pending approval proofs (treat pending as unseen)
+    final unseenOrPendingProofs = <ProofSubmission>{};
+    unseenOrPendingProofs.addAll(unviewedProofs);
+    unseenOrPendingProofs.addAll(pendingApprovalProofs);
+    
     List<ProofSubmission> proofsToShow;
     
     // Determine which proofs to show for this session
-    if (unviewedProofs.isNotEmpty) {
-      // If there are unviewed proofs, show only those
-      proofsToShow = unviewedProofs;
+    if (unseenOrPendingProofs.isNotEmpty) {
+      // If there are unseen proofs OR proofs needing approval, show only those
+      proofsToShow = unseenOrPendingProofs.toList();
     } else {
-      // If no unviewed proofs, show ALL proofs (previously viewed)
+      // Only show previously seen proofs if there are NO unseen proofs AND NO pending approvals
       proofsToShow = proofs;
     }
     

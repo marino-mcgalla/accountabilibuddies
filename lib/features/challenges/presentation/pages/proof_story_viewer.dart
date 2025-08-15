@@ -6,6 +6,7 @@ import '../../domain/entities/proof_submission.dart';
 import '../providers/proof_providers.dart';
 import '../providers/challenge_providers.dart';
 import '../../../../core/utils/display_name_utils.dart';
+import 'edit_proof_page.dart';
 
 class ProofStoryViewer extends ConsumerStatefulWidget {
   const ProofStoryViewer({
@@ -376,40 +377,53 @@ class _ProofStoryViewerState extends ConsumerState<ProofStoryViewer>
                 child: SafeArea(
                   child: Container(
                     padding: const EdgeInsets.all(16),
-                    child: Row(
-                      children: [
-                        Expanded(
-                          child: ElevatedButton.icon(
-                            onPressed: () => _disputeProof(currentProof),
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.red,
-                              foregroundColor: Colors.white,
+                    child: currentProof.isApproved 
+                      ? // Smaller dispute button for approved proofs
+                        Align(
+                          alignment: Alignment.centerRight,
+                          child: TextButton.icon(
+                            onPressed: () => _confirmAndDisputeProof(currentProof),
+                            style: TextButton.styleFrom(
+                              foregroundColor: Colors.orange,
+                              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                             ),
-                            icon: const Icon(Icons.close),
-                            label: const Text('Dispute'),
+                            icon: const Icon(Icons.flag, size: 18),
+                            label: const Text('Dispute', style: TextStyle(fontSize: 14)),
                           ),
-                        ),
-                        if (currentProof.isPending) ...[
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: ElevatedButton.icon(
-                              onPressed: () => _approveProof(currentProof),
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: Colors.green,
-                                foregroundColor: Colors.white,
+                        )
+                      : // Normal buttons for pending proofs
+                        Row(
+                          children: [
+                            Expanded(
+                              child: ElevatedButton.icon(
+                                onPressed: () => _disputeProof(currentProof),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: Colors.red,
+                                  foregroundColor: Colors.white,
+                                ),
+                                icon: const Icon(Icons.close),
+                                label: const Text('Dispute'),
                               ),
-                              icon: const Icon(Icons.check),
-                              label: const Text('Approve'),
                             ),
-                          ),
-                        ],
-                      ],
-                    ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: ElevatedButton.icon(
+                                onPressed: () => _approveProof(currentProof),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: Colors.green,
+                                  foregroundColor: Colors.white,
+                                ),
+                                icon: const Icon(Icons.check),
+                                label: const Text('Approve'),
+                              ),
+                            ),
+                          ],
+                        ),
                   ),
                 ),
               ),
 
-            // Bottom action buttons for own proofs - show delete option
+            // Bottom action buttons for own proofs - show edit option
             if (!_isProcessing && user != null && user.id == currentProof.userId)
               Positioned(
                 bottom: 0,
@@ -421,13 +435,13 @@ class _ProofStoryViewerState extends ConsumerState<ProofStoryViewer>
                     child: SizedBox(
                       width: double.infinity,
                       child: ElevatedButton.icon(
-                        onPressed: () => _deleteProof(currentProof),
+                        onPressed: () => _editProof(currentProof),
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.red,
+                          backgroundColor: Theme.of(context).colorScheme.primary,
                           foregroundColor: Colors.white,
                         ),
-                        icon: const Icon(Icons.delete),
-                        label: const Text('Delete Proof'),
+                        icon: const Icon(Icons.edit),
+                        label: const Text('Edit Proof'),
                       ),
                     ),
                   ),
@@ -458,9 +472,11 @@ class _ProofStoryViewerState extends ConsumerState<ProofStoryViewer>
         ),
         child: ClipRRect(
           borderRadius: BorderRadius.circular(8),
-          child: Image.network(
-            proof.imageUrls.first,
-            fit: BoxFit.contain,
+          child: GestureDetector(
+            onTap: () => _showFullScreenImage(proof.imageUrls.first),
+            child: Image.network(
+              proof.imageUrls.first,
+              fit: BoxFit.contain,
             errorBuilder: (context, error, stackTrace) {
               return Container(
                 height: 200,
@@ -497,6 +513,7 @@ class _ProofStoryViewerState extends ConsumerState<ProofStoryViewer>
                 ),
               );
             },
+            ),
           ),
         ),
       );
@@ -583,6 +600,64 @@ class _ProofStoryViewerState extends ConsumerState<ProofStoryViewer>
     }
   }
 
+  Future<void> _confirmAndDisputeProof(ProofSubmission proof) async {
+    // Show confirmation dialog for approved proofs
+    final bool shouldDispute = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Dispute Approved Proof?'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text('This proof has already been approved.'),
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.orange.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.orange),
+              ),
+              child: Row(
+                children: [
+                  Icon(Icons.warning, color: Colors.orange, size: 20),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'Disputing will remove the goal completion and require re-approval.',
+                      style: TextStyle(fontSize: 12),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 12),
+            const Text('Are you sure you want to dispute this proof?'),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.orange,
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('Dispute'),
+          ),
+        ],
+      ),
+    ) ?? false;
+
+    if (shouldDispute) {
+      await _disputeProof(proof);
+    }
+  }
+
   Future<void> _disputeProof(ProofSubmission proof) async {
     final user = ref.read(userProvider);
     if (user == null) return;
@@ -651,6 +726,60 @@ class _ProofStoryViewerState extends ConsumerState<ProofStoryViewer>
     }
   }
 
+  void _showFullScreenImage(String imageUrl) {
+    Navigator.of(context).push(
+      PageRouteBuilder(
+        opaque: false,
+        barrierColor: Colors.black,
+        pageBuilder: (context, animation, secondaryAnimation) {
+          return GestureDetector(
+            onTap: () => Navigator.of(context).pop(),
+            child: Scaffold(
+              backgroundColor: Colors.black,
+              body: Center(
+                child: InteractiveViewer(
+                  child: Image.network(
+                    imageUrl,
+                    fit: BoxFit.contain,
+                    loadingBuilder: (context, child, loadingProgress) {
+                      if (loadingProgress == null) return child;
+                      return const Center(
+                        child: CircularProgressIndicator(color: Colors.white),
+                      );
+                    },
+                    errorBuilder: (context, error, stackTrace) {
+                      return const Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(Icons.error_outline, size: 64, color: Colors.white70),
+                            SizedBox(height: 16),
+                            Text(
+                              'Failed to load image',
+                              style: TextStyle(color: Colors.white70, fontSize: 18),
+                            ),
+                          ],
+                        ),
+                      );
+                    },
+                  ),
+                ),
+              ),
+            ),
+          );
+        },
+        transitionDuration: const Duration(milliseconds: 300),
+        reverseTransitionDuration: const Duration(milliseconds: 300),
+        transitionsBuilder: (context, animation, secondaryAnimation, child) {
+          return FadeTransition(
+            opacity: animation,
+            child: child,
+          );
+        },
+      ),
+    );
+  }
+
   String _formatDateTime(DateTime dateTime) {
     return '${dateTime.day}/${dateTime.month}/${dateTime.year} at ${dateTime.hour}:${dateTime.minute.toString().padLeft(2, '0')}';
   }
@@ -689,153 +818,26 @@ class _ProofStoryViewerState extends ConsumerState<ProofStoryViewer>
     );
   }
 
-  Future<void> _deleteProof(ProofSubmission proof) async {
-    final user = ref.read(userProvider);
-    if (user == null) return;
-
-    // Show confirmation dialog with appropriate warning
-    final bool shouldDelete = await _showDeleteConfirmationDialog(proof);
-    if (!shouldDelete) return;
-
-    setState(() {
-      _isProcessing = true;
-    });
-
-    try {
-      final proofRepository = ref.read(proofRepositoryProvider);
-      final result = await proofRepository.deleteProof(proof.id);
-
-      if (mounted) {
-        if (result.isSuccess) {
-          // If deleting an approved proof, also remove goal completion
-          if (proof.isApproved) {
-            final proofApprovalService = ref.read(proofApprovalServiceProvider);
-            await proofApprovalService.removeGoalCompletion(proof);
-          }
-
-          // ScaffoldMessenger.of(context).showSnackBar(
-          //   SnackBar(
-          //     content: Text(proof.isApproved 
-          //         ? 'Proof deleted and goal completion removed'
-          //         : 'Proof deleted successfully'),
-          //     backgroundColor: Colors.green,
-          //   ),
-          // );
-          
-          // Close the viewer
-          Navigator.of(context).pop();
-        } else {
-          // ScaffoldMessenger.of(context).showSnackBar(
-          //   SnackBar(
-          //     content: Text('Failed to delete proof: ${result.failureOrNull?.message ?? 'Unknown error'}'),
-          //     backgroundColor: Colors.red,
-          //   ),
-          // );
-        }
-      }
-    } catch (e) {
-      logger.error('Error deleting proof', error: e);
-      if (mounted) {
-        // ScaffoldMessenger.of(context).showSnackBar(
-        //   SnackBar(
-        //     content: Text('Failed to delete proof: $e'),
-        //     backgroundColor: Colors.red,
-        //   ),
-        // );
-      }
-    } finally {
-      if (mounted) {
-        setState(() {
-          _isProcessing = false;
-        });
+  Future<void> _editProof(ProofSubmission proof) async {
+    // Navigate to edit proof page
+    final result = await Navigator.of(context).push<bool>(
+      MaterialPageRoute(
+        builder: (context) => EditProofPage(proof: proof),
+      ),
+    );
+    
+    // If proof was updated, refresh the proofs and move to next
+    if (result == true && mounted) {
+      // Refresh the proofs provider to get updated data
+      ref.refresh(challengeProofsProvider(widget.challengeId));
+      
+      // Move to the next proof or close if this was the last one
+      if (_currentIndex < widget.proofs.length - 1) {
+        _nextProof();
+      } else {
+        Navigator.of(context).pop();
       }
     }
   }
 
-  Future<bool> _showDeleteConfirmationDialog(ProofSubmission proof) async {
-    return await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Delete Proof'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text('Are you sure you want to delete this proof?'),
-            const SizedBox(height: 12),
-            if (proof.isApproved) ...[
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: Colors.orange.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: Colors.orange),
-                ),
-                child: Row(
-                  children: [
-                    Icon(Icons.warning, color: Colors.orange, size: 20),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Warning',
-                            style: TextStyle(
-                              color: Colors.orange,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            'This proof has been approved. Deleting it will also remove your goal completion. You will need to submit a new proof to earn the completion again.',
-                            style: TextStyle(fontSize: 12),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ] else if (proof.isPending) ...[
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: Colors.blue.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: Colors.blue),
-                ),
-                child: Row(
-                  children: [
-                    Icon(Icons.info, color: Colors.blue, size: 20),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        'This proof is pending approval. Deleting it will remove it from the approval queue.',
-                        style: TextStyle(fontSize: 12),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(false),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () => Navigator.of(context).pop(true),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.red,
-              foregroundColor: Colors.white,
-            ),
-            child: const Text('Delete'),
-          ),
-        ],
-      ),
-    ) ?? false;
-  }
 }

@@ -236,7 +236,7 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          'Pending Approvals',
+          'Proof Activity',
           style: Theme.of(context).textTheme.titleMedium?.copyWith(
             fontWeight: FontWeight.bold,
           ),
@@ -289,59 +289,64 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
     final currentParty = _getCurrentParty(parties);
     final currentChallengeAsync = ref.watch(currentChallengeProvider(currentParty.id));
 
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(12),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Challenge Status',
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: Text(
+              'Progress',
               style: Theme.of(context).textTheme.titleLarge?.copyWith(
                 fontWeight: FontWeight.bold,
               ),
             ),
-            const SizedBox(height: 12),
-            currentChallengeAsync.when(
-              data: (challenge) {
-                if (challenge == null) {
-                  return _buildNoChallengeState(context, currentParty);
-                }
-                return Column(
-                  children: [
-                    _buildChallengeActiveState(context, challenge, currentParty),
-                    const SizedBox(height: 12),
-                    // Your progress section in its own card
-                    Card(
-                      elevation: 2,
-                      margin: EdgeInsets.zero,
-                      child: Padding(
-                        padding: const EdgeInsets.all(12),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'Your Progress',
-                              style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                            const SizedBox(height: 8),
-                            ChallengeGoalProgressWidget(challenge: challenge),
-                          ],
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                    const Divider(height: 1),
-                    const SizedBox(height: 16),
-                    // All users progress section
-                    AllUsersProgressWidget(challenge: challenge),
-                  ],
+          ),
+          const SizedBox(height: 12),
+          currentChallengeAsync.when(
+            data: (challenge) {
+              if (challenge == null) {
+                return Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  child: _buildNoChallengeState(context, currentParty),
                 );
-              },
-              loading: () => const Center(child: CircularProgressIndicator()),
-              error: (error, stack) => Center(
+              }
+              return Column(
+                children: [
+                  // Your progress section - full width with horizontal padding
+                  Container(
+                    color: Theme.of(context).colorScheme.surface,
+                    padding: const EdgeInsets.all(16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Your Progress',
+                          style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        ChallengeGoalProgressWidget(challenge: challenge),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  const Divider(height: 1),
+                  const SizedBox(height: 16),
+                  // All users progress section
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    child: AllUsersProgressWidget(challenge: challenge),
+                  ),
+                ],
+              );
+            },
+            loading: () => const Center(child: CircularProgressIndicator()),
+            error: (error, stack) => Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: Center(
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
@@ -356,8 +361,8 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
                 ),
               ),
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
@@ -857,6 +862,9 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
   }
 
   Future<void> _openCamera() async {
+    // Track current camera facing mode
+    String currentFacingMode = 'user'; // Start with front camera
+    
     try {
       if (kIsWeb) {
         // Create UI elements for camera with mobile-optimized styling
@@ -1006,6 +1014,26 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
           ..style.justifyContent = 'center'
           ..style.touchAction = 'manipulation';
 
+        // Add flip camera button (top right)
+        final html.ButtonElement flipCameraButton = html.ButtonElement()
+          ..text = '🔄'
+          ..style.position = 'absolute'
+          ..style.top = '20px'
+          ..style.right = '20px'
+          ..style.width = '40px'
+          ..style.height = '40px'
+          ..style.borderRadius = '50%'
+          ..style.backgroundColor = 'rgba(255,255,255,0.2)'
+          ..style.color = 'white'
+          ..style.border = '2px solid rgba(255,255,255,0.5)'
+          ..style.cursor = 'pointer'
+          ..style.fontSize = '20px'
+          ..style.display = 'flex'
+          ..style.alignItems = 'center'
+          ..style.justifyContent = 'center'
+          ..style.touchAction = 'manipulation'
+          ..style.zIndex = '10';
+
         // Add elements to DOM - Cancel, Capture, Gallery layout
         buttonsContainer.children.add(cancelButton);
         buttonsContainer.children.add(captureButton);
@@ -1016,6 +1044,7 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
         container.children.add(canvas);
         container.children.add(imagePreview);
         container.children.add(buttonsContainer);
+        container.children.add(flipCameraButton); // Add flip button
         html.document.body?.append(container);
         
         // Inject additional CSS to hide any remaining video controls
@@ -1079,6 +1108,7 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
               galleryButton.style.display = 'none';
               submitButton.style.display = 'inline-block';
               retakeButton.style.display = 'inline-block';
+              flipCameraButton.style.display = 'none'; // Hide flip button in preview
               
             });
           } catch (e) {
@@ -1160,6 +1190,7 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
           galleryButton.style.display = 'inline-block';
           submitButton.style.display = 'none';
           retakeButton.style.display = 'none';
+          flipCameraButton.style.display = 'flex'; // Show flip button in camera mode
           
           // Clean up the preview image and gallery blob
           if (imagePreview.src != null) {
@@ -1173,10 +1204,44 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
           
         });
 
+        // Check if MediaDevices API is available
+        final mediaDevices = html.window.navigator.mediaDevices;
+
+        // Add flip camera button handler
+        setupButtonEvents(flipCameraButton, () async {
+          try {
+            // Toggle facing mode
+            currentFacingMode = currentFacingMode == 'user' ? 'environment' : 'user';
+            
+            // Stop current stream
+            final currentStream = video.srcObject as html.MediaStream?;
+            if (currentStream != null) {
+              final tracks = currentStream.getVideoTracks();
+              for (var track in tracks) {
+                track.stop();
+              }
+            }
+            
+            // Get new stream with different camera
+            Map<String, dynamic> newConstraints = {
+              'video': {
+                'facingMode': currentFacingMode,
+              },
+              'audio': false
+            };
+            
+            final newStream = await mediaDevices?.getUserMedia(newConstraints);
+            video.srcObject = newStream;
+            await video.play();
+          } catch (e) {
+            // If flip fails, continue with current camera
+            // If flip fails, silently continue with current camera
+          }
+        });
+
         // Start camera with null checks for mobile compatibility
         
         // Check if MediaDevices API is available before creating UI
-        final mediaDevices = html.window.navigator.mediaDevices;
         final isHttps = html.window.location.protocol == 'https:';
         final isLocalhost = html.window.location.hostname == 'localhost' || 
                            html.window.location.hostname == '127.0.0.1';
@@ -1214,7 +1279,9 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
           
           // Start with simple constraints
           Map<String, dynamic> constraints = {
-            'video': true,
+            'video': {
+              'facingMode': currentFacingMode,
+            },
             'audio': false
           };
           

@@ -27,6 +27,7 @@ class AllProofsStoryCircles extends ConsumerWidget {
       data: (allProofs) {
         if (allProofs.isEmpty) {
           return Card(
+            margin: EdgeInsets.zero,
             child: Padding(
               padding: const EdgeInsets.all(16),
               child: Column(

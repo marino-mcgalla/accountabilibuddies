@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'app_routes.dart';
 import '../../shared/widgets/global_notification_bar.dart';
+import '../providers/proof_submission_provider.dart';
 
-class MainNavigationShell extends StatefulWidget {
+class MainNavigationShell extends ConsumerStatefulWidget {
   const MainNavigationShell({
     super.key,
     required this.child,
@@ -12,10 +14,10 @@ class MainNavigationShell extends StatefulWidget {
   final Widget child;
 
   @override
-  State<MainNavigationShell> createState() => _MainNavigationShellState();
+  ConsumerState<MainNavigationShell> createState() => _MainNavigationShellState();
 }
 
-class _MainNavigationShellState extends State<MainNavigationShell> {
+class _MainNavigationShellState extends ConsumerState<MainNavigationShell> {
   int _currentIndex = 0;
 
   void _onItemTapped(int index) {
@@ -105,45 +107,142 @@ class _MainNavigationShellState extends State<MainNavigationShell> {
         actions: _getAppBarActions(context),
       ) : null,
       body: widget.child,
-      bottomNavigationBar: BottomNavigationBar(
-        currentIndex: _currentIndex,
-        onTap: _onItemTapped,
-        type: BottomNavigationBarType.fixed,
-        backgroundColor: theme.colorScheme.surface,
-        selectedItemColor: theme.colorScheme.primary,
-        unselectedItemColor: theme.colorScheme.onSurfaceVariant,
-        selectedLabelStyle: const TextStyle(
-          fontSize: 12,
-          fontWeight: FontWeight.w600,
+      bottomNavigationBar: Container(
+        decoration: BoxDecoration(
+          color: theme.colorScheme.surface,
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.1),
+              offset: const Offset(0, -1),
+              blurRadius: 4,
+            ),
+          ],
         ),
-        unselectedLabelStyle: const TextStyle(
-          fontSize: 12,
-          fontWeight: FontWeight.w500,
+        child: SafeArea(
+          top: false,
+          minimum: const EdgeInsets.only(bottom: 14),
+          child: Stack(
+            children: [
+              // Bottom navigation bar with space for center button
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                children: [
+                  _buildNavItem(
+                    context,
+                    icon: Icons.dashboard_outlined,
+                    activeIcon: Icons.dashboard,
+                    label: 'Dashboard',
+                    index: 0,
+                  ),
+                  _buildNavItem(
+                    context,
+                    icon: Icons.flag_outlined,
+                    activeIcon: Icons.flag,
+                    label: 'Goals',
+                    index: 1,
+                  ),
+                  // Empty space for center button
+                  const SizedBox(width: 60),
+                  _buildNavItem(
+                    context,
+                    icon: Icons.group_outlined,
+                    activeIcon: Icons.group,
+                    label: 'Party',
+                    index: 2,
+                  ),
+                  _buildNavItem(
+                    context,
+                    icon: Icons.person_outline,
+                    activeIcon: Icons.person,
+                    label: 'Profile',
+                    index: 3,
+                  ),
+                ],
+              ),
+              // Center circular button
+              Positioned(
+                left: 0,
+                right: 0,
+                top: 12,
+                child: Center(
+                  child: GestureDetector(
+                    onTap: _onSubmitProofTapped,
+                    child: Container(
+                      width: 48,
+                      height: 48,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: theme.colorScheme.primary,
+                        boxShadow: [
+                          BoxShadow(
+                            color: theme.colorScheme.primary.withValues(alpha: 0.3),
+                            offset: const Offset(0, 2),
+                            blurRadius: 6,
+                          ),
+                        ],
+                      ),
+                      child: Icon(
+                        Icons.add,
+                        color: theme.colorScheme.onPrimary,
+                        size: 24,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
         ),
-        items: const [
-          BottomNavigationBarItem(
-            icon: Icon(Icons.dashboard_outlined),
-            activeIcon: Icon(Icons.dashboard),
-            label: 'Dashboard',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.flag_outlined),
-            activeIcon: Icon(Icons.flag),
-            label: 'Goals',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.group_outlined),
-            activeIcon: Icon(Icons.group),
-            label: 'Party',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.person_outline),
-            activeIcon: Icon(Icons.person),
-            label: 'Profile',
-          ),
-        ],
       ),
     );
+  }
+
+  Widget _buildNavItem(
+    BuildContext context, {
+    required IconData icon,
+    required IconData activeIcon,
+    required String label,
+    required int index,
+  }) {
+    final theme = Theme.of(context);
+    final isSelected = _currentIndex == index;
+    
+    return Expanded(
+      child: GestureDetector(
+        onTap: () => _onItemTapped(index),
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 8),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                isSelected ? activeIcon : icon,
+                color: isSelected
+                    ? theme.colorScheme.primary
+                    : theme.colorScheme.onSurfaceVariant,
+                size: 24,
+              ),
+              const SizedBox(height: 4),
+              Text(
+                label,
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
+                  color: isSelected
+                      ? theme.colorScheme.primary
+                      : theme.colorScheme.onSurfaceVariant,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _onSubmitProofTapped() {
+    final proofService = ref.read(proofSubmissionServiceProvider);
+    proofService.showProofSubmissionMenu(context);
   }
 }
 

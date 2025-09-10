@@ -6,6 +6,7 @@ import '../../domain/entities/proof_submission.dart';
 import '../providers/proof_providers.dart';
 import '../providers/challenge_providers.dart';
 import '../../../../core/utils/display_name_utils.dart';
+import 'edit_proof_page.dart';
 
 class ProofStoryViewer extends ConsumerStatefulWidget {
   const ProofStoryViewer({
@@ -95,210 +96,219 @@ class _ProofStoryViewerState extends ConsumerState<ProofStoryViewer>
 
     return Scaffold(
       backgroundColor: Colors.black,
-      body: GestureDetector(
-        onTapDown: null,
-        onTapUp: (details) {
-          final screenWidth = MediaQuery.of(context).size.width;
-          if (details.globalPosition.dx < screenWidth / 2) {
-            _previousProof();
-          } else {
-            _nextProof();
-          }
-        },
-        onTapCancel: null,
-        child: Stack(
-          children: [
-            // Main content
-            Center(
-              child: Container(
-                padding: const EdgeInsets.all(20),
+      body: Stack(
+        children: [
+          // Main content
+          Center(
+            child: Container(
+              padding: const EdgeInsets.all(20),
+              child: SingleChildScrollView(
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    // Proof content
-                    Container(
-                      padding: const EdgeInsets.all(24),
-                      decoration: BoxDecoration(
-                        color: Theme.of(context).colorScheme.surface,
-                        borderRadius: BorderRadius.circular(16),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withOpacity(0.3),
-                            blurRadius: 10,
-                            offset: const Offset(0, 4),
-                          ),
-                        ],
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          // Goal name and date
-                          Row(
-                            children: [
-                              Icon(
-                                Icons.flag,
-                                color: Theme.of(context).colorScheme.primary,
-                                size: 20,
-                              ),
-                              const SizedBox(width: 8),
-                              Expanded(
-                                child: Text(
-                                  'Goal Proof',
-                                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                                    fontWeight: FontWeight.bold,
-                                    color: Theme.of(context).colorScheme.primary,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 8),
-                          
-                          Text(
-                            _formatDateTime(currentProof.submissionDate),
-                            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                              color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7),
-                            ),
-                          ),
-                          const SizedBox(height: 8),
-                          
-                          // Goal name and description
-                          Container(
-                            padding: const EdgeInsets.all(12),
-                            decoration: BoxDecoration(
-                              color: Theme.of(context).colorScheme.primaryContainer.withOpacity(0.3),
-                              borderRadius: BorderRadius.circular(8),
-                              border: Border.all(
-                                color: Theme.of(context).colorScheme.primary.withOpacity(0.5),
-                                width: 1,
-                              ),
-                            ),
-                            child: Consumer(
-                              builder: (context, ref, child) {
-                                final goalInfo = _getGoalInfoForProof(currentProof, ref);
-                                return Column(
+                  // Proof content
+                  Container(
+                    padding: const EdgeInsets.all(24),
+                    decoration: BoxDecoration(
+                      color: Theme.of(context).colorScheme.surface,
+                      borderRadius: BorderRadius.circular(16),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.3),
+                          blurRadius: 10,
+                          offset: const Offset(0, 4),
+                        ),
+                      ],
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        // Goal name and dates header row
+                        Consumer(
+                          builder: (context, ref, child) {
+                            final goalInfo = _getGoalInfoForProof(currentProof, ref);
+                            return Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
-                                    Row(
-                                      children: [
-                                        Icon(
-                                          Icons.flag,
-                                          size: 16,
-                                          color: Theme.of(context).colorScheme.primary,
-                                        ),
-                                        const SizedBox(width: 6),
-                                        Flexible(
-                                          child: Text(
-                                            goalInfo.name,
-                                            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                                              fontWeight: FontWeight.w600,
-                                              color: Theme.of(context).colorScheme.primary,
+                                    // Goal name on the left
+                                    Expanded(
+                                      child: Row(
+                                        children: [
+                                          Icon(
+                                            Icons.flag,
+                                            size: 28,
+                                            color: Theme.of(context).colorScheme.primary,
+                                          ),
+                                          const SizedBox(width: 8),
+                                          Flexible(
+                                            child: Text(
+                                              goalInfo.name,
+                                              style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                                                fontWeight: FontWeight.bold,
+                                                color: Theme.of(context).colorScheme.primary,
+                                              ),
                                             ),
                                           ),
-                                        ),
-                                      ],
+                                        ],
+                                      ),
                                     ),
-                                    if (goalInfo.description.isNotEmpty) ...[
-                                      const SizedBox(height: 6),
-                                      Text(
-                                        goalInfo.description,
+                                  ],
+                                ),
+                                const SizedBox(height: 8),
+                                
+                                // Target date (which day this proof is for) - moved here
+                                RichText(
+                                  text: TextSpan(
+                                    children: [
+                                      TextSpan(
+                                        text: 'Completed: ',
                                         style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                          color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7),
-                                          fontStyle: FontStyle.italic,
+                                          color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7),
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                      TextSpan(
+                                        text: _formatDate(currentProof.submissionDate),
+                                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                          color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7),
                                         ),
                                       ),
                                     ],
-                                  ],
-                                );
-                              },
-                            ),
-                          ),
-                          const SizedBox(height: 16),
-                          
-                          // Proof content (image or text)
-                          _buildProofContent(currentProof),
-                          
-                          // Proof description (if available)
-                          if (currentProof.description != null && currentProof.description!.isNotEmpty) ...[
-                            const SizedBox(height: 12),
-                            Container(
-                              width: double.infinity,
-                              padding: const EdgeInsets.all(12),
-                              decoration: BoxDecoration(
-                                color: Theme.of(context).colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
-                                borderRadius: BorderRadius.circular(8),
-                                border: Border.all(
-                                  color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.3),
-                                  width: 1,
+                                  ),
                                 ),
-                              ),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Row(
+                                const SizedBox(height: 4),
+                                
+                                // Submission date and time - moved here
+                                RichText(
+                                  text: TextSpan(
                                     children: [
-                                      Icon(
-                                        Icons.description,
-                                        size: 16,
+                                      TextSpan(
+                                        text: 'Submitted: ',
+                                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                          color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7),
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                      TextSpan(
+                                        text: _formatTimeFirst(currentProof.createdAt),
+                                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                          color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                
+                                if (goalInfo.description.isNotEmpty) ...[
+                                  const SizedBox(height: 8),
+                                  Text(
+                                    'Goal Criteria:',
+                                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                      fontWeight: FontWeight.bold,
+                                      color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.8),
+                                    ),
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Container(
+                                    width: double.infinity,
+                                    padding: const EdgeInsets.all(10),
+                                    decoration: BoxDecoration(
+                                      color: Colors.grey.withValues(alpha: 0.1),
+                                      borderRadius: BorderRadius.circular(6),
+                                      border: Border.all(
+                                        color: Colors.grey.withValues(alpha: 0.3),
+                                        width: 1,
+                                      ),
+                                    ),
+                                    child: Text(
+                                      goalInfo.description,
+                                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                                         color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.8),
                                       ),
-                                      const SizedBox(width: 6),
-                                      Text(
-                                        'Proof Description',
-                                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                          fontWeight: FontWeight.w600,
-                                          color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.8),
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                  const SizedBox(height: 6),
-                                  Text(
-                                    currentProof.description!,
-                                    style: Theme.of(context).textTheme.bodyMedium,
+                                    ),
                                   ),
                                 ],
-                              ),
+                              ],
+                            );
+                          },
+                        ),
+                        const SizedBox(height: 16),
+                        
+                        // Proof content (image or text)
+                        _buildProofContent(currentProof),
+                        
+                        // Proof description (if available)
+                        if (currentProof.description != null && currentProof.description!.isNotEmpty) ...[
+                          const SizedBox(height: 12),
+                          Text(
+                            'Note:',
+                            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                              fontWeight: FontWeight.bold,
+                              color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.8),
                             ),
-                          ],
-                          
-                          const SizedBox(height: 16),
-                          
-                          // Status indicator
+                          ),
+                          const SizedBox(height: 4),
                           Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                            width: double.infinity,
+                            padding: const EdgeInsets.all(12),
                             decoration: BoxDecoration(
-                              color: _getStatusColor(currentProof.status).withOpacity(0.1),
-                              borderRadius: BorderRadius.circular(12),
+                              color: Colors.grey.withValues(alpha: 0.1),
+                              borderRadius: BorderRadius.circular(8),
                               border: Border.all(
-                                color: _getStatusColor(currentProof.status),
+                                color: Colors.grey.withValues(alpha: 0.3),
                                 width: 1,
                               ),
                             ),
                             child: Text(
-                              currentProof.statusDisplay,
-                              style: TextStyle(
-                                color: _getStatusColor(currentProof.status),
-                                fontSize: 12,
-                                fontWeight: FontWeight.w500,
+                              currentProof.description!,
+                              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                color: Theme.of(context).colorScheme.onSurface,
                               ),
                             ),
                           ),
                         ],
-                      ),
+                        
+                        const SizedBox(height: 16),
+                        
+                        // Status indicator
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: _getStatusColor(currentProof.status).withValues(alpha: 0.1),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(
+                              color: _getStatusColor(currentProof.status),
+                              width: 1,
+                            ),
+                          ),
+                          child: Text(
+                            currentProof.statusDisplay,
+                            style: TextStyle(
+                              color: _getStatusColor(currentProof.status),
+                              fontSize: 12,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
-                  ],
+                  ),
+                ],
                 ),
               ),
             ),
+          ),
 
-            // Top bar with progress indicators
-            SafeArea(
-              child: Column(
-                children: [
-                  // Progress bars
-                  Container(
+          // Top bar with progress indicators
+          SafeArea(
+            child: Column(
+              children: [
+                // Progress bars
+                Container(
                     padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                     child: Row(
                       children: List.generate(
@@ -367,8 +377,63 @@ class _ProofStoryViewerState extends ConsumerState<ProofStoryViewer>
               ),
             ),
 
-            // Bottom action buttons for other users - show for pending AND approved proofs (allow disputes)
-            if ((currentProof.isPending || currentProof.isApproved) && !_isProcessing && user != null && user.id != currentProof.userId)
+          // Bottom action buttons for other users - show for pending AND approved proofs (allow disputes)
+          if ((currentProof.isPending || currentProof.isApproved) && !_isProcessing && user != null && user.id != currentProof.userId)
+            Positioned(
+                bottom: 0,
+                left: 0,
+                right: 0,
+                child: SafeArea(
+                  child: Container(
+                    padding: const EdgeInsets.all(16),
+                    child: currentProof.isApproved 
+                      ? // Smaller dispute button for approved proofs
+                        Align(
+                          alignment: Alignment.centerRight,
+                          child: TextButton.icon(
+                            onPressed: () => _confirmAndDisputeProof(currentProof),
+                            style: TextButton.styleFrom(
+                              foregroundColor: Colors.orange,
+                              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                            ),
+                            icon: const Icon(Icons.flag, size: 18),
+                            label: const Text('Dispute', style: TextStyle(fontSize: 14)),
+                          ),
+                        )
+                      : // Normal buttons for pending proofs
+                        Row(
+                          children: [
+                            Expanded(
+                              child: ElevatedButton.icon(
+                                onPressed: () => _disputeProof(currentProof),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: Colors.red,
+                                  foregroundColor: Colors.white,
+                                ),
+                                icon: const Icon(Icons.close),
+                                label: const Text('Dispute'),
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: ElevatedButton.icon(
+                                onPressed: () => _approveProof(currentProof),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: Colors.green,
+                                  foregroundColor: Colors.white,
+                                ),
+                                icon: const Icon(Icons.check),
+                                label: const Text('Approve'),
+                              ),
+                            ),
+                          ],
+                        ),
+                  ),
+                ),
+              ),
+
+            // Bottom action buttons for own proofs - show edit and delete options
+            if (!_isProcessing && user != null && user.id == currentProof.userId)
               Positioned(
                 bottom: 0,
                 left: 0,
@@ -380,55 +445,28 @@ class _ProofStoryViewerState extends ConsumerState<ProofStoryViewer>
                       children: [
                         Expanded(
                           child: ElevatedButton.icon(
-                            onPressed: () => _disputeProof(currentProof),
+                            onPressed: () => _editProof(currentProof),
                             style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.red,
+                              backgroundColor: Theme.of(context).colorScheme.primary,
                               foregroundColor: Colors.white,
                             ),
-                            icon: const Icon(Icons.close),
-                            label: const Text('Dispute'),
+                            icon: const Icon(Icons.edit),
+                            label: const Text('Edit Proof'),
                           ),
                         ),
-                        if (currentProof.isPending) ...[
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: ElevatedButton.icon(
-                              onPressed: () => _approveProof(currentProof),
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: Colors.green,
-                                foregroundColor: Colors.white,
-                              ),
-                              icon: const Icon(Icons.check),
-                              label: const Text('Approve'),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: ElevatedButton.icon(
+                            onPressed: () => _deleteProof(currentProof),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Theme.of(context).colorScheme.error,
+                              foregroundColor: Colors.white,
                             ),
+                            icon: const Icon(Icons.delete),
+                            label: const Text('Delete Proof'),
                           ),
-                        ],
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-
-            // Bottom action buttons for own proofs - show delete option
-            if (!_isProcessing && user != null && user.id == currentProof.userId)
-              Positioned(
-                bottom: 0,
-                left: 0,
-                right: 0,
-                child: SafeArea(
-                  child: Container(
-                    padding: const EdgeInsets.all(16),
-                    child: SizedBox(
-                      width: double.infinity,
-                      child: ElevatedButton.icon(
-                        onPressed: () => _deleteProof(currentProof),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.red,
-                          foregroundColor: Colors.white,
                         ),
-                        icon: const Icon(Icons.delete),
-                        label: const Text('Delete Proof'),
-                      ),
+                      ],
                     ),
                   ),
                 ),
@@ -442,8 +480,43 @@ class _ProofStoryViewerState extends ConsumerState<ProofStoryViewer>
                   child: CircularProgressIndicator(color: Colors.white),
                 ),
               ),
-          ],
-        ),
+            
+            // Navigation arrows
+            // Left arrow - only show if not on first proof
+            if (_currentIndex > 0)
+              Positioned(
+                left: 16,
+                top: 0,
+                bottom: 0,
+                child: Center(
+                  child: IconButton(
+                    onPressed: _previousProof,
+                    style: IconButton.styleFrom(
+                      backgroundColor: Colors.black.withValues(alpha: 0.5),
+                      foregroundColor: Colors.white,
+                    ),
+                    icon: const Icon(Icons.arrow_back_ios, size: 32),
+                  ),
+                ),
+              ),
+            
+            // Right arrow - always show (will close on last proof)
+            Positioned(
+              right: 16,
+              top: 0,
+              bottom: 0,
+              child: Center(
+                child: IconButton(
+                  onPressed: _nextProof,
+                  style: IconButton.styleFrom(
+                    backgroundColor: Colors.black.withValues(alpha: 0.5),
+                    foregroundColor: Colors.white,
+                  ),
+                  icon: const Icon(Icons.arrow_forward_ios, size: 32),
+                ),
+              ),
+            ),
+        ],
       ),
     );
   }
@@ -451,16 +524,19 @@ class _ProofStoryViewerState extends ConsumerState<ProofStoryViewer>
   Widget _buildProofContent(ProofSubmission proof) {
     // Handle image proofs
     if (proof.contentType == ProofContentType.image && proof.imageUrls.isNotEmpty) {
-      return Container(
-        constraints: const BoxConstraints(
-          maxHeight: 300,
-          maxWidth: double.infinity,
-        ),
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(8),
-          child: Image.network(
-            proof.imageUrls.first,
-            fit: BoxFit.contain,
+      return Center(
+        child: Container(
+          constraints: const BoxConstraints(
+            maxHeight: 300,
+            maxWidth: double.infinity,
+          ),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(8),
+            child: GestureDetector(
+              onTap: () => _showFullScreenImage(proof.imageUrls.first),
+              child: Image.network(
+                proof.imageUrls.first,
+                fit: BoxFit.contain,
             errorBuilder: (context, error, stackTrace) {
               return Container(
                 height: 200,
@@ -497,7 +573,9 @@ class _ProofStoryViewerState extends ConsumerState<ProofStoryViewer>
                 ),
               );
             },
+            ),
           ),
+        ),
         ),
       );
     }
@@ -583,6 +661,64 @@ class _ProofStoryViewerState extends ConsumerState<ProofStoryViewer>
     }
   }
 
+  Future<void> _confirmAndDisputeProof(ProofSubmission proof) async {
+    // Show confirmation dialog for approved proofs
+    final bool shouldDispute = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Dispute Approved Proof?'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text('This proof has already been approved.'),
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.orange.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.orange),
+              ),
+              child: Row(
+                children: [
+                  Icon(Icons.warning, color: Colors.orange, size: 20),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'Disputing will remove the goal completion and require re-approval.',
+                      style: TextStyle(fontSize: 12),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 12),
+            const Text('Are you sure you want to dispute this proof?'),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.orange,
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('Dispute'),
+          ),
+        ],
+      ),
+    ) ?? false;
+
+    if (shouldDispute) {
+      await _disputeProof(proof);
+    }
+  }
+
   Future<void> _disputeProof(ProofSubmission proof) async {
     final user = ref.read(userProvider);
     if (user == null) return;
@@ -651,8 +787,76 @@ class _ProofStoryViewerState extends ConsumerState<ProofStoryViewer>
     }
   }
 
-  String _formatDateTime(DateTime dateTime) {
-    return '${dateTime.day}/${dateTime.month}/${dateTime.year} at ${dateTime.hour}:${dateTime.minute.toString().padLeft(2, '0')}';
+  void _showFullScreenImage(String imageUrl) {
+    Navigator.of(context).push(
+      PageRouteBuilder(
+        opaque: false,
+        barrierColor: Colors.black,
+        pageBuilder: (context, animation, secondaryAnimation) {
+          return GestureDetector(
+            onTap: () => Navigator.of(context).pop(),
+            child: Scaffold(
+              backgroundColor: Colors.black,
+              body: Center(
+                child: InteractiveViewer(
+                  child: Image.network(
+                    imageUrl,
+                    fit: BoxFit.contain,
+                    loadingBuilder: (context, child, loadingProgress) {
+                      if (loadingProgress == null) return child;
+                      return const Center(
+                        child: CircularProgressIndicator(color: Colors.white),
+                      );
+                    },
+                    errorBuilder: (context, error, stackTrace) {
+                      return const Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(Icons.error_outline, size: 64, color: Colors.white70),
+                            SizedBox(height: 16),
+                            Text(
+                              'Failed to load image',
+                              style: TextStyle(color: Colors.white70, fontSize: 18),
+                            ),
+                          ],
+                        ),
+                      );
+                    },
+                  ),
+                ),
+              ),
+            ),
+          );
+        },
+        transitionDuration: const Duration(milliseconds: 300),
+        reverseTransitionDuration: const Duration(milliseconds: 300),
+        transitionsBuilder: (context, animation, secondaryAnimation, child) {
+          return FadeTransition(
+            opacity: animation,
+            child: child,
+          );
+        },
+      ),
+    );
+  }
+
+  String _formatTimeFirst(DateTime dateTime) {
+    final weekdays = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+    final weekday = weekdays[dateTime.weekday % 7];
+    
+    // Format time with AM/PM
+    final hour = dateTime.hour == 0 ? 12 : (dateTime.hour > 12 ? dateTime.hour - 12 : dateTime.hour);
+    final period = dateTime.hour >= 12 ? 'pm' : 'am';
+    final minute = dateTime.minute.toString().padLeft(2, '0');
+    
+    return '$weekday ${dateTime.month}/${dateTime.day}/${dateTime.year} at $hour:$minute$period';
+  }
+
+  String _formatDate(DateTime dateTime) {
+    final weekdays = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+    final weekday = weekdays[dateTime.weekday % 7];
+    return '$weekday, ${dateTime.day}/${dateTime.month}/${dateTime.year}';
   }
 
   ({String name, String description}) _getGoalInfoForProof(ProofSubmission proof, WidgetRef ref) {
@@ -689,153 +893,99 @@ class _ProofStoryViewerState extends ConsumerState<ProofStoryViewer>
     );
   }
 
-  Future<void> _deleteProof(ProofSubmission proof) async {
-    final user = ref.read(userProvider);
-    if (user == null) return;
-
-    // Show confirmation dialog with appropriate warning
-    final bool shouldDelete = await _showDeleteConfirmationDialog(proof);
-    if (!shouldDelete) return;
-
-    setState(() {
-      _isProcessing = true;
-    });
-
-    try {
-      final proofRepository = ref.read(proofRepositoryProvider);
-      final result = await proofRepository.deleteProof(proof.id);
-
-      if (mounted) {
-        if (result.isSuccess) {
-          // If deleting an approved proof, also remove goal completion
-          if (proof.isApproved) {
-            final proofApprovalService = ref.read(proofApprovalServiceProvider);
-            await proofApprovalService.removeGoalCompletion(proof);
-          }
-
-          // ScaffoldMessenger.of(context).showSnackBar(
-          //   SnackBar(
-          //     content: Text(proof.isApproved 
-          //         ? 'Proof deleted and goal completion removed'
-          //         : 'Proof deleted successfully'),
-          //     backgroundColor: Colors.green,
-          //   ),
-          // );
-          
-          // Close the viewer
-          Navigator.of(context).pop();
-        } else {
-          // ScaffoldMessenger.of(context).showSnackBar(
-          //   SnackBar(
-          //     content: Text('Failed to delete proof: ${result.failureOrNull?.message ?? 'Unknown error'}'),
-          //     backgroundColor: Colors.red,
-          //   ),
-          // );
-        }
-      }
-    } catch (e) {
-      logger.error('Error deleting proof', error: e);
-      if (mounted) {
-        // ScaffoldMessenger.of(context).showSnackBar(
-        //   SnackBar(
-        //     content: Text('Failed to delete proof: $e'),
-        //     backgroundColor: Colors.red,
-        //   ),
-        // );
-      }
-    } finally {
-      if (mounted) {
-        setState(() {
-          _isProcessing = false;
-        });
+  Future<void> _editProof(ProofSubmission proof) async {
+    // Navigate to edit proof page
+    final result = await Navigator.of(context).push<bool>(
+      MaterialPageRoute(
+        builder: (context) => EditProofPage(proof: proof),
+      ),
+    );
+    
+    // If proof was updated, refresh the proofs and move to next
+    if (result == true && mounted) {
+      // Refresh the proofs provider to get updated data
+      ref.refresh(challengeProofsProvider(widget.challengeId));
+      
+      // Move to the next proof or close if this was the last one
+      if (_currentIndex < widget.proofs.length - 1) {
+        _nextProof();
+      } else {
+        Navigator.of(context).pop();
       }
     }
   }
 
-  Future<bool> _showDeleteConfirmationDialog(ProofSubmission proof) async {
-    return await showDialog<bool>(
+  Future<void> _deleteProof(ProofSubmission proof) async {
+    // Show confirmation dialog
+    final bool? confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Delete Proof'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text('Are you sure you want to delete this proof?'),
-            const SizedBox(height: 12),
-            if (proof.isApproved) ...[
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: Colors.orange.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: Colors.orange),
-                ),
-                child: Row(
-                  children: [
-                    Icon(Icons.warning, color: Colors.orange, size: 20),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Warning',
-                            style: TextStyle(
-                              color: Colors.orange,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            'This proof has been approved. Deleting it will also remove your goal completion. You will need to submit a new proof to earn the completion again.',
-                            style: TextStyle(fontSize: 12),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ] else if (proof.isPending) ...[
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: Colors.blue.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: Colors.blue),
-                ),
-                child: Row(
-                  children: [
-                    Icon(Icons.info, color: Colors.blue, size: 20),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        'This proof is pending approval. Deleting it will remove it from the approval queue.',
-                        style: TextStyle(fontSize: 12),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ],
-        ),
+        content: const Text('Are you sure you want to delete this proof? This action cannot be undone.'),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(false),
             child: const Text('Cancel'),
           ),
-          ElevatedButton(
+          TextButton(
             onPressed: () => Navigator.of(context).pop(true),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.red,
-              foregroundColor: Colors.white,
+            style: TextButton.styleFrom(
+              foregroundColor: Theme.of(context).colorScheme.error,
             ),
             child: const Text('Delete'),
           ),
         ],
       ),
-    ) ?? false;
+    );
+
+    if (confirmed == true && mounted) {
+      setState(() => _isProcessing = true);
+
+      try {
+        // Delete the proof using the repository
+        final repository = ref.read(proofRepositoryProvider);
+        final result = await repository.deleteProof(proof.id);
+
+        if (mounted) {
+          setState(() => _isProcessing = false);
+
+          if (result.isSuccess) {
+            // Refresh the proofs provider
+            ref.refresh(challengeProofsProvider(widget.challengeId));
+
+            // Show success message
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Proof deleted successfully')),
+            );
+
+            // Navigate away or to next proof
+            if (widget.proofs.length > 1) {
+              if (_currentIndex < widget.proofs.length - 1) {
+                _nextProof();
+              } else if (_currentIndex > 0) {
+                _previousProof();
+              } else {
+                Navigator.of(context).pop();
+              }
+            } else {
+              Navigator.of(context).pop();
+            }
+          } else {
+            // Show error message
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text('Failed to delete proof: ${result.failureOrNull?.message ?? 'Unknown error'}')),
+            );
+          }
+        }
+      } catch (e) {
+        if (mounted) {
+          setState(() => _isProcessing = false);
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Error deleting proof: $e')),
+          );
+        }
+      }
+    }
   }
+
 }

@@ -33,19 +33,31 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     // Listen for auth state changes
     ref.listen(authControllerProvider, (previous, next) {
       if (next.isAuthenticated) {
-        context.go(AppRoutes.dashboard);
+        // Use post frame callback to avoid navigation during build
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) {
+            context.go(AppRoutes.dashboard);
+          }
+        });
       } else if (next.error != null) {
-        AppSnackbar.showError(
-          context,
-          UnknownFailure(message: next.error!),
-        );
+        // Use post frame callback to avoid showing snackbar during build
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) {
+            AppSnackbar.showError(
+              context,
+              UnknownFailure(message: next.error!),
+            );
+          }
+        });
       }
     });
 
     return Scaffold(
+      resizeToAvoidBottomInset: true,
       body: SafeArea(
-        child: Padding(
+        child: SingleChildScrollView(
           padding: const EdgeInsets.all(24),
+          keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.manual,
           child: Form(
             key: _formKey,
             child: Column(
@@ -117,6 +129,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                         _isPasswordVisible = !_isPasswordVisible;
                       });
                     },
+                    focusNode: FocusNode(skipTraversal: true),
                   ),
                   enabled: !authState.isLoading,
                   validator: (value) {
@@ -128,7 +141,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     }
                     return null;
                   },
-                  onSubmitted: (_) => _handleLogin(),
                 ),
                 const SizedBox(height: 24),
                 
@@ -148,7 +160,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   onPressed: authState.isLoading ? null : _handleForgotPassword,
                 ),
                 
-                const Spacer(),
+                const SizedBox(height: 48),
                 
                 // Sign up link
                 Row(

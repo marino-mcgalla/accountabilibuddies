@@ -56,11 +56,54 @@ class PartyMembersStoryCircles extends ConsumerWidget {
               participationsByUser[participation.userId] = participation;
             }
 
+            // Create a list to hold user data with their most recent proof date
+            final userDataList = <({String memberId, DateTime? mostRecentProof, bool isCurrentUser})>[];
+            
             // Add story circle for EVERY party member (not just participants)
             for (final memberId in party.memberIds) {
               final userProofs = proofsByUser[memberId] ?? [];
-              final participation = participationsByUser[memberId];
               final isCurrentUser = memberId == user.id;
+              
+              // Find most recent proof date for this user
+              DateTime? mostRecentProof;
+              if (userProofs.isNotEmpty) {
+                mostRecentProof = userProofs
+                  .map((p) => p.submissionDate)
+                  .reduce((a, b) => a.isAfter(b) ? a : b);
+              }
+              
+              userDataList.add((
+                memberId: memberId,
+                mostRecentProof: mostRecentProof,
+                isCurrentUser: isCurrentUser,
+              ));
+            }
+            
+            // Sort users: Current user first, then by most recent proof, then non-participants
+            userDataList.sort((a, b) {
+              // Current user always first
+              if (a.isCurrentUser) return -1;
+              if (b.isCurrentUser) return 1;
+              
+              // Both have proofs - sort by most recent
+              if (a.mostRecentProof != null && b.mostRecentProof != null) {
+                return b.mostRecentProof!.compareTo(a.mostRecentProof!);
+              }
+              
+              // User with proofs comes before user without
+              if (a.mostRecentProof != null) return -1;
+              if (b.mostRecentProof != null) return 1;
+              
+              // Both without proofs - maintain original order
+              return 0;
+            });
+            
+            // Now create story circles in sorted order
+            for (final userData in userDataList) {
+              final memberId = userData.memberId;
+              final userProofs = proofsByUser[memberId] ?? [];
+              final participation = participationsByUser[memberId];
+              final isCurrentUser = userData.isCurrentUser;
               
               // Count unviewed proofs for this user in this challenge
               final unviewedProofs = userProofs.where((proof) => 

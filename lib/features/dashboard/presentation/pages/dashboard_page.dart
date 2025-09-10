@@ -178,11 +178,6 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
           ],
         ),
       ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => _showProofSubmissionFlow(context, ref),
-        label: const Text('Submit Proof'),
-        icon: const Icon(Icons.camera_alt),
-      ),
     );
   }
 
@@ -294,15 +289,6 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: Text(
-              'Progress',
-              style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-          ),
           const SizedBox(height: 12),
           currentChallengeAsync.when(
             data: (challenge) {
@@ -312,6 +298,11 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
                   child: _buildNoChallengeState(context, currentParty),
                 );
               }
+              
+              // Get current user's participation for wager amount
+              final user = ref.watch(userProvider);
+              final participationsAsync = ref.watch(challengeParticipationsProvider(challenge.id));
+              
               return Column(
                 children: [
                   // Your progress section - full width with horizontal padding
@@ -321,10 +312,49 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(
-                          'Your Progress',
-                          style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                            fontWeight: FontWeight.bold,
+                        participationsAsync.when(
+                          data: (participations) {
+                            final userParticipation = participations.where((p) => p.userId == user?.id).firstOrNull;
+                            final userWager = userParticipation?.wagerAmount ?? 0;
+                            
+                            return Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Text(
+                                  'Your Progress',
+                                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                                if (userWager > 0)
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                    decoration: BoxDecoration(
+                                      color: Colors.amber.withValues(alpha: 0.2),
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                    child: Text(
+                                      'Your Wager: \$${userWager.toStringAsFixed(0)}',
+                                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                        fontWeight: FontWeight.w600,
+                                        color: Colors.amber[700],
+                                      ),
+                                    ),
+                                  ),
+                              ],
+                            );
+                          },
+                          loading: () => Text(
+                            'Your Progress',
+                            style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          error: (_, __) => Text(
+                            'Your Progress',
+                            style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                              fontWeight: FontWeight.bold,
+                            ),
                           ),
                         ),
                         const SizedBox(height: 8),
@@ -856,6 +886,113 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
   }
 
   void _showProofSubmissionFlow(BuildContext context, WidgetRef ref) async {
+    // Show popup menu for proof submission options
+    await _showProofSubmissionMenu(context, ref);
+  }
+
+  Future<void> _showProofSubmissionMenu(BuildContext context, WidgetRef ref) async {
+    final size = MediaQuery.of(context).size;
+    
+    // Position menu in the center of the screen
+    final RelativeRect position = RelativeRect.fromLTRB(
+      size.width * 0.3,  // Left
+      size.height * 0.4, // Top
+      size.width * 0.7,  // Right
+      size.height * 0.6, // Bottom
+    );
+
+    await showMenu<String>(
+      context: context,
+      position: position,
+      items: [
+        const PopupMenuItem<String>(
+          value: 'camera',
+          child: Row(
+            children: [
+              Icon(Icons.camera_alt),
+              SizedBox(width: 12),
+              Text('Open Camera'),
+            ],
+          ),
+        ),
+        const PopupMenuItem<String>(
+          value: 'gallery',
+          child: Row(
+            children: [
+              Icon(Icons.photo_library),
+              SizedBox(width: 12),
+              Text('Choose from Gallery'),
+            ],
+          ),
+        ),
+        const PopupMenuItem<String>(
+          value: 'text',
+          child: Row(
+            children: [
+              Icon(Icons.text_fields),
+              SizedBox(width: 12),
+              Text('Text Proof'),
+            ],
+          ),
+        ),
+      ],
+    ).then((String? result) async {
+      if (result != null) {
+        switch (result) {
+          case 'camera':
+            // Go directly to camera - original behavior
+            await _openCamera();
+            break;
+          case 'gallery':
+            // Open gallery picker
+            await _openGallery();
+            break;
+          case 'text':
+            // Open text proof submission
+            await _openTextProof();
+            break;
+        }
+      }
+    });
+  }
+
+  Future<void> _openGallery() async {
+    try {
+      // Open gallery picker directly
+      final ImagePicker picker = ImagePicker();
+      final XFile? photo = await picker.pickImage(
+        source: ImageSource.gallery,
+        imageQuality: 85, // Compress to reduce file size
+      );
+      
+      if (photo != null) {
+        if (_isValidImageFile(photo)) {
+          // Convert to blob and show multi-goal submission with selected image
+          final bytes = await photo.readAsBytes();
+          if (mounted) {
+            if (kIsWeb) {
+              final blob = html.Blob([bytes], 'image/jpeg');
+              await _showMultiGoalSubmission(blob);
+            } else {
+              await _showMultiGoalSubmission(bytes);
+            }
+          }
+        } else {
+          _showInvalidFileTypeError();
+        }
+      }
+    } catch (e) {
+      // Handle any errors silently for now
+    }
+  }
+
+  Future<void> _openTextProof() async {
+    // Show the multi-goal submission widget for text proof (no image)
+    await _showMultiGoalSubmission(null);
+  }
+
+  // Keep original camera implementation for now
+  void _showProofSubmissionFlowOriginal(BuildContext context, WidgetRef ref) async {
     
     // Go directly to camera - no selection dialog
     await _openCamera();

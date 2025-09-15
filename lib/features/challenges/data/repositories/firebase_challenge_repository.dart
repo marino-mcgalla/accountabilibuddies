@@ -22,7 +22,7 @@ class FirebaseChallengeRepository implements ChallengeRepository {
   @override
   Future<Result<List<Challenge>>> getChallenges(String partyId) async {
     try {
-      logger.debug('FirebaseChallengeRepository: Getting challenges for party $partyId');
+      // logger.debug('FirebaseChallengeRepository: Getting challenges for party $partyId');
       
       final querySnapshot = await _firestore
           .collection(_challengesCollection)
@@ -36,7 +36,7 @@ class FirebaseChallengeRepository implements ChallengeRepository {
       // Sort by creation date descending (newest first)
       challenges.sort((a, b) => b.createdAt.compareTo(a.createdAt));
 
-      logger.debug('FirebaseChallengeRepository: Retrieved ${challenges.length} challenges');
+      // logger.debug('FirebaseChallengeRepository: Retrieved ${challenges.length} challenges');
       return Result.success(challenges);
     } catch (e, stackTrace) {
       logger.error('FirebaseChallengeRepository: Error getting challenges', error: e, stackTrace: stackTrace);
@@ -65,7 +65,7 @@ class FirebaseChallengeRepository implements ChallengeRepository {
   @override
   Future<Result<Challenge>> createChallenge(Challenge challenge) async {
     try {
-      logger.debug('FirebaseChallengeRepository: Creating challenge "${challenge.name}" for party ${challenge.partyId}');
+      // logger.debug('FirebaseChallengeRepository: Creating challenge "${challenge.name}" for party ${challenge.partyId}');
       
       final docRef = _firestore.collection(_challengesCollection).doc();
       final challengeWithId = challenge.copyWith(
@@ -77,7 +77,7 @@ class FirebaseChallengeRepository implements ChallengeRepository {
       final challengeModel = ChallengeModel.fromEntity(challengeWithId);
       await docRef.set(challengeModel.toFirestore());
 
-      logger.debug('FirebaseChallengeRepository: Challenge created successfully with ID ${challengeWithId.id}');
+      // logger.debug('FirebaseChallengeRepository: Challenge created successfully with ID ${challengeWithId.id}');
       return Result.success(challengeWithId);
     } catch (e, stackTrace) {
       logger.error('FirebaseChallengeRepository: Error creating challenge', error: e, stackTrace: stackTrace);
@@ -152,7 +152,7 @@ class FirebaseChallengeRepository implements ChallengeRepository {
 
   @override
   Stream<Result<List<Challenge>>> watchChallenges(String partyId) {
-    logger.debug('FirebaseChallengeRepository: Starting to watch challenges for party $partyId');
+    // logger.debug('FirebaseChallengeRepository: Starting to watch challenges for party $partyId');
     
     return _firestore
         .collection(_challengesCollection)
@@ -160,7 +160,7 @@ class FirebaseChallengeRepository implements ChallengeRepository {
         .snapshots()
         .map((snapshot) {
       try {
-        logger.debug('FirebaseChallengeRepository: Received snapshot with ${snapshot.docs.length} challenges');
+        // logger.debug('FirebaseChallengeRepository: Received snapshot with ${snapshot.docs.length} challenges');
         
         final challenges = snapshot.docs
             .map((doc) => ChallengeModel.fromFirestore(doc).toEntity())
@@ -169,7 +169,7 @@ class FirebaseChallengeRepository implements ChallengeRepository {
         // Sort by creation date descending (newest first)
         challenges.sort((a, b) => b.createdAt.compareTo(a.createdAt));
             
-        logger.debug('FirebaseChallengeRepository: Converted ${challenges.length} challenges');
+        // logger.debug('FirebaseChallengeRepository: Converted ${challenges.length} challenges');
         return Result.success(challenges);
       } catch (e, stackTrace) {
         logger.error('FirebaseChallengeRepository: Error in watchChallenges', error: e, stackTrace: stackTrace);
@@ -203,7 +203,7 @@ class FirebaseChallengeRepository implements ChallengeRepository {
   @override
   Future<Result<List<UserChallengeParticipation>>> getChallengeParticipations(String challengeId) async {
     try {
-      logger.debug('FirebaseChallengeRepository: Getting all participations for challenge $challengeId');
+      // logger.debug('FirebaseChallengeRepository: Getting all participations for challenge $challengeId');
       
       final querySnapshot = await _firestore
           .collection(_challengesCollection)
@@ -215,7 +215,7 @@ class FirebaseChallengeRepository implements ChallengeRepository {
           .map((doc) => UserChallengeParticipationModel.fromFirestore(doc).toEntity())
           .toList();
 
-      logger.debug('FirebaseChallengeRepository: Retrieved ${participations.length} participations');
+      // logger.debug('FirebaseChallengeRepository: Retrieved ${participations.length} participations');
       return Result.success(participations);
     } catch (e, stackTrace) {
       logger.error('FirebaseChallengeRepository: Error getting challenge participations', error: e, stackTrace: stackTrace);
@@ -226,7 +226,7 @@ class FirebaseChallengeRepository implements ChallengeRepository {
   @override
   Future<Result<UserChallengeParticipation?>> getUserParticipation(String challengeId, String userId) async {
     try {
-      logger.debug('FirebaseChallengeRepository: Getting user participation for user $userId in challenge $challengeId');
+      // logger.debug('FirebaseChallengeRepository: Getting user participation for user $userId in challenge $challengeId');
       
       final doc = await _firestore
           .collection(_challengesCollection)
@@ -236,12 +236,12 @@ class FirebaseChallengeRepository implements ChallengeRepository {
           .get();
 
       if (!doc.exists) {
-        logger.debug('FirebaseChallengeRepository: No participation found for user $userId in challenge $challengeId');
+        // logger.debug('FirebaseChallengeRepository: No participation found for user $userId in challenge $challengeId');
         return Result.success(null);
       }
 
       final participation = UserChallengeParticipationModel.fromFirestore(doc).toEntity();
-      logger.debug('FirebaseChallengeRepository: Found participation for user $userId with status ${participation.status}');
+      // logger.debug('FirebaseChallengeRepository: Found participation for user $userId with status ${participation.status}');
       return Result.success(participation);
     } catch (e, stackTrace) {
       logger.error('FirebaseChallengeRepository: Error getting user participation', error: e, stackTrace: stackTrace);
@@ -270,7 +270,7 @@ class FirebaseChallengeRepository implements ChallengeRepository {
       // Update challenge total pool after saving participation
       await _updateChallengePool(participation.challengeId);
 
-      logger.debug('FirebaseChallengeRepository: Saved participation for user ${participation.userId} in challenge ${participation.challengeId}');
+      // logger.debug('FirebaseChallengeRepository: Saved participation for user ${participation.userId} in challenge ${participation.challengeId}');
       return Result.success(participationWithId);
     } catch (e, stackTrace) {
       logger.error('FirebaseChallengeRepository: Error saving participation', error: e, stackTrace: stackTrace);
@@ -281,7 +281,7 @@ class FirebaseChallengeRepository implements ChallengeRepository {
   @override
   Future<Result<void>> deleteParticipation(String challengeId, String userId) async {
     try {
-      logger.debug('FirebaseChallengeRepository: Deleting participation for user $userId in challenge $challengeId');
+      // logger.debug('FirebaseChallengeRepository: Deleting participation for user $userId in challenge $challengeId');
       
       await _firestore
           .collection(_challengesCollection)
@@ -293,7 +293,7 @@ class FirebaseChallengeRepository implements ChallengeRepository {
       // Update challenge total pool after deleting participation
       await _updateChallengePool(challengeId);
       
-      logger.debug('FirebaseChallengeRepository: Deleted participation for user $userId');
+      // logger.debug('FirebaseChallengeRepository: Deleted participation for user $userId');
       return Result.success(null);
     } catch (e, stackTrace) {
       logger.error('FirebaseChallengeRepository: Error deleting participation', error: e, stackTrace: stackTrace);
@@ -303,7 +303,7 @@ class FirebaseChallengeRepository implements ChallengeRepository {
 
   @override
   Stream<Result<List<UserChallengeParticipation>>> watchChallengeParticipations(String challengeId) {
-    logger.debug('FirebaseChallengeRepository: Starting to watch participations for challenge $challengeId');
+    // logger.debug('FirebaseChallengeRepository: Starting to watch participations for challenge $challengeId');
     
     return _firestore
         .collection(_challengesCollection)
@@ -312,13 +312,13 @@ class FirebaseChallengeRepository implements ChallengeRepository {
         .snapshots()
         .map((snapshot) {
       try {
-        logger.debug('FirebaseChallengeRepository: Received participations snapshot with ${snapshot.docs.length} participants');
+        // logger.debug('FirebaseChallengeRepository: Received participations snapshot with ${snapshot.docs.length} participants');
         
         final participations = snapshot.docs
             .map((doc) => UserChallengeParticipationModel.fromFirestore(doc).toEntity())
             .toList();
             
-        logger.debug('FirebaseChallengeRepository: Converted ${participations.length} participations');
+        // logger.debug('FirebaseChallengeRepository: Converted ${participations.length} participations');
         return Result.success(participations);
       } catch (e, stackTrace) {
         logger.error('FirebaseChallengeRepository: Error in watchChallengeParticipations', error: e, stackTrace: stackTrace);
@@ -329,7 +329,7 @@ class FirebaseChallengeRepository implements ChallengeRepository {
 
   @override
   Stream<Result<UserChallengeParticipation?>> watchUserParticipation(String challengeId, String userId) {
-    logger.debug('FirebaseChallengeRepository: Starting to watch user participation for user $userId in challenge $challengeId');
+    // logger.debug('FirebaseChallengeRepository: Starting to watch user participation for user $userId in challenge $challengeId');
     
     return _firestore
         .collection(_challengesCollection)
@@ -340,12 +340,12 @@ class FirebaseChallengeRepository implements ChallengeRepository {
         .map((doc) {
       try {
         if (!doc.exists) {
-          logger.debug('FirebaseChallengeRepository: No participation document exists for user $userId');
+          // logger.debug('FirebaseChallengeRepository: No participation document exists for user $userId');
           return Result.success(null);
         }
         
         final participation = UserChallengeParticipationModel.fromFirestore(doc).toEntity();
-        logger.debug('FirebaseChallengeRepository: Received participation update for user $userId with status ${participation.status}');
+        // logger.debug('FirebaseChallengeRepository: Received participation update for user $userId with status ${participation.status}');
         return Result.success(participation);
       } catch (e, stackTrace) {
         logger.error('FirebaseChallengeRepository: Error in watchUserParticipation', error: e, stackTrace: stackTrace);
@@ -377,7 +377,7 @@ class FirebaseChallengeRepository implements ChallengeRepository {
   @override
   Future<Result<Challenge>> cancelChallenge(String challengeId) async {
     try {
-      logger.debug('FirebaseChallengeRepository: Cancelling challenge $challengeId');
+      // logger.debug('FirebaseChallengeRepository: Cancelling challenge $challengeId');
       
       final challengeResult = await getChallenge(challengeId);
       if (challengeResult.isFailure) {
@@ -387,14 +387,14 @@ class FirebaseChallengeRepository implements ChallengeRepository {
       final challenge = challengeResult.valueOrNull!;
       
       // Delete all proof submissions for this challenge
-      logger.debug('FirebaseChallengeRepository: Deleting proofs for cancelled challenge $challengeId');
+      // logger.debug('FirebaseChallengeRepository: Deleting proofs for cancelled challenge $challengeId');
       final deleteProofsResult = await _proofRepository.deleteProofsForChallenge(challengeId);
       if (deleteProofsResult.isFailure) {
         logger.error('FirebaseChallengeRepository: Failed to delete proofs for challenge $challengeId');
         // Log the error but continue with challenge cancellation
         // This ensures the challenge is still cancelled even if proof deletion fails
       } else {
-        logger.debug('FirebaseChallengeRepository: Successfully deleted proofs for challenge $challengeId');
+        // logger.debug('FirebaseChallengeRepository: Successfully deleted proofs for challenge $challengeId');
       }
       
       // Update challenge status to cancelled
@@ -405,7 +405,7 @@ class FirebaseChallengeRepository implements ChallengeRepository {
 
       final updateResult = await updateChallenge(updatedChallenge);
       if (updateResult.isSuccess) {
-        logger.debug('FirebaseChallengeRepository: Successfully cancelled challenge $challengeId');
+        // logger.debug('FirebaseChallengeRepository: Successfully cancelled challenge $challengeId');
       }
       
       return updateResult;
@@ -418,7 +418,7 @@ class FirebaseChallengeRepository implements ChallengeRepository {
   /// Updates the challenge's total pool by calculating sum of all participant wagers
   Future<void> _updateChallengePool(String challengeId) async {
     try {
-      logger.debug('FirebaseChallengeRepository: Updating total pool for challenge $challengeId');
+      // logger.debug('FirebaseChallengeRepository: Updating total pool for challenge $challengeId');
       
       // Get all participants for this challenge
       final participantsSnapshot = await _firestore
@@ -445,7 +445,7 @@ class FirebaseChallengeRepository implements ChallengeRepository {
             'updatedAt': Timestamp.fromDate(DateTime.now()),
           });
 
-      logger.debug('FirebaseChallengeRepository: Updated total pool to \$${totalPool.toStringAsFixed(2)} for challenge $challengeId');
+      // logger.debug('FirebaseChallengeRepository: Updated total pool to \$${totalPool.toStringAsFixed(2)} for challenge $challengeId');
     } catch (e, stackTrace) {
       logger.error('FirebaseChallengeRepository: Error updating challenge pool', error: e, stackTrace: stackTrace);
       // Don't throw - this is a background operation that shouldn't fail the main operation

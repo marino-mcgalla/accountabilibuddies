@@ -1,0 +1,19 @@
+{
+  "indexes": [
+    {
+      "collectionGroup": "proofSubmissions",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "challengeIds",
+          "arrayConfig": "CONTAINS"
+        },
+        {
+          "fieldPath": "submissionDate",
+          "order": "DESCENDING"
+        }
+      ]
+    }
+  ],
+  "fieldOverrides": []
+}

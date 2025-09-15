@@ -16,19 +16,19 @@ final goalsProvider = StreamProvider<List<Goal>>((ref) {
   final repository = ref.watch(goalRepositoryProvider);
   final user = ref.watch(userProvider);
   
-  logger.debug('GoalsProvider: user = ${user?.id}');
+  // logger.debug('GoalsProvider: user = ${user?.id}');
   
   if (user == null) {
-    logger.debug('GoalsProvider: No user, returning empty list');
+    // logger.debug('GoalsProvider: No user, returning empty list');
     return Stream.value(<Goal>[]);
   }
   
-  logger.debug('GoalsProvider: Watching goals for user ${user.id}');
+  // logger.debug('GoalsProvider: Watching goals for user ${user.id}');
   
   return repository.watchGoals(user.id).map((result) {
     return result.fold(
       onSuccess: (goals) {
-        logger.debug('GoalsProvider: Received ${goals.length} goals');
+        // logger.debug('GoalsProvider: Received ${goals.length} goals');
         return goals;
       },
       onFailure: (failure) {

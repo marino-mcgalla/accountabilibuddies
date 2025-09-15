@@ -856,7 +856,7 @@ class _ProofStoryViewerState extends ConsumerState<ProofStoryViewer>
   String _formatDate(DateTime dateTime) {
     final weekdays = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
     final weekday = weekdays[dateTime.weekday % 7];
-    return '$weekday, ${dateTime.day}/${dateTime.month}/${dateTime.year}';
+    return '$weekday, ${dateTime.month}/${dateTime.day}/${dateTime.year}';
   }
 
   ({String name, String description}) _getGoalInfoForProof(ProofSubmission proof, WidgetRef ref) {

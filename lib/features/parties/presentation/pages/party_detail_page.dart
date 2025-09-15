@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'dart:async';
 import '../../../../core/core.dart';
 import '../../../../core/navigation/app_routes.dart';
+import '../../../../core/services/notification_service.dart';
 import '../../../auth/models/user_model.dart';
 import '../../../auth/providers/auth_provider.dart';
 import '../../../challenges/presentation/pages/create_challenge_page.dart';
@@ -47,6 +49,49 @@ class _PartyDetailPageState extends ConsumerState<PartyDetailPage> with SingleTi
   void dispose() {
     _tabController?.dispose();
     super.dispose();
+  }
+
+  void _sendTestNotification() {
+    final notificationService = ref.read(notificationServiceProvider);
+    
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Test notification scheduled for 10 seconds...'),
+        duration: Duration(seconds: 2),
+      ),
+    );
+    
+    Timer(const Duration(seconds: 10), () async {
+      final result = await notificationService.sendNotification(
+        AppNotification(
+          id: 'test_notification_${DateTime.now().millisecondsSinceEpoch}',
+          type: NotificationType.challengeCreated,
+          title: 'Test Notification',
+          body: 'This is a test notification to verify PWA notifications are working!',
+          recipients: [ref.read(userProvider)?.id ?? 'unknown'],
+          data: {
+            'test': true,
+            'timestamp': DateTime.now().toIso8601String(),
+          },
+        ),
+      );
+      
+      result.fold(
+        onSuccess: (_) {
+          // Notification sent successfully
+        },
+        onFailure: (error) {
+          if (context.mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('Failed to send notification: $error'),
+                backgroundColor: Colors.red,
+              ),
+            );
+          }
+        },
+      );
+    });
   }
 
   Widget _buildPartyTitle(Party currentParty, AsyncValue<List<Party>> partiesAsync) {
@@ -371,6 +416,11 @@ class _PartyDetailPageState extends ConsumerState<PartyDetailPage> with SingleTi
         if (isLeader) {
           // Party Leader View - with tabs
           return Scaffold(
+            floatingActionButton: FloatingActionButton(
+              onPressed: _sendTestNotification,
+              backgroundColor: Theme.of(context).colorScheme.primary.withOpacity(0.8),
+              child: const Icon(Icons.notifications_outlined),
+            ),
             body: Column(
               children: [
                 // Custom header with party switcher and menu

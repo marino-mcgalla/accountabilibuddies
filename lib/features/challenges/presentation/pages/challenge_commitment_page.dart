@@ -304,7 +304,7 @@ class _ChallengeCommitmentPageState extends ConsumerState<ChallengeCommitmentPag
         metadata: {},
       );
 
-      logger.debug('Creating participation for user ${user.id} in challenge ${widget.challenge.id} with ${goalsMap.length} goals');
+      // logger.debug('Creating participation for user ${user.id} in challenge ${widget.challenge.id} with ${goalsMap.length} goals');
       final participationResult = await challengeRepository.saveParticipation(participation);
       
       if (participationResult.isFailure) {
@@ -312,7 +312,7 @@ class _ChallengeCommitmentPageState extends ConsumerState<ChallengeCommitmentPag
       }
 
       final savedParticipation = participationResult.valueOrNull!;
-      logger.debug('Participation created with ID: ${savedParticipation.id}');
+      // logger.debug('Participation created with ID: ${savedParticipation.id}');
 
       if (mounted) {
         Navigator.of(context).pop(true); // Return true to indicate success
@@ -385,7 +385,7 @@ class _ChallengeCommitmentPageState extends ConsumerState<ChallengeCommitmentPag
           // Delete the participation (goals are embedded, so they get deleted automatically)
           await challengeRepository.deleteParticipation(widget.challenge.id, user.id);
           
-          logger.debug('Removed participation for user ${user.id}');
+          // logger.debug('Removed participation for user ${user.id}');
         }
         
         if (mounted) {

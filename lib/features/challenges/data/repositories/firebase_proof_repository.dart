@@ -15,7 +15,7 @@ class FirebaseProofRepository implements ProofRepository {
   @override
   Future<Result<ProofSubmission>> submitProof(ProofSubmission proof) async {
     try {
-      logger.debug('FirebaseProofRepository: Submitting proof for user ${proof.userId}');
+      // logger.debug('FirebaseProofRepository: Submitting proof for user ${proof.userId}');
       
       final docRef = _firestore.collection(_proofsCollection).doc();
       final proofWithId = proof.copyWith(
@@ -27,7 +27,7 @@ class FirebaseProofRepository implements ProofRepository {
       final proofModel = ProofSubmissionModel.fromEntity(proofWithId);
       await docRef.set(proofModel.toFirestore());
 
-      logger.debug('FirebaseProofRepository: Proof submitted successfully with ID ${proofWithId.id}');
+      // logger.debug('FirebaseProofRepository: Proof submitted successfully with ID ${proofWithId.id}');
       return Result.success(proofWithId);
     } catch (e, stackTrace) {
       logger.error('FirebaseProofRepository: Error submitting proof', error: e, stackTrace: stackTrace);
@@ -56,7 +56,7 @@ class FirebaseProofRepository implements ProofRepository {
   @override
   Future<Result<List<ProofSubmission>>> getProofsForChallenge(String challengeId) async {
     try {
-      logger.debug('FirebaseProofRepository: Getting proofs for challenge $challengeId');
+      // logger.debug('FirebaseProofRepository: Getting proofs for challenge $challengeId');
       
       // Query all proofs and filter by challenge ID in the challengeGoalStates
       final querySnapshot = await _firestore
@@ -69,7 +69,7 @@ class FirebaseProofRepository implements ProofRepository {
           .where((proof) => proof.challengeIds.contains(challengeId))
           .toList();
 
-      logger.debug('FirebaseProofRepository: Retrieved ${proofs.length} proofs for challenge');
+      // logger.debug('FirebaseProofRepository: Retrieved ${proofs.length} proofs for challenge');
       return Result.success(proofs);
     } catch (e, stackTrace) {
       logger.error('FirebaseProofRepository: Error getting proofs for challenge', error: e, stackTrace: stackTrace);
@@ -80,7 +80,7 @@ class FirebaseProofRepository implements ProofRepository {
   @override
   Future<Result<List<ProofSubmission>>> getProofsForParticipant(String participationId) async {
     try {
-      logger.debug('FirebaseProofRepository: Getting proofs for participant $participationId');
+      // logger.debug('FirebaseProofRepository: Getting proofs for participant $participationId');
       
       // Query all proofs and filter by participation ID in the challengeGoalStates
       final querySnapshot = await _firestore
@@ -93,7 +93,7 @@ class FirebaseProofRepository implements ProofRepository {
           .where((proof) => proof.challengeGoalStates.values.any((state) => state.participationId == participationId))
           .toList();
 
-      logger.debug('FirebaseProofRepository: Retrieved ${proofs.length} proofs for participant');
+      // logger.debug('FirebaseProofRepository: Retrieved ${proofs.length} proofs for participant');
       return Result.success(proofs);
     } catch (e, stackTrace) {
       logger.error('FirebaseProofRepository: Error getting proofs for participant', error: e, stackTrace: stackTrace);
@@ -104,7 +104,7 @@ class FirebaseProofRepository implements ProofRepository {
   @override
   Future<Result<List<ProofSubmission>>> getProofsForUser(String userId) async {
     try {
-      logger.debug('FirebaseProofRepository: Getting proofs for user $userId');
+      // logger.debug('FirebaseProofRepository: Getting proofs for user $userId');
       
       final querySnapshot = await _firestore
           .collection(_proofsCollection)
@@ -116,7 +116,7 @@ class FirebaseProofRepository implements ProofRepository {
           .map((doc) => ProofSubmissionModel.fromFirestore(doc).toEntity())
           .toList();
 
-      logger.debug('FirebaseProofRepository: Retrieved ${proofs.length} proofs for user');
+      // logger.debug('FirebaseProofRepository: Retrieved ${proofs.length} proofs for user');
       return Result.success(proofs);
     } catch (e, stackTrace) {
       logger.error('FirebaseProofRepository: Error getting proofs for user', error: e, stackTrace: stackTrace);
@@ -127,7 +127,7 @@ class FirebaseProofRepository implements ProofRepository {
   @override
   Future<Result<List<ProofSubmission>>> getPendingProofs(String challengeId) async {
     try {
-      logger.debug('FirebaseProofRepository: Getting pending proofs for challenge $challengeId');
+      // logger.debug('FirebaseProofRepository: Getting pending proofs for challenge $challengeId');
       
       // Query all proofs and filter for those with pending status for this challenge
       final querySnapshot = await _firestore
@@ -143,7 +143,7 @@ class FirebaseProofRepository implements ProofRepository {
           })
           .toList();
 
-      logger.debug('FirebaseProofRepository: Retrieved ${proofs.length} pending proofs');
+      // logger.debug('FirebaseProofRepository: Retrieved ${proofs.length} pending proofs');
       return Result.success(proofs);
     } catch (e, stackTrace) {
       logger.error('FirebaseProofRepository: Error getting pending proofs', error: e, stackTrace: stackTrace);
@@ -154,7 +154,7 @@ class FirebaseProofRepository implements ProofRepository {
   @override
   Future<Result<Map<String, List<ProofSubmission>>>> getPendingProofsByUser(String challengeId) async {
     try {
-      logger.debug('FirebaseProofRepository: Getting pending proofs by user for challenge $challengeId');
+      // logger.debug('FirebaseProofRepository: Getting pending proofs by user for challenge $challengeId');
       
       final proofResult = await getPendingProofs(challengeId);
       if (proofResult.isFailure) {
@@ -172,7 +172,7 @@ class FirebaseProofRepository implements ProofRepository {
         proofsByUser[userId]!.add(proof);
       }
 
-      logger.debug('FirebaseProofRepository: Retrieved pending proofs for ${proofsByUser.length} users');
+      // logger.debug('FirebaseProofRepository: Retrieved pending proofs for ${proofsByUser.length} users');
       return Result.success(proofsByUser);
     } catch (e, stackTrace) {
       logger.error('FirebaseProofRepository: Error getting pending proofs by user', error: e, stackTrace: stackTrace);
@@ -183,7 +183,7 @@ class FirebaseProofRepository implements ProofRepository {
   @override
   Future<Result<ProofSubmission>> updateProofStatusFor(String proofId, String challengeId, String goalTemplateId, ProofStatus status) async {
     try {
-      logger.debug('FirebaseProofRepository: Updating proof $proofId status to ${status.name} for challenge $challengeId goal $goalTemplateId');
+      // logger.debug('FirebaseProofRepository: Updating proof $proofId status to ${status.name} for challenge $challengeId goal $goalTemplateId');
       
       final proofResult = await getProof(proofId);
       if (proofResult.isFailure) {
@@ -222,7 +222,7 @@ class FirebaseProofRepository implements ProofRepository {
   @override
   Future<Result<ProofSubmission>> addProofApprovalFor(String proofId, String challengeId, String goalTemplateId, ProofApproval approval) async {
     try {
-      logger.debug('FirebaseProofRepository: Adding approval to proof $proofId for challenge $challengeId goal $goalTemplateId');
+      // logger.debug('FirebaseProofRepository: Adding approval to proof $proofId for challenge $challengeId goal $goalTemplateId');
       
       final proofResult = await getProof(proofId);
       if (proofResult.isFailure) {
@@ -235,7 +235,7 @@ class FirebaseProofRepository implements ProofRepository {
 
       await _firestore.collection(_proofsCollection).doc(proofId).set(updatedModel.toFirestore());
 
-      logger.debug('FirebaseProofRepository: Added approval to proof $proofId');
+      // logger.debug('FirebaseProofRepository: Added approval to proof $proofId');
       return Result.success(updatedProof);
     } catch (e, stackTrace) {
       logger.error('FirebaseProofRepository: Error adding proof approval', error: e, stackTrace: stackTrace);
@@ -246,7 +246,7 @@ class FirebaseProofRepository implements ProofRepository {
   @override
   Future<Result<ProofSubmission>> markProofAsViewedFor(String proofId, String challengeId, String goalTemplateId, String userId) async {
     try {
-      logger.debug('FirebaseProofRepository: Marking proof $proofId as viewed by $userId for challenge $challengeId goal $goalTemplateId');
+      // logger.debug('FirebaseProofRepository: Marking proof $proofId as viewed by $userId for challenge $challengeId goal $goalTemplateId');
       
       final proofResult = await getProof(proofId);
       if (proofResult.isFailure) {
@@ -264,7 +264,7 @@ class FirebaseProofRepository implements ProofRepository {
       final updatedModel = ProofSubmissionModel.fromEntity(updatedProof);
       await _firestore.collection(_proofsCollection).doc(proofId).set(updatedModel.toFirestore());
 
-      logger.debug('FirebaseProofRepository: Marked proof $proofId as viewed by $userId');
+      // logger.debug('FirebaseProofRepository: Marked proof $proofId as viewed by $userId');
       return Result.success(updatedProof);
     } catch (e, stackTrace) {
       logger.error('FirebaseProofRepository: Error marking proof as viewed', error: e, stackTrace: stackTrace);
@@ -355,22 +355,107 @@ class FirebaseProofRepository implements ProofRepository {
   @override
   Future<Result<void>> deleteProof(String proofId) async {
     try {
-      logger.debug('FirebaseProofRepository: Deleting proof $proofId');
+      // logger.debug('FirebaseProofRepository: Deleting proof $proofId');
       
+      // First, get the proof to find out what challenge/goal it belongs to
+      final proofDoc = await _firestore.collection(_proofsCollection).doc(proofId).get();
+      if (!proofDoc.exists) {
+        return Result.failure(NotFoundFailure(message: 'Proof not found: $proofId'));
+      }
+      
+      final proof = ProofSubmissionModel.fromFirestore(proofDoc).toEntity();
+      
+      // Delete the proof document
       await _firestore.collection(_proofsCollection).doc(proofId).delete();
       
-      logger.debug('FirebaseProofRepository: Deleted proof $proofId');
+      // If the proof was approved, we need to remove the completion from the user's participation
+      if (proof.challengeGoalStates.isNotEmpty) {
+        for (final entry in proof.challengeGoalStates.entries) {
+          // Parse the key to get challengeId and goalTemplateId
+          final parts = entry.key.split(':');
+          if (parts.length == 2 && entry.value.status == ProofStatus.approved) {
+            final challengeId = parts[0];
+            final goalTemplateId = parts[1];
+            final dateString = _formatDateForCompletion(proof.submissionDate);
+            
+            // Update the user's participation to remove this date from completedDates
+            await _removeCompletionFromParticipation(
+              challengeId: challengeId,
+              userId: proof.userId,
+              goalTemplateId: goalTemplateId,
+              dateString: dateString,
+            );
+          }
+        }
+      }
+      
+      // logger.debug('FirebaseProofRepository: Deleted proof $proofId and updated completions');
       return Result.success(null);
     } catch (e, stackTrace) {
       logger.error('FirebaseProofRepository: Error deleting proof', error: e, stackTrace: stackTrace);
       return Result.failure(_mapException(e, stackTrace));
     }
   }
+  
+  String _formatDateForCompletion(DateTime date) {
+    return '${date.year.toString().padLeft(4, '0')}-'
+           '${date.month.toString().padLeft(2, '0')}-'
+           '${date.day.toString().padLeft(2, '0')}';
+  }
+  
+  Future<void> _removeCompletionFromParticipation({
+    required String challengeId,
+    required String userId,
+    required String goalTemplateId,
+    required String dateString,
+  }) async {
+    try {
+      // Get the participation document
+      final participationRef = _firestore
+          .collection('challenges')
+          .doc(challengeId)
+          .collection('participations')
+          .doc(userId);
+      
+      final participationDoc = await participationRef.get();
+      if (!participationDoc.exists) return;
+      
+      final data = participationDoc.data()!;
+      final goals = data['goals'] as Map<String, dynamic>? ?? {};
+      
+      if (goals.containsKey(goalTemplateId)) {
+        final goalData = goals[goalTemplateId] as Map<String, dynamic>;
+        final completedDates = List<String>.from(goalData['completedDates'] ?? []);
+        
+        // Remove the date if it exists
+        if (completedDates.contains(dateString)) {
+          completedDates.remove(dateString);
+          
+          // Update the goal's completedDates
+          goals[goalTemplateId] = {
+            ...goalData,
+            'completedDates': completedDates,
+          };
+          
+          // Update the participation document
+          await participationRef.update({
+            'goals': goals,
+            'updatedAt': FieldValue.serverTimestamp(),
+          });
+          
+          logger.info('Removed completion date $dateString from goal $goalTemplateId for user $userId');
+        }
+      }
+    } catch (e) {
+      logger.error('Error removing completion from participation', error: e);
+      // Don't fail the whole operation if this update fails
+    }
+  }
 
   @override
   Future<Result<void>> deleteProofsForChallenge(String challengeId) async {
     try {
-      logger.debug('FirebaseProofRepository: Deleting all proofs for challenge $challengeId');
+      // logger.debug('FirebaseProofRepository: Deleting all proofs for challenge $challengeId');
       
       // Get all proofs and filter client-side since challengeId is now stored in challengeGoalStates map
       final querySnapshot = await _firestore
@@ -386,10 +471,10 @@ class FirebaseProofRepository implements ProofRepository {
           .where((proof) => proof.challengeIds.contains(challengeId))
           .toList();
       
-      logger.debug('FirebaseProofRepository: Found ${challengeProofsToDelete.length} proofs to delete (out of ${allProofs.length} total proofs)');
+      // logger.debug('FirebaseProofRepository: Found ${challengeProofsToDelete.length} proofs to delete (out of ${allProofs.length} total proofs)');
       
       if (challengeProofsToDelete.isEmpty) {
-        logger.debug('FirebaseProofRepository: No proofs found for challenge $challengeId');
+        // logger.debug('FirebaseProofRepository: No proofs found for challenge $challengeId');
         return Result.success(null);
       }
       
@@ -402,7 +487,7 @@ class FirebaseProofRepository implements ProofRepository {
       
       await batch.commit();
       
-      logger.debug('FirebaseProofRepository: Successfully deleted ${challengeProofsToDelete.length} proofs for challenge $challengeId');
+      // logger.debug('FirebaseProofRepository: Successfully deleted ${challengeProofsToDelete.length} proofs for challenge $challengeId');
       return Result.success(null);
     } catch (e, stackTrace) {
       logger.error('FirebaseProofRepository: Error deleting proofs for challenge', error: e, stackTrace: stackTrace);
@@ -412,39 +497,47 @@ class FirebaseProofRepository implements ProofRepository {
 
   @override
   Stream<Result<List<ProofSubmission>>> watchProofsForChallenge(String challengeId) {
-    logger.debug('FirebaseProofRepository: Starting to watch proofs for challenge $challengeId');
+    // logger.debug('FirebaseProofRepository: Starting to watch proofs for challenge $challengeId');
     
-    // Since challengeId is now stored in challengeGoalStates map, we need to query all proofs
-    // and filter client-side. For better performance, we could create a composite index later.
+    // Temporarily revert to client-side filtering until index is ready
+    // TODO: Once index is built, uncomment the optimized query below
     return _firestore
         .collection(_proofsCollection)
         .orderBy('submissionDate', descending: true)
         .snapshots()
         .map((snapshot) {
       try {
-        logger.debug('FirebaseProofRepository: Received proofs snapshot with ${snapshot.docs.length} total proofs');
+        // logger.debug('FirebaseProofRepository: Received snapshot with ${snapshot.docs.length} total documents');
         
         final allProofs = snapshot.docs
             .map((doc) => ProofSubmissionModel.fromFirestore(doc).toEntity())
             .toList();
-        
-        // Filter by challenge ID using the new structure
+            
+        // Filter by challenge ID client-side
         final challengeProofs = allProofs
             .where((proof) => proof.challengeIds.contains(challengeId))
             .toList();
             
-        logger.debug('FirebaseProofRepository: Filtered to ${challengeProofs.length} proofs for challenge $challengeId');
+        // logger.debug('FirebaseProofRepository: Returning ${challengeProofs.length} proofs for challenge $challengeId');
         return Result.success(challengeProofs);
       } catch (e, stackTrace) {
         logger.error('FirebaseProofRepository: Error in watchProofsForChallenge', error: e, stackTrace: stackTrace);
         return Result.failure(_mapException(e, stackTrace));
       }
     });
+    
+    // Optimized query with server-side filtering (uncomment when index is ready):
+    // return _firestore
+    //     .collection(_proofsCollection)
+    //     .where('challengeIds', arrayContains: challengeId)
+    //     .orderBy('submissionDate', descending: true)
+    //     .snapshots()
+    //     .map((snapshot) { ... });
   }
 
   @override
   Stream<Result<List<ProofSubmission>>> watchPendingProofs(String challengeId) {
-    logger.debug('FirebaseProofRepository: Starting to watch pending proofs for challenge $challengeId');
+    // logger.debug('FirebaseProofRepository: Starting to watch pending proofs for challenge $challengeId');
     
     // Query all proofs and filter client-side for pending status in specific challenge
     return _firestore
@@ -453,7 +546,7 @@ class FirebaseProofRepository implements ProofRepository {
         .snapshots()
         .map((snapshot) {
       try {
-        logger.debug('FirebaseProofRepository: Received proofs snapshot with ${snapshot.docs.length} total proofs');
+        // logger.debug('FirebaseProofRepository: Received proofs snapshot with ${snapshot.docs.length} total proofs');
         
         final allProofs = snapshot.docs
             .map((doc) => ProofSubmissionModel.fromFirestore(doc).toEntity())
@@ -466,7 +559,7 @@ class FirebaseProofRepository implements ProofRepository {
           );
         }).toList();
             
-        logger.debug('FirebaseProofRepository: Filtered to ${pendingProofs.length} pending proofs for challenge $challengeId');
+        // logger.debug('FirebaseProofRepository: Filtered to ${pendingProofs.length} pending proofs for challenge $challengeId');
         return Result.success(pendingProofs);
       } catch (e, stackTrace) {
         logger.error('FirebaseProofRepository: Error in watchPendingProofs', error: e, stackTrace: stackTrace);
@@ -477,7 +570,7 @@ class FirebaseProofRepository implements ProofRepository {
 
   @override
   Stream<Result<Map<String, List<ProofSubmission>>>> watchPendingProofsByUser(String challengeId) {
-    logger.debug('FirebaseProofRepository: Starting to watch pending proofs by user for challenge $challengeId');
+    // logger.debug('FirebaseProofRepository: Starting to watch pending proofs by user for challenge $challengeId');
     
     return watchPendingProofs(challengeId).map((result) {
       if (result.isFailure) {

@@ -93,7 +93,7 @@ class FirebaseGoalRepository implements GoalRepository {
   @override
   Future<Result<Goal>> createGoal(Goal goal) async {
     try {
-      logger.debug('FirebaseGoalRepository: Creating goal "${goal.title}" for user ${goal.userId}');
+      // logger.debug('FirebaseGoalRepository: Creating goal "${goal.title}" for user ${goal.userId}');
       
       final batch = _firestore.batch();
       
@@ -105,12 +105,12 @@ class FirebaseGoalRepository implements GoalRepository {
         updatedAt: DateTime.now(),
       );
       
-      logger.debug('FirebaseGoalRepository: Goal will be saved with ID ${goalWithId.id}');
+      // logger.debug('FirebaseGoalRepository: Goal will be saved with ID ${goalWithId.id}');
       
       final goalModel = GoalModel.fromEntity(goalWithId);
       final goalData = goalModel.toFirestore();
       
-      logger.debug('FirebaseGoalRepository: Goal data: $goalData');
+      // logger.debug('FirebaseGoalRepository: Goal data: $goalData');
       
       batch.set(goalRef, goalData);
 
@@ -120,7 +120,7 @@ class FirebaseGoalRepository implements GoalRepository {
       
       await batch.commit();
       
-      logger.debug('FirebaseGoalRepository: Goal created successfully with ID ${goalWithId.id}');
+      // logger.debug('FirebaseGoalRepository: Goal created successfully with ID ${goalWithId.id}');
       return Result.success(goalWithId);
     } catch (e, stackTrace) {
       logger.error('FirebaseGoalRepository: Error creating goal', error: e, stackTrace: stackTrace);
@@ -213,7 +213,7 @@ class FirebaseGoalRepository implements GoalRepository {
 
   @override
   Stream<Result<List<Goal>>> watchGoals(String userId) {
-    logger.debug('FirebaseGoalRepository: Starting to watch goals for user $userId');
+    // logger.debug('FirebaseGoalRepository: Starting to watch goals for user $userId');
     
     return _firestore
         .collection(_collection)
@@ -221,16 +221,16 @@ class FirebaseGoalRepository implements GoalRepository {
         .snapshots()
         .map((snapshot) {
       try {
-        logger.debug('FirebaseGoalRepository: Received snapshot with ${snapshot.docs.length} documents');
+        // logger.debug('FirebaseGoalRepository: Received snapshot with ${snapshot.docs.length} documents');
         
         final goals = snapshot.docs
             .map((doc) {
-              logger.debug('FirebaseGoalRepository: Processing document ${doc.id}');
+              // logger.debug('FirebaseGoalRepository: Processing document ${doc.id}');
               return GoalModel.fromFirestore(doc).toEntity();
             })
             .toList();
             
-        logger.debug('FirebaseGoalRepository: Converted ${goals.length} goals');
+        // logger.debug('FirebaseGoalRepository: Converted ${goals.length} goals');
         return Result.success(goals);
       } catch (e, stackTrace) {
         logger.error('FirebaseGoalRepository: Error in watchGoals', error: e, stackTrace: stackTrace);

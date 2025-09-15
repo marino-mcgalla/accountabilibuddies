@@ -53,12 +53,12 @@ class ChallengeGoalProgressWidget extends ConsumerWidget {
                   ).toList();
                   
                   // Debug logging
-                  logger.debug('ChallengeGoalProgress: Goal ${goal.name} (${goal.templateId})');
-                  logger.debug('ChallengeGoalProgress: Found ${goalProofs.length} proofs for this goal');
-                  for (final proof in goalProofs) {
-                    final state = proof.getStateFor(challenge.id, goal.templateId);
-                    logger.debug('ChallengeGoalProgress: Proof ${proof.id} status: ${state?.status}');
-                  }
+                  // logger.debug('ChallengeGoalProgress: Goal ${goal.name} (${goal.templateId})');
+                  // logger.debug('ChallengeGoalProgress: Found ${goalProofs.length} proofs for this goal');
+                  // for (final proof in goalProofs) {
+                  //   final state = proof.getStateFor(challenge.id, goal.templateId);
+                  //   logger.debug('ChallengeGoalProgress: Proof ${proof.id} status: ${state?.status}');
+                  // }
                   
                   return _buildGoalProgressRow(context, goal, goalProofs);
                 }),
@@ -143,7 +143,7 @@ class ChallengeGoalProgressWidget extends ConsumerWidget {
       // If the most recent proof is from a previous week, show that week instead
       if (proofStartOfWeek.isBefore(startOfWeek)) {
         startOfWeek = proofStartOfWeek;
-        logger.debug('Adjusted week to include recent proofs: $startOfWeek');
+        // logger.debug('Adjusted week to include recent proofs: $startOfWeek');
       }
     }
     
@@ -174,7 +174,7 @@ class ChallengeGoalProgressWidget extends ConsumerWidget {
                   });
                   
                   final circleColor = _getDayCircleColor(context, isCompleted, hasProofForThisDay, goalProofs, dayDateString, goal);
-                  logger.debug('Day $dayIndex ($dayDateString): color = $circleColor, hasProof = $hasProofForThisDay, isCompleted = $isCompleted');
+                  // logger.debug('Day $dayIndex ($dayDateString): color = $circleColor, hasProof = $hasProofForThisDay, isCompleted = $isCompleted');
                   
                   return Padding(
                     padding: EdgeInsets.only(left: dayIndex > 0 ? 1 : 0),
@@ -316,46 +316,47 @@ class ChallengeGoalProgressWidget extends ConsumerWidget {
     // Get proofs for this specific day
     final dayProofs = goalProofs.where((proof) {
       final proofDate = _formatDateForCompletion(proof.submissionDate);
-      logger.debug('Comparing proof date $proofDate with day date $dayDateString');
+      // logger.debug('Comparing proof date $proofDate with day date $dayDateString');
       return proofDate == dayDateString;
     }).toList();
     
-    logger.debug('Day $dayDateString: found ${dayProofs.length} proofs, isCompleted=$isCompleted, hasProof=$hasProof');
+    // logger.debug('Day $dayDateString: found ${dayProofs.length} proofs, isCompleted=$isCompleted, hasProof=$hasProof');
     
     // If there are proofs for this day, show proof status color
     if (dayProofs.isNotEmpty) {
       // Check proof status for this day using specific challenge/goal
-      logger.debug('Checking proofs for day $dayDateString: ${dayProofs.length} proofs found');
+      // logger.debug('Checking proofs for day $dayDateString: ${dayProofs.length} proofs found');
       
-      for (final proof in dayProofs) {
-        final state = proof.getStateFor(challenge.id, goal.templateId);
-        logger.debug('Proof ${proof.id}: state exists: ${state != null}, status: ${state?.status}');
-        logger.debug('Proof ${proof.id} submission date: ${proof.submissionDate}');
-      }
+      // for (final proof in dayProofs) {
+      //   final state = proof.getStateFor(challenge.id, goal.templateId);
+      //   logger.debug('Proof ${proof.id}: state exists: ${state != null}, status: ${state?.status}');
+      //   logger.debug('Proof ${proof.id} submission date: ${proof.submissionDate}');
+      // }
       
       if (dayProofs.any((proof) => proof.isApprovedFor(challenge.id, goal.templateId))) {
-        logger.debug('Found approved proof for day $dayDateString - returning GREEN');
+        // logger.debug('Found approved proof for day $dayDateString - returning GREEN');
         return Colors.green; // Approved proof
       } else if (dayProofs.any((proof) => proof.isPendingFor(challenge.id, goal.templateId))) {
-        logger.debug('Found pending proof for day $dayDateString - returning ORANGE');
+        // logger.debug('Found pending proof for day $dayDateString - returning ORANGE');
         return Colors.orange; // Pending approval - YELLOW/ORANGE indicator
       } else if (dayProofs.any((proof) {
         final state = proof.getStateFor(challenge.id, goal.templateId);
         return state?.status == ProofStatus.disputed;
       })) {
-        logger.debug('Found disputed proof for day $dayDateString - returning RED');
+        // logger.debug('Found disputed proof for day $dayDateString - returning RED');
         return Colors.red; // Disputed
       }
     }
     
-    // If completed but no proof
+    // If marked as completed but no proof found - this shouldn't happen
+    // Show purple to indicate inconsistent state
     if (isCompleted) {
-      logger.debug('Day $dayDateString is completed but no proof - returning PRIMARY');
+      // logger.debug('Day $dayDateString is completed but no proof - returning PRIMARY (inconsistent state)');
       return Theme.of(context).colorScheme.primary;
     }
     
     // Not completed and no proof
-    logger.debug('Day $dayDateString not completed and no proof - returning TRANSPARENT');
+    // logger.debug('Day $dayDateString not completed and no proof - returning TRANSPARENT');
     return Colors.transparent;
   }
 

@@ -260,7 +260,7 @@ class AuthController extends StateNotifier<AuthState> {
           isOnboarded: true,
         );
         
-        logger.debug('AuthController: User marked as onboarded and saved to Firebase');
+        // logger.debug('AuthController: User marked as onboarded and saved to Firebase');
       } catch (e, stackTrace) {
         logger.error('AuthController: Failed to mark user as onboarded', error: e, stackTrace: stackTrace);
         // Still update local state even if Firebase update fails

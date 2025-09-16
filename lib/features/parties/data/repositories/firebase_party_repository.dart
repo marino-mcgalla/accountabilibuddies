@@ -19,7 +19,7 @@ class FirebasePartyRepository implements PartyRepository {
   @override
   Future<Result<List<Party>>> getParties(String userId) async {
     try {
-      logger.debug('FirebasePartyRepository: Getting parties for user $userId');
+      // logger.debug('FirebasePartyRepository: Getting parties for user $userId');
       
       final querySnapshot = await _firestore
           .collection(_collection)
@@ -31,7 +31,7 @@ class FirebasePartyRepository implements PartyRepository {
           .map((doc) => PartyModel.fromFirestore(doc).toEntity())
           .toList();
 
-      logger.debug('FirebasePartyRepository: Retrieved ${parties.length} parties');
+      // logger.debug('FirebasePartyRepository: Retrieved ${parties.length} parties');
       return Result.success(parties);
     } catch (e, stackTrace) {
       logger.error('FirebasePartyRepository: Error getting parties', error: e, stackTrace: stackTrace);
@@ -60,7 +60,7 @@ class FirebasePartyRepository implements PartyRepository {
   @override
   Future<Result<Party>> createParty(Party party) async {
     try {
-      logger.debug('FirebasePartyRepository: Creating party "${party.name}" for user ${party.ownerId}');
+      // logger.debug('FirebasePartyRepository: Creating party "${party.name}" for user ${party.ownerId}');
       
       final docRef = _firestore.collection(_collection).doc();
       final partyWithId = party.copyWith(
@@ -72,7 +72,7 @@ class FirebasePartyRepository implements PartyRepository {
       final partyModel = PartyModel.fromEntity(partyWithId);
       await docRef.set(partyModel.toFirestore());
 
-      logger.debug('FirebasePartyRepository: Party created successfully with ID ${partyWithId.id}');
+      // logger.debug('FirebasePartyRepository: Party created successfully with ID ${partyWithId.id}');
       return Result.success(partyWithId);
     } catch (e, stackTrace) {
       logger.error('FirebasePartyRepository: Error creating party', error: e, stackTrace: stackTrace);
@@ -110,7 +110,7 @@ class FirebasePartyRepository implements PartyRepository {
   @override
   Future<Result<Party>> joinParty(String userId, String inviteCode) async {
     try {
-      logger.debug('FirebasePartyRepository: User $userId joining party with code $inviteCode');
+      // logger.debug('FirebasePartyRepository: User $userId joining party with code $inviteCode');
       
       // Find party by invite code
       final partyResult = await getPartyByInviteCode(inviteCode);
@@ -122,7 +122,7 @@ class FirebasePartyRepository implements PartyRepository {
       
       // Check if user is already a member
       if (party.isMember(userId)) {
-        logger.debug('FirebasePartyRepository: User $userId already a member of party ${party.id}');
+        // logger.debug('FirebasePartyRepository: User $userId already a member of party ${party.id}');
         return Result.success(party);
       }
 
@@ -138,7 +138,7 @@ class FirebasePartyRepository implements PartyRepository {
         return Result.failure(updateResult.failureOrNull!);
       }
 
-      logger.debug('FirebasePartyRepository: User $userId successfully joined party ${party.id}');
+      // logger.debug('FirebasePartyRepository: User $userId successfully joined party ${party.id}');
       return Result.success(updatedParty);
     } catch (e, stackTrace) {
       logger.error('FirebasePartyRepository: Error joining party', error: e, stackTrace: stackTrace);
@@ -241,7 +241,7 @@ class FirebasePartyRepository implements PartyRepository {
 
   @override
   Stream<Result<List<Party>>> watchParties(String userId) {
-    logger.debug('FirebasePartyRepository: Starting to watch parties for user $userId');
+    // logger.debug('FirebasePartyRepository: Starting to watch parties for user $userId');
     
     return _firestore
         .collection(_collection)
@@ -250,16 +250,16 @@ class FirebasePartyRepository implements PartyRepository {
         .snapshots()
         .map((snapshot) {
       try {
-        logger.debug('FirebasePartyRepository: Received snapshot with ${snapshot.docs.length} parties');
+        // logger.debug('FirebasePartyRepository: Received snapshot with ${snapshot.docs.length} parties');
         
         final parties = snapshot.docs
             .map((doc) {
-              logger.debug('FirebasePartyRepository: Processing party ${doc.id}');
+              // logger.debug('FirebasePartyRepository: Processing party ${doc.id}');
               return PartyModel.fromFirestore(doc).toEntity();
             })
             .toList();
             
-        logger.debug('FirebasePartyRepository: Converted ${parties.length} parties');
+        // logger.debug('FirebasePartyRepository: Converted ${parties.length} parties');
         return Result.success(parties);
       } catch (e, stackTrace) {
         logger.error('FirebasePartyRepository: Error in watchParties', error: e, stackTrace: stackTrace);
@@ -318,7 +318,7 @@ class FirebasePartyRepository implements PartyRepository {
     required String inviteeEmail,
   }) async {
     try {
-      logger.debug('FirebasePartyRepository: Sending invite from $inviterUserId to $inviteeEmail for party $partyId');
+      // logger.debug('FirebasePartyRepository: Sending invite from $inviterUserId to $inviteeEmail for party $partyId');
       
       // Get party details
       final partyResult = await getParty(partyId);
@@ -363,7 +363,7 @@ class FirebasePartyRepository implements PartyRepository {
       final inviteModel = PartyInviteModel.fromEntity(invite);
       await docRef.set(inviteModel.toFirestore());
       
-      logger.debug('FirebasePartyRepository: Invite sent successfully with ID ${invite.id}');
+      // logger.debug('FirebasePartyRepository: Invite sent successfully with ID ${invite.id}');
       return Result.success(invite);
     } catch (e, stackTrace) {
       logger.error('FirebasePartyRepository: Error sending invite', error: e, stackTrace: stackTrace);
@@ -455,7 +455,7 @@ class FirebasePartyRepository implements PartyRepository {
       // Delete the invitation since it's been successfully accepted
       try {
         await _firestore.collection(_invitesCollection).doc(inviteId).delete();
-        logger.debug('FirebasePartyRepository: Deleted accepted invitation $inviteId');
+        // logger.debug('FirebasePartyRepository: Deleted accepted invitation $inviteId');
       } catch (e) {
         // Log but don't fail the operation since the user was successfully added to the party
         logger.warning('FirebasePartyRepository: Failed to delete accepted invitation $inviteId: $e');
@@ -489,7 +489,7 @@ class FirebasePartyRepository implements PartyRepository {
       
       // Delete the invitation instead of updating it since declined invites don't need to be kept
       await _firestore.collection(_invitesCollection).doc(inviteId).delete();
-      logger.debug('FirebasePartyRepository: Deleted declined invitation $inviteId');
+      // logger.debug('FirebasePartyRepository: Deleted declined invitation $inviteId');
       
       return Result.success(null);
     } catch (e, stackTrace) {
@@ -518,7 +518,7 @@ class FirebasePartyRepository implements PartyRepository {
       
       if (expiredInvitesQuery.docs.isNotEmpty) {
         await batch.commit();
-        logger.debug('FirebasePartyRepository: Cleaned up ${expiredInvitesQuery.docs.length} expired invitations');
+        // logger.debug('FirebasePartyRepository: Cleaned up ${expiredInvitesQuery.docs.length} expired invitations');
       }
       
       return Result.success(expiredInvitesQuery.docs.length);

@@ -15,19 +15,19 @@ final goalTemplatesProvider = StreamProvider<List<GoalTemplate>>((ref) {
   final repository = ref.watch(goalTemplateRepositoryProvider);
   final user = ref.watch(userProvider);
   
-  logger.debug('GoalTemplatesProvider: user = ${user?.id}');
+  // logger.debug('GoalTemplatesProvider: user = ${user?.id}');
   
   if (user == null) {
-    logger.debug('GoalTemplatesProvider: No user, returning empty list');
+    // logger.debug('GoalTemplatesProvider: No user, returning empty list');
     return Stream.value(<GoalTemplate>[]);
   }
   
-  logger.debug('GoalTemplatesProvider: Watching templates for user ${user.id}');
+  // logger.debug('GoalTemplatesProvider: Watching templates for user ${user.id}');
   
   return repository.watchTemplates(user.id).map((result) {
     return result.fold(
       onSuccess: (templates) {
-        logger.debug('GoalTemplatesProvider: Received ${templates.length} templates');
+        // logger.debug('GoalTemplatesProvider: Received ${templates.length} templates');
         return templates;
       },
       onFailure: (failure) {

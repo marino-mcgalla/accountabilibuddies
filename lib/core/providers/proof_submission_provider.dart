@@ -113,9 +113,119 @@ class ProofSubmissionService {
   }
 
   Future<void> _openCamera(BuildContext context) async {
-    // For now, just open the multi-goal submission (camera functionality would need to be extracted)
-    // This is a simplified version - the full camera implementation would need to be moved here
-    await _showMultiGoalSubmission(context, null);
+    try {
+      final ImagePicker picker = ImagePicker();
+      final XFile? photo = await picker.pickImage(
+        source: ImageSource.camera,
+        imageQuality: 85,
+      );
+      
+      if (photo != null && context.mounted) {
+        final bytes = await photo.readAsBytes();
+        if (context.mounted) {
+          if (kIsWeb) {
+            // Convert bytes to blob for web
+            final blob = html.Blob([bytes], 'image/jpeg');
+            await _showMultiGoalSubmission(context, blob);
+          } else {
+            await _showMultiGoalSubmission(context, bytes);
+          }
+        }
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to open camera: $e')),
+        );
+      }
+    }
+  }
+  
+  Future<void> _showCameraOverlay(BuildContext context, html.MediaStream stream) async {
+    // Create camera overlay UI
+    final container = html.DivElement()
+      ..style.position = 'fixed'
+      ..style.top = '0'
+      ..style.left = '0'
+      ..style.width = '100vw'
+      ..style.height = '100vh'
+      ..style.backgroundColor = 'black'
+      ..style.zIndex = '9999'
+      ..style.display = 'flex'
+      ..style.flexDirection = 'column'
+      ..style.justifyContent = 'center'
+      ..style.alignItems = 'center';
+    
+    final video = html.VideoElement()
+      ..autoplay = true
+      ..style.width = '100%'
+      ..style.height = '100%'
+      ..style.objectFit = 'cover';
+    
+    final canvas = html.CanvasElement()
+      ..style.display = 'none';
+    
+    final buttonContainer = html.DivElement()
+      ..style.position = 'absolute'
+      ..style.bottom = '20px'
+      ..style.display = 'flex'
+      ..style.gap = '20px';
+    
+    final captureButton = html.ButtonElement()
+      ..text = 'Capture'
+      ..style.padding = '12px 24px'
+      ..style.backgroundColor = 'white'
+      ..style.border = 'none'
+      ..style.borderRadius = '6px'
+      ..style.fontSize = '16px';
+    
+    final cancelButton = html.ButtonElement()
+      ..text = 'Cancel'
+      ..style.padding = '12px 24px'
+      ..style.backgroundColor = 'rgba(255,255,255,0.3)'
+      ..style.color = 'white'
+      ..style.border = '1px solid white'
+      ..style.borderRadius = '6px'
+      ..style.fontSize = '16px';
+    
+    buttonContainer.children.addAll([cancelButton, captureButton]);
+    container.children.addAll([video, canvas, buttonContainer]);
+    html.document.body?.append(container);
+    
+    // Start video stream
+    video.srcObject = stream;
+    await video.play();
+    
+    // Handle capture button
+    captureButton.onClick.listen((event) async {
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+      canvas.context2D.drawImage(video, 0, 0);
+      
+      canvas.toBlob('image/jpeg', 0.85).then((blob) async {
+        // Stop camera and cleanup
+        final tracks = stream.getVideoTracks();
+        for (var track in tracks) {
+          track.stop();
+        }
+        container.remove();
+        
+        // Show multi-goal submission with captured image
+        if (context.mounted) {
+          await _showMultiGoalSubmission(context, blob);
+        }
+      });
+    });
+    
+    // Handle cancel button
+    cancelButton.onClick.listen((event) {
+      // Stop camera and cleanup
+      final tracks = stream.getVideoTracks();
+      for (var track in tracks) {
+        track.stop();
+      }
+      container.remove();
+    });
   }
 
   Future<void> _openGallery(BuildContext context) async {
@@ -128,12 +238,14 @@ class ProofSubmissionService {
       
       if (photo != null && context.mounted) {
         final bytes = await photo.readAsBytes();
-        if (kIsWeb) {
-          // Convert bytes to blob for web - same as dashboard
-          final blob = html.Blob([bytes], 'image/jpeg');
-          await _showMultiGoalSubmission(context, blob);
-        } else {
-          await _showMultiGoalSubmission(context, bytes);
+        if (context.mounted) {
+          if (kIsWeb) {
+            // Convert bytes to blob for web - same as dashboard
+            final blob = html.Blob([bytes], 'image/jpeg');
+            await _showMultiGoalSubmission(context, blob);
+          } else {
+            await _showMultiGoalSubmission(context, bytes);
+          }
         }
       }
     } catch (e) {

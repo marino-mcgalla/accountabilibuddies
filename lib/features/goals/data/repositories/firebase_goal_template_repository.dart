@@ -15,7 +15,7 @@ class FirebaseGoalTemplateRepository implements GoalTemplateRepository {
   @override
   Future<Result<List<GoalTemplate>>> getTemplates(String userId) async {
     try {
-      logger.debug('FirebaseGoalTemplateRepository: Getting templates for user $userId');
+      // logger.debug('FirebaseGoalTemplateRepository: Getting templates for user $userId');
       
       final querySnapshot = await _firestore
           .collection(_collection)
@@ -27,7 +27,7 @@ class FirebaseGoalTemplateRepository implements GoalTemplateRepository {
           .map((doc) => GoalTemplateModel.fromFirestore(doc).toEntity())
           .toList();
 
-      logger.debug('FirebaseGoalTemplateRepository: Retrieved ${templates.length} templates');
+      // logger.debug('FirebaseGoalTemplateRepository: Retrieved ${templates.length} templates');
       return Result.success(templates);
     } catch (e, stackTrace) {
       logger.error('FirebaseGoalTemplateRepository: Error getting templates', error: e, stackTrace: stackTrace);
@@ -103,7 +103,7 @@ class FirebaseGoalTemplateRepository implements GoalTemplateRepository {
   @override
   Future<Result<GoalTemplate>> createTemplate(GoalTemplate template) async {
     try {
-      logger.debug('FirebaseGoalTemplateRepository: Creating template "${template.title}" for user ${template.userId}');
+      // logger.debug('FirebaseGoalTemplateRepository: Creating template "${template.title}" for user ${template.userId}');
       
       final docRef = _firestore.collection(_collection).doc();
       final templateWithId = template.copyWith(
@@ -115,7 +115,7 @@ class FirebaseGoalTemplateRepository implements GoalTemplateRepository {
       final templateModel = GoalTemplateModel.fromEntity(templateWithId);
       await docRef.set(templateModel.toFirestore());
 
-      logger.debug('FirebaseGoalTemplateRepository: Template created successfully with ID ${templateWithId.id}');
+      // logger.debug('FirebaseGoalTemplateRepository: Template created successfully with ID ${templateWithId.id}');
       return Result.success(templateWithId);
     } catch (e, stackTrace) {
       logger.error('FirebaseGoalTemplateRepository: Error creating template', error: e, stackTrace: stackTrace);
@@ -218,7 +218,7 @@ class FirebaseGoalTemplateRepository implements GoalTemplateRepository {
 
   @override
   Stream<Result<List<GoalTemplate>>> watchTemplates(String userId) {
-    logger.debug('FirebaseGoalTemplateRepository: Starting to watch templates for user $userId');
+    // logger.debug('FirebaseGoalTemplateRepository: Starting to watch templates for user $userId');
     
     return _firestore
         .collection(_collection)
@@ -226,16 +226,16 @@ class FirebaseGoalTemplateRepository implements GoalTemplateRepository {
         .snapshots()
         .map((snapshot) {
       try {
-        logger.debug('FirebaseGoalTemplateRepository: Received snapshot with ${snapshot.docs.length} templates');
+        // logger.debug('FirebaseGoalTemplateRepository: Received snapshot with ${snapshot.docs.length} templates');
         
         final templates = snapshot.docs
             .map((doc) {
-              logger.debug('FirebaseGoalTemplateRepository: Processing template ${doc.id}');
+              // logger.debug('FirebaseGoalTemplateRepository: Processing template ${doc.id}');
               return GoalTemplateModel.fromFirestore(doc).toEntity();
             })
             .toList();
             
-        logger.debug('FirebaseGoalTemplateRepository: Converted ${templates.length} templates');
+        // logger.debug('FirebaseGoalTemplateRepository: Converted ${templates.length} templates');
         return Result.success(templates);
       } catch (e, stackTrace) {
         logger.error('FirebaseGoalTemplateRepository: Error in watchTemplates', error: e, stackTrace: stackTrace);

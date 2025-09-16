@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'dart:async';
+import 'dart:html' as html if (dart.library.html) 'dart:html';
 import '../../../../core/core.dart';
 import '../../../../core/navigation/app_routes.dart';
 import '../../../auth/models/user_model.dart';
@@ -47,6 +50,145 @@ class _PartyDetailPageState extends ConsumerState<PartyDetailPage> with SingleTi
   void dispose() {
     _tabController?.dispose();
     super.dispose();
+  }
+
+  void _sendTestNotification() async {
+    // Check if notifications are supported
+    if (!kIsWeb) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Notifications are only supported in web browsers'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      return;
+    }
+
+    try {
+      // Check if notifications are supported in this browser
+      if (html.Notification.supported == false) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Notifications are not supported in this browser'),
+            backgroundColor: Colors.red,
+          ),
+        );
+        return;
+      }
+
+      // Check current permission status
+      final permission = html.Notification.permission;
+      
+      if (permission == 'denied') {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Notification permissions are denied. Please enable them in browser settings.'),
+            backgroundColor: Colors.red,
+            duration: Duration(seconds: 4),
+          ),
+        );
+        return;
+      }
+      
+      if (permission == 'default') {
+        // Request permission
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Requesting notification permissions...'),
+            duration: Duration(seconds: 2),
+          ),
+        );
+        
+        final requestResult = await html.Notification.requestPermission();
+        
+        if (requestResult != 'granted') {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Notification permission denied'),
+              backgroundColor: Colors.red,
+            ),
+          );
+          return;
+        }
+      }
+      
+      // If we get here, we have permission
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Test notification scheduled for 10 seconds...'),
+          duration: Duration(seconds: 2),
+        ),
+      );
+      
+      Timer(const Duration(seconds: 10), () async {
+        try {
+          // Check if service worker is available
+          if (html.window.navigator.serviceWorker != null) {
+            // Wait for service worker to be ready
+            final registration = await html.window.navigator.serviceWorker!.ready;
+            
+            // Use Service Worker for PWA notifications (works on Android)
+            await registration.showNotification('Test Notification', {
+              'body': 'This is a test notification to verify PWA notifications are working!',
+              'icon': '/icons/Icon-192.png',
+              'badge': '/icons/Icon-192.png',
+              'tag': 'test_notification',
+              'requireInteraction': false,
+              'silent': false,
+              'timestamp': DateTime.now().millisecondsSinceEpoch,
+            });
+            
+            if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('PWA notification sent via Service Worker!'),
+                  backgroundColor: Colors.green,
+                ),
+              );
+            }
+          } else {
+            // Fallback to direct notification for desktop browsers
+            final notification = html.Notification(
+              'Test Notification',
+              body: 'This is a test notification to verify PWA notifications are working!',
+              icon: '/icons/Icon-192.png',
+              tag: 'test_notification',
+            );
+            
+            // Auto-close after 5 seconds
+            Timer(const Duration(seconds: 5), () {
+              notification.close();
+            });
+            
+            if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('Browser notification sent!'),
+                  backgroundColor: Colors.green,
+                ),
+              );
+            }
+          }
+        } catch (e) {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('Failed to send notification: $e'),
+                backgroundColor: Colors.red,
+              ),
+            );
+          }
+        }
+      });
+      
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error with notifications: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
   }
 
   Widget _buildPartyTitle(Party currentParty, AsyncValue<List<Party>> partiesAsync) {
@@ -371,6 +513,11 @@ class _PartyDetailPageState extends ConsumerState<PartyDetailPage> with SingleTi
         if (isLeader) {
           // Party Leader View - with tabs
           return Scaffold(
+            floatingActionButton: FloatingActionButton(
+              onPressed: _sendTestNotification,
+              backgroundColor: Theme.of(context).colorScheme.primary.withOpacity(0.8),
+              child: const Icon(Icons.notifications_outlined),
+            ),
             body: Column(
               children: [
                 // Custom header with party switcher and menu

@@ -99,10 +99,10 @@ class ProofApprovalService {
         return Result.failure(saveResult.failureOrNull!);
       }
 
-      logger.debug(
-        'ProofApprovalService: Updated goal completion for user ${approvedProof.userId}, '
-        'goal ${approvedProof.goalTemplateId}, date $completionDate',
-      );
+      // logger.debug(
+      //   'ProofApprovalService: Updated goal completion for user ${approvedProof.userId}, '
+      //   'goal ${approvedProof.goalTemplateId}, date $completionDate',
+      // );
 
       return Result.success(null);
     } catch (e, stackTrace) {
@@ -169,10 +169,10 @@ class ProofApprovalService {
         return Result.failure(saveResult.failureOrNull!);
       }
 
-      logger.debug(
-        'ProofApprovalService: Removed goal completion for user ${proof.userId}, '
-        'goal ${proof.goalTemplateId}, date $completionDate',
-      );
+      // logger.debug(
+      //   'ProofApprovalService: Removed goal completion for user ${proof.userId}, '
+      //   'goal ${proof.goalTemplateId}, date $completionDate',
+      // );
 
       return Result.success(null);
     } catch (e, stackTrace) {

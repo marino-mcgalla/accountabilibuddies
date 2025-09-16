@@ -17,19 +17,19 @@ final partiesProvider = StreamProvider<List<Party>>((ref) {
   final repository = ref.watch(partyRepositoryProvider);
   final user = ref.watch(userProvider);
   
-  logger.debug('PartiesProvider: user = ${user?.id}');
+  // logger.debug('PartiesProvider: user = ${user?.id}');
   
   if (user == null) {
-    logger.debug('PartiesProvider: No user, returning empty list');
+    // logger.debug('PartiesProvider: No user, returning empty list');
     return Stream.value(<Party>[]);
   }
   
-  logger.debug('PartiesProvider: Watching parties for user ${user.id}');
+  // logger.debug('PartiesProvider: Watching parties for user ${user.id}');
   
   return repository.watchParties(user.id).map((result) {
     return result.fold(
       onSuccess: (parties) {
-        logger.debug('PartiesProvider: Received ${parties.length} parties');
+        // logger.debug('PartiesProvider: Received ${parties.length} parties');
         return parties;
       },
       onFailure: (failure) {
@@ -58,7 +58,7 @@ final pendingInvitesProvider = StreamProvider<List<PartyInvite>>((ref) {
   final user = ref.watch(userProvider);
   
   if (user == null) {
-    logger.debug('PendingInvitesProvider: No user found');
+    // logger.debug('PendingInvitesProvider: No user found');
     return Stream.value(<PartyInvite>[]);
   }
   
@@ -79,7 +79,7 @@ final sentInvitesProvider = StreamProvider<List<PartyInvite>>((ref) {
   final user = ref.watch(userProvider);
   
   if (user == null) {
-    logger.debug('SentInvitesProvider: No user found');
+    // logger.debug('SentInvitesProvider: No user found');
     return Stream.value(<PartyInvite>[]);
   }
   

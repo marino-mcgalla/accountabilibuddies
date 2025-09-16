@@ -95,15 +95,15 @@ class FirebaseAuthRepository implements AuthRepository {
       };
 
       await _firestore.collection('users').doc(credential.user!.uid).set(userDoc);
-      logger.debug('FirebaseAuthRepository: Firestore user document created successfully');
+      // logger.debug('FirebaseAuthRepository: Firestore user document created successfully');
 
       // Send email verification
-      logger.debug('FirebaseAuthRepository: Sending email verification');
+      // logger.debug('FirebaseAuthRepository: Sending email verification');
       await credential.user!.sendEmailVerification();
 
-      logger.debug('FirebaseAuthRepository: Creating UserModel from Firebase user');
+      // logger.debug('FirebaseAuthRepository: Creating UserModel from Firebase user');
       final user = await _mapFirebaseUserToUserModel(credential.user!);
-      logger.debug('FirebaseAuthRepository: Sign up completed successfully');
+      // logger.debug('FirebaseAuthRepository: Sign up completed successfully');
       return Result.success(user);
     } on FirebaseAuthException catch (e, stackTrace) {
       logger.error('FirebaseAuthRepository: Firebase Auth error during sign up', error: e, stackTrace: stackTrace);
@@ -376,8 +376,8 @@ class FirebaseAuthRepository implements AuthRepository {
 
   // Helper methods
   Future<UserModel> _mapFirebaseUserToUserModel(User user) async {
-    print('🔍 AuthRepository._mapFirebaseUserToUserModel called for user: ${user.uid}');
-    print('🔑 Firebase Auth displayName: "${user.displayName}"');
+    // print('🔍 AuthRepository._mapFirebaseUserToUserModel called for user: ${user.uid}');
+    // print('🔑 Firebase Auth displayName: "${user.displayName}"');
     
     // Get additional user data from Firestore
     Map<String, dynamic>? firestoreData;
@@ -385,22 +385,22 @@ class FirebaseAuthRepository implements AuthRepository {
       final doc = await _firestore.collection('users').doc(user.uid).get();
       if (doc.exists) {
         firestoreData = doc.data();
-        print('📊 Firestore data in auth repo: $firestoreData');
+        // print('📊 Firestore data in auth repo: $firestoreData');
       } else {
-        print('📄 No Firestore document found for user');
+        // print('📄 No Firestore document found for user');
       }
     } catch (e) {
-      print('❌ Error fetching Firestore data in auth repo: $e');
+      // print('❌ Error fetching Firestore data in auth repo: $e');
       // If Firestore data retrieval fails, we'll use Firebase Auth data only
     }
 
     final firestoreDisplayName = firestoreData?['displayName'] as String?;
-    print('🔄 Firestore displayName: "$firestoreDisplayName" (is null: ${firestoreDisplayName == null}, is empty: ${firestoreDisplayName?.isEmpty})');
+    // print('🔄 Firestore displayName: "$firestoreDisplayName" (is null: ${firestoreDisplayName == null}, is empty: ${firestoreDisplayName?.isEmpty}');
     
     final finalDisplayName = (firestoreDisplayName != null && firestoreDisplayName.isNotEmpty) 
         ? firestoreDisplayName 
         : user.displayName;
-    print('✅ Final displayName for UserModel: "$finalDisplayName"');
+    // print('✅ Final displayName for UserModel: "$finalDisplayName"');
 
     return UserModel(
       id: user.uid,

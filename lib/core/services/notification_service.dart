@@ -1,4 +1,10 @@
 import '../core.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+/// Provider for the notification service
+final notificationServiceProvider = Provider<NotificationService>((ref) {
+  return InAppNotificationService();
+});
 
 /// Types of notifications that can be sent
 enum NotificationType {

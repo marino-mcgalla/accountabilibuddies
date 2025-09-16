@@ -113,84 +113,30 @@ class ProofSubmissionService {
   }
 
   Future<void> _openCamera(BuildContext context) async {
-    if (kIsWeb) {
-      try {
-        // Check if MediaDevices API is available
-        final mediaDevices = html.window.navigator.mediaDevices;
-        final isHttps = html.window.location.protocol == 'https:';
-        final isLocalhost = html.window.location.hostname == 'localhost' || 
-                           html.window.location.hostname == '127.0.0.1';
-        
-        // Fall back to image picker if camera API won't work
-        if (mediaDevices == null || (!isHttps && !isLocalhost)) {
-          final ImagePicker picker = ImagePicker();
-          final XFile? photo = await picker.pickImage(
-            source: ImageSource.camera,
-            imageQuality: 85,
-          );
-          
-          if (photo != null && context.mounted) {
-            final bytes = await photo.readAsBytes();
-            if (context.mounted) {
-              final blob = html.Blob([bytes], 'image/jpeg');
-              await _showMultiGoalSubmission(context, blob);
-            }
-          }
-          return;
-        }
-        
-        // Use MediaDevices API for live camera access
-        final constraints = {
-          'video': {
-            'facingMode': 'environment', // Start with rear camera
-          },
-          'audio': false
-        };
-        
-        final stream = await mediaDevices.getUserMedia(constraints);
-        
-        // Create camera UI overlay
-        await _showCameraOverlay(context, stream);
-        
-      } catch (e) {
-        // Fall back to image picker if camera access fails
+    try {
+      final ImagePicker picker = ImagePicker();
+      final XFile? photo = await picker.pickImage(
+        source: ImageSource.camera,
+        imageQuality: 85,
+      );
+      
+      if (photo != null && context.mounted) {
+        final bytes = await photo.readAsBytes();
         if (context.mounted) {
-          final ImagePicker picker = ImagePicker();
-          final XFile? photo = await picker.pickImage(
-            source: ImageSource.camera,
-            imageQuality: 85,
-          );
-          
-          if (photo != null && context.mounted) {
-            final bytes = await photo.readAsBytes();
-            if (context.mounted) {
-              final blob = html.Blob([bytes], 'image/jpeg');
-              await _showMultiGoalSubmission(context, blob);
-            }
-          }
-        }
-      }
-    } else {
-      // For mobile apps, use image picker normally
-      try {
-        final ImagePicker picker = ImagePicker();
-        final XFile? photo = await picker.pickImage(
-          source: ImageSource.camera,
-          imageQuality: 85,
-        );
-        
-        if (photo != null && context.mounted) {
-          final bytes = await photo.readAsBytes();
-          if (context.mounted) {
+          if (kIsWeb) {
+            // Convert bytes to blob for web
+            final blob = html.Blob([bytes], 'image/jpeg');
+            await _showMultiGoalSubmission(context, blob);
+          } else {
             await _showMultiGoalSubmission(context, bytes);
           }
         }
-      } catch (e) {
-        if (context.mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Failed to open camera: $e')),
-          );
-        }
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to open camera: $e')),
+        );
       }
     }
   }

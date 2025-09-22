@@ -28,6 +28,7 @@ import 'package:firebase_storage/firebase_storage.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:uuid/uuid.dart';
 import '../../../../core/utils/display_name_utils.dart';
+import '../providers/dismissed_challenges_provider.dart';
 
 // Provider for persisting selected party ID across navigation
 final selectedPartyIdProvider = StateProvider<String?>((ref) => null);
@@ -282,7 +283,7 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
     if (parties.isEmpty) return const SizedBox.shrink();
 
     final currentParty = _getCurrentParty(parties);
-    final currentChallengeAsync = ref.watch(currentChallengeProvider(currentParty.id));
+    final allChallengesAsync = ref.watch(partyChallengesProvider(currentParty.id));
 
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 12),
@@ -290,88 +291,192 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const SizedBox(height: 12),
-          currentChallengeAsync.when(
-            data: (challenge) {
-              if (challenge == null) {
-                return Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                  child: _buildNoChallengeState(context, currentParty),
+          allChallengesAsync.when(
+            data: (challenges) {
+              // Get dismissed challenges for filtering
+              final dismissedChallenges = ref.watch(dismissedChallengesProvider);
+              
+              // Find active and summary challenges, filtering out dismissed ones
+              final activeChallenge = challenges.where((c) => c.status == ChallengeStatus.active).firstOrNull;
+              final summaryChallenge = challenges
+                  .where((c) => c.status == ChallengeStatus.summary && !dismissedChallenges.contains(c.id))
+                  .firstOrNull;
+              
+              // Build widgets for different scenarios
+              final widgets = <Widget>[];
+              
+              // Show active challenge first if it exists
+              if (activeChallenge != null) {
+                final user = ref.watch(userProvider);
+                final participationsAsync = ref.watch(challengeParticipationsProvider(activeChallenge.id));
+                
+                widgets.add(
+                  Column(
+                    children: [
+                      // Your progress section - full width with horizontal padding
+                      Container(
+                        color: Theme.of(context).colorScheme.surface,
+                        padding: const EdgeInsets.all(16),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            participationsAsync.when(
+                              data: (participations) {
+                                final userParticipation = participations.where((p) => p.userId == user?.id).firstOrNull;
+                                final userWager = userParticipation?.wagerAmount ?? 0;
+                                final hasLockedInGoals = userParticipation?.isLockedIn ?? false;
+                                
+                                return Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    if (hasLockedInGoals) ...[
+                                      Row(
+                                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                        children: [
+                                          Text(
+                                            'Your Progress',
+                                            style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                                              fontWeight: FontWeight.bold,
+                                            ),
+                                          ),
+                                          if (userWager > 0)
+                                            Container(
+                                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                              decoration: BoxDecoration(
+                                                color: Colors.amber.withValues(alpha: 0.2),
+                                                borderRadius: BorderRadius.circular(12),
+                                              ),
+                                              child: Text(
+                                                'Your Wager: \$${userWager.toStringAsFixed(0)}',
+                                                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                                  fontWeight: FontWeight.w600,
+                                                  color: Colors.amber[700],
+                                                ),
+                                              ),
+                                            ),
+                                        ],
+                                      ),
+                                      const SizedBox(height: 8),
+                                      ChallengeGoalProgressWidget(challenge: activeChallenge),
+                                    ] else ...[
+                                      Container(
+                                        width: double.infinity,
+                                        padding: const EdgeInsets.all(24),
+                                        decoration: BoxDecoration(
+                                          color: Theme.of(context).colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
+                                          borderRadius: BorderRadius.circular(12),
+                                        ),
+                                        child: Column(
+                                          mainAxisAlignment: MainAxisAlignment.center,
+                                          crossAxisAlignment: CrossAxisAlignment.center,
+                                          children: [
+                                            Icon(
+                                              Icons.lock_outline,
+                                              size: 48,
+                                              color: Theme.of(context).colorScheme.primary,
+                                            ),
+                                            const SizedBox(height: 16),
+                                            Text(
+                                              'Set Your Goals & Wager',
+                                              textAlign: TextAlign.center,
+                                              style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                                                fontWeight: FontWeight.bold,
+                                              ),
+                                            ),
+                                            const SizedBox(height: 8),
+                                            Text(
+                                              'Lock in your goals and wager for this week to start tracking your progress.',
+                                              textAlign: TextAlign.center,
+                                              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                                color: Theme.of(context).colorScheme.onSurfaceVariant,
+                                              ),
+                                            ),
+                                            const SizedBox(height: 24),
+                                            ElevatedButton(
+                                              onPressed: () => _lockInGoals(context, activeChallenge),
+                                              style: ElevatedButton.styleFrom(
+                                                padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 16),
+                                                backgroundColor: Theme.of(context).colorScheme.primary,
+                                                foregroundColor: Theme.of(context).colorScheme.onPrimary,
+                                                elevation: 4,
+                                                shadowColor: Theme.of(context).colorScheme.primary.withValues(alpha: 0.3),
+                                                shape: RoundedRectangleBorder(
+                                                  borderRadius: BorderRadius.circular(12),
+                                                ),
+                                                minimumSize: const Size(200, 52),
+                                              ),
+                                              child: const Text(
+                                                'Lock In Goals',
+                                                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ],
+                                  ],
+                                );
+                              },
+                              loading: () => Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    'Your Progress',
+                                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 8),
+                                  const Center(child: CircularProgressIndicator()),
+                                ],
+                              ),
+                              error: (_, __) => Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    'Your Progress',
+                                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 8),
+                                  ChallengeGoalProgressWidget(challenge: activeChallenge),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      const Divider(height: 1),
+                      const SizedBox(height: 16),
+                      // All users progress section
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                        child: AllUsersProgressWidget(challenge: activeChallenge),
+                      ),
+                    ],
+                  ),
                 );
               }
               
-              // Get current user's participation for wager amount
-              final user = ref.watch(userProvider);
-              final participationsAsync = ref.watch(challengeParticipationsProvider(challenge.id));
+              // Show summary challenge last if it exists (at bottom of dashboard)
+              if (summaryChallenge != null) {
+                widgets.add(const SizedBox(height: 16));
+                widgets.add(_buildChallengeSummaryCard(context, summaryChallenge));
+              }
               
-              return Column(
-                children: [
-                  // Your progress section - full width with horizontal padding
-                  Container(
-                    color: Theme.of(context).colorScheme.surface,
-                    padding: const EdgeInsets.all(16),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        participationsAsync.when(
-                          data: (participations) {
-                            final userParticipation = participations.where((p) => p.userId == user?.id).firstOrNull;
-                            final userWager = userParticipation?.wagerAmount ?? 0;
-                            
-                            return Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                Text(
-                                  'Your Progress',
-                                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                                if (userWager > 0)
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                    decoration: BoxDecoration(
-                                      color: Colors.amber.withValues(alpha: 0.2),
-                                      borderRadius: BorderRadius.circular(12),
-                                    ),
-                                    child: Text(
-                                      'Your Wager: \$${userWager.toStringAsFixed(0)}',
-                                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                        fontWeight: FontWeight.w600,
-                                        color: Colors.amber[700],
-                                      ),
-                                    ),
-                                  ),
-                              ],
-                            );
-                          },
-                          loading: () => Text(
-                            'Your Progress',
-                            style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                          error: (_, __) => Text(
-                            'Your Progress',
-                            style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-                        ChallengeGoalProgressWidget(challenge: challenge),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  const Divider(height: 1),
-                  const SizedBox(height: 16),
-                  // All users progress section
+              // If no active or summary challenges, show no challenge state
+              if (activeChallenge == null && summaryChallenge == null) {
+                widgets.add(
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 16),
-                    child: AllUsersProgressWidget(challenge: challenge),
+                    child: _buildNoChallengeState(context, currentParty),
                   ),
-                ],
-              );
+                );
+              }
+              
+              return Column(children: widgets);
             },
             loading: () => const Center(child: CircularProgressIndicator()),
             error: (error, stack) => Padding(
@@ -384,7 +489,7 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
                     const SizedBox(height: 8),
                     const Text('Failed to load challenge status'),
                     TextButton(
-                      onPressed: () => ref.refresh(currentChallengeProvider(currentParty.id)),
+                      onPressed: () => ref.refresh(partyChallengesProvider(currentParty.id)),
                       child: const Text('Retry'),
                     ),
                   ],
@@ -393,6 +498,51 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildChallengeSummaryCard(BuildContext context, Challenge challenge) {
+    return Card(
+      margin: const EdgeInsets.symmetric(horizontal: 16),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Header with title and dismiss button
+            Row(
+              children: [
+                Text(
+                  'Previous Week',
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const Spacer(),
+                IconButton(
+                  onPressed: () => _dismissChallengeSummary(challenge.id),
+                  icon: const Icon(Icons.close),
+                  iconSize: 20,
+                  tooltip: 'Dismiss',
+                ),
+              ],
+            ),
+            const SizedBox(height: 4),
+            
+            // Challenge dates
+            Text(
+              '${_formatDate(challenge.startDate)} - ${_formatDate(challenge.endDate)}',
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7),
+              ),
+            ),
+            const SizedBox(height: 16),
+            
+            // Story circles widget
+            PartyMembersStoryCircles(challenge: challenge),
+          ],
+        ),
       ),
     );
   }
@@ -1791,6 +1941,19 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
   Widget _buildPartySwitcher(List<Party> parties) {
     if (parties.length <= 1) return const SizedBox.shrink();
     
+    // Get current selected party ID and validate it exists in the parties list
+    final selectedPartyId = ref.watch(selectedPartyIdProvider);
+    final validSelectedPartyId = parties.any((p) => p.id == selectedPartyId) 
+        ? selectedPartyId 
+        : parties.first.id;
+    
+    // Update the provider if the selected party is invalid
+    if (selectedPartyId != validSelectedPartyId) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        ref.read(selectedPartyIdProvider.notifier).state = validSelectedPartyId;
+      });
+    }
+    
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -1819,7 +1982,7 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
           Expanded(
             child: DropdownButtonHideUnderline(
               child: DropdownButton<String>(
-                value: ref.watch(selectedPartyIdProvider),
+                value: validSelectedPartyId,
                 isExpanded: true,
                 items: parties.map((party) {
                   return DropdownMenuItem<String>(
@@ -1933,6 +2096,18 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
         ],
       ),
     );
+  }
+
+  /// Format date for display (e.g., "Mon, Jan 15")
+  String _formatDate(DateTime date) {
+    final months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    final weekdays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+    return '${weekdays[date.weekday - 1]}, ${months[date.month - 1]} ${date.day}';
+  }
+
+  /// Dismiss a challenge summary card
+  void _dismissChallengeSummary(String challengeId) {
+    ref.read(dismissedChallengesProvider.notifier).dismissChallenge(challengeId);
   }
 }
 

@@ -15,6 +15,7 @@ enum NotificationType {
   commitmentDeadline,
   memberCommitted,
   memberOptedOut,
+  proofSubmitted,
 }
 
 /// Represents a notification to be sent
@@ -82,6 +83,13 @@ abstract class NotificationService {
     required String challengeId,
     required String challengeName,
     required String memberName,
+    required List<String> recipientIds,
+  });
+
+  Future<Result<void>> sendProofSubmittedNotification({
+    required String challengeId,
+    required String challengeName,
+    required String submitterName,
     required List<String> recipientIds,
   });
 }
@@ -251,6 +259,29 @@ class InAppNotificationService implements NotificationService {
         'challengeId': challengeId,
         'challengeName': challengeName,
         'memberName': memberName,
+      },
+    );
+
+    return await sendNotification(notification);
+  }
+
+  @override
+  Future<Result<void>> sendProofSubmittedNotification({
+    required String challengeId,
+    required String challengeName,
+    required String submitterName,
+    required List<String> recipientIds,
+  }) async {
+    final notification = AppNotification(
+      id: 'proof_submitted_${challengeId}_${DateTime.now().millisecondsSinceEpoch}',
+      type: NotificationType.proofSubmitted,
+      title: '📸 New Proof Submitted!',
+      body: '$submitterName just submitted proof for "$challengeName"',
+      recipients: recipientIds,
+      data: {
+        'challengeId': challengeId,
+        'challengeName': challengeName,
+        'submitterName': submitterName,
       },
     );
 

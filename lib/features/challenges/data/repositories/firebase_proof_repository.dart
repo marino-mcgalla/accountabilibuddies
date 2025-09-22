@@ -28,6 +28,10 @@ class FirebaseProofRepository implements ProofRepository {
       await docRef.set(proofModel.toFirestore());
 
       // logger.debug('FirebaseProofRepository: Proof submitted successfully with ID ${proofWithId.id}');
+      
+      // 🔔 NOTIFICATION TEST: Log proof submission for testing
+      logger.info('🔔 NOTIFICATION: Proof submitted by user ${proof.userId} for challenge(s) ${proof.challengeIds.join(", ")}');
+      
       return Result.success(proofWithId);
     } catch (e, stackTrace) {
       logger.error('FirebaseProofRepository: Error submitting proof', error: e, stackTrace: stackTrace);
